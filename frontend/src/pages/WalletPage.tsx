@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Minus, Gift, Clock, Users, ChevronRight, Send, Gamepad2, TrendingUp, Target, Wifi, Wallet } from 'lucide-react'
+import { Plus, Minus, Gift, Clock, Users, ChevronRight, Send, Gamepad2, TrendingUp, Target, Wifi, Wallet, Trophy, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { useTranslation } from '../providers/I18nProvider'
 import { getBalance, getUserProfile } from '../utils/api'
@@ -232,6 +232,32 @@ export default function WalletPage() {
             </button>
           </button>
         </div>
+
+        {/* 幸运转盘入口 */}
+        <button
+          onClick={() => { playSound('pop'); navigate('/lucky-wheel') }}
+          className="h-16 shrink-0 bg-gradient-to-r from-purple-900/20 via-pink-900/20 to-purple-900/20 border border-purple-500/30 rounded-2xl flex items-center justify-between px-4 overflow-hidden group active:scale-[0.99] transition-transform cursor-pointer shadow-lg shadow-purple-900/10 relative"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 opacity-50 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-center gap-3 relative z-10">
+            <motion.div
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center shadow-lg shadow-yellow-500/20 border border-white/10"
+            >
+              <Trophy size={18} className="text-white drop-shadow" />
+            </motion.div>
+            <div className="flex flex-col">
+              <span className="text-white font-bold text-sm">幸运转盘</span>
+              <span className="text-[10px] text-purple-300">每日免费抽奖，赢取大奖！</span>
+            </div>
+          </div>
+          <div className="relative z-10 flex items-center gap-2">
+            <Sparkles size={16} className="text-yellow-400 animate-pulse" />
+            <ChevronRight size={12} className="text-gray-400" />
+          </div>
+        </button>
+
         {/* 發紅包按鈕（長按充電效果，可拉伸） */}
         <motion.div
           animate={controls}
@@ -313,8 +339,27 @@ export default function WalletPage() {
 
         {/* 操作按鈕行 */}
         <div className="grid grid-cols-5 gap-2 shrink-0 h-14 items-center relative z-20 mt-2">
-          <ActionButton icon={Plus} label={t('recharge')} color="text-green-400" onClick={() => { playSound('click'); navigate('/recharge') }} />
-          <ActionButton icon={Minus} label={t('withdraw')} color="text-white" onClick={() => { playSound('click'); navigate('/withdraw') }} />
+          {/* 充值按钮 - 绿色渐变 */}
+          <ActionButton 
+            icon={Plus} 
+            label={t('recharge')} 
+            color="text-green-300" 
+            bgGradient="from-green-500/20 to-emerald-500/20"
+            borderColor="border-green-500/30"
+            glowColor="shadow-green-500/20"
+            onClick={() => { playSound('click'); navigate('/recharge') }} 
+          />
+          
+          {/* 提现按钮 - 蓝色渐变 */}
+          <ActionButton 
+            icon={Minus} 
+            label={t('withdraw')} 
+            color="text-blue-300" 
+            bgGradient="from-blue-500/20 to-cyan-500/20"
+            borderColor="border-blue-500/30"
+            glowColor="shadow-blue-500/20"
+            onClick={() => { playSound('click'); navigate('/withdraw') }} 
+          />
           
           {/* 遊戲按鈕（帶特效） */}
           <div
@@ -373,8 +418,27 @@ export default function WalletPage() {
             <span className="text-xs font-bold text-gray-500 group-hover:text-white transition-colors">{t('game')}</span>
           </div>
 
-          <ActionButton icon={Clock} label={t('records')} color="text-white" onClick={() => { playSound('click'); navigate('/packets') }} />
-          <ActionButton icon={TrendingUp} label={t('exchange')} color="text-white" onClick={() => playSound('click')} />
+          {/* 记录按钮 - 橙色渐变 */}
+          <ActionButton 
+            icon={Clock} 
+            label={t('records')} 
+            color="text-orange-300" 
+            bgGradient="from-orange-500/20 to-amber-500/20"
+            borderColor="border-orange-500/30"
+            glowColor="shadow-orange-500/20"
+            onClick={() => { playSound('click'); navigate('/packets') }} 
+          />
+          
+          {/* 兑换按钮 - 紫色渐变 */}
+          <ActionButton 
+            icon={TrendingUp} 
+            label={t('exchange')} 
+            color="text-purple-300" 
+            bgGradient="from-purple-500/20 to-pink-500/20"
+            borderColor="border-purple-500/30"
+            glowColor="shadow-purple-500/20"
+            onClick={() => { playSound('click'); navigate('/exchange') }} 
+          />
         </div>
 
         {/* 雷達掃描器（全寬，可拉伸） */}
@@ -676,23 +740,49 @@ export default function WalletPage() {
   )
 }
 
-function ActionButton({ icon: Icon, label, color, onClick }: {
+function ActionButton({ 
+  icon: Icon, 
+  label, 
+  color, 
+  bgGradient = "from-gray-500/10 to-gray-500/10",
+  borderColor = "border-white/5",
+  glowColor = "",
+  onClick 
+}: {
   icon: React.ElementType
   label: string
   color: string
+  bgGradient?: string
+  borderColor?: string
+  glowColor?: string
   onClick: () => void
 }) {
   return (
     <motion.button
       onClick={onClick}
-      className="flex flex-col items-center gap-1 h-full w-full bg-[#1C1C1E] rounded-xl border border-white/5 active:bg-white/5 transition-colors"
+      className={`flex flex-col items-center gap-1 h-full w-full bg-gradient-to-br ${bgGradient} rounded-xl border ${borderColor} ${glowColor} active:scale-95 transition-all relative overflow-hidden group`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
-        <Icon className={color} size={16} strokeWidth={2.5} />
-      </div>
-      <span className="text-xs text-gray-500 font-bold">{label}</span>
+      {/* 悬停光效 */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+        initial={{ x: '-100%' }}
+        whileHover={{ x: '100%' }}
+        transition={{ duration: 0.6 }}
+      />
+      
+      {/* 图标容器 - 带渐变背景 */}
+      <motion.div 
+        className={`w-9 h-9 rounded-xl bg-gradient-to-br ${bgGradient} border ${borderColor} flex items-center justify-center relative z-10`}
+        whileHover={{ rotate: [0, -10, 10, 0] }}
+        transition={{ duration: 0.5 }}
+      >
+        <Icon className={color} size={18} strokeWidth={2.5} />
+      </motion.div>
+      <span className={`text-xs font-bold text-gray-400 group-hover:${color} transition-colors relative z-10`}>
+        {label}
+      </span>
     </motion.button>
   )
 }

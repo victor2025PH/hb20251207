@@ -13,6 +13,8 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const SendRedPacket = lazy(() => import('./pages/SendRedPacket'))
 const Recharge = lazy(() => import('./pages/Recharge'))
 const Withdraw = lazy(() => import('./pages/Withdraw'))
+const ExchangePage = lazy(() => import('./pages/ExchangePage'))
+const LuckyWheelPage = lazy(() => import('./pages/LuckyWheelPage'))
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/recharge" element={<Recharge />} />
             <Route path="/withdraw" element={<Withdraw />} />
+            <Route path="/exchange" element={<ExchangePage />} />
+            <Route path="/lucky-wheel" element={<LuckyWheelPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
