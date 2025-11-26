@@ -239,7 +239,7 @@ export default function PacketsPage() {
                             ? 'bg-green-500/20 text-green-400'
                             : 'bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white'
                         }`}
-                        title="分享紅包"
+                        title={t('share_packet')}
                       >
                         <AnimatePresence mode="wait">
                           {isCopied === packet.id ? (

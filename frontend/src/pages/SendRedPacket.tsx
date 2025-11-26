@@ -47,11 +47,11 @@ export default function SendRedPacket() {
       return
     }
     if (!amount || parseFloat(amount) <= 0) {
-      showAlert('請輸入金額')
+      showAlert(t('enter_amount'))
       return
     }
     if (!quantity || parseInt(quantity) < 1) {
-      showAlert('請輸入數量')
+      showAlert(t('enter_quantity'))
       return
     }
 
@@ -91,7 +91,7 @@ export default function SendRedPacket() {
             className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl border border-white/5"
           >
             <span className={selectedChat ? 'text-white' : 'text-gray-500'}>
-              {selectedChat?.title || '點擊選擇群組'}
+              {selectedChat?.title || t('click_select_group')}
             </span>
             <ChevronDown size={18} className="text-gray-400" />
           </button>
@@ -101,7 +101,7 @@ export default function SendRedPacket() {
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium flex items-center gap-2">
             <Wallet size={16} className="text-gray-400" />
-            幣種
+            {t('currency')}
           </label>
           <div className="flex gap-2">
             {['USDT', 'TON', 'Stars'].map((c) => (
@@ -125,7 +125,7 @@ export default function SendRedPacket() {
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium flex items-center gap-2">
             <Gift size={16} className="text-gray-400" />
-            紅包類型
+            {t('packet_type')}
           </label>
           <div className="flex gap-2">
             <button
@@ -137,7 +137,7 @@ export default function SendRedPacket() {
                   : 'bg-brand-darker border-white/5 text-gray-400'
               }`}
             >
-              隨機金額
+              {t('random_amount')}
             </button>
             <button
               type="button"
@@ -148,7 +148,7 @@ export default function SendRedPacket() {
                   : 'bg-brand-darker border-white/5 text-gray-400'
               }`}
             >
-              固定金額
+              {t('fixed_amount')}
             </button>
           </div>
         </div>

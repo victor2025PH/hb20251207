@@ -101,6 +101,29 @@ const translations: Record<Language, Record<string, string>> = {
     help_center: '幫助中心',
     user_agreement: '用戶協議',
     
+    // 發紅包頁
+    click_select_group: '點擊選擇群組',
+    currency: '幣種',
+    packet_type: '紅包類型',
+    random_amount: '隨機金額',
+    fixed_amount: '固定金額',
+    enter_amount: '請輸入金額',
+    enter_quantity: '請輸入數量',
+    
+    // 兌換頁
+    currency_exchange: '幣種兌換',
+    from: '從',
+    to: '到',
+    energy: '能量',
+    exchange_rate: '匯率',
+    exchange_now: '立即兌換',
+    exchange_success: '兌換成功！',
+    exchange_desc: '兌換說明',
+    exchange_tip_1: '支持 USDT、TON、能量之間的互相兌換',
+    exchange_tip_2: '匯率實時更新，以實際兌換時為準',
+    exchange_tip_3: '兌換即時到帳，無需等待',
+    exchange_tip_4: '能量可通過簽到、邀請等方式獲得',
+    
     // 充值頁
     select_currency: '選擇幣種',
     quick_amount: '快捷金額',
@@ -243,6 +266,29 @@ const translations: Record<Language, Record<string, string>> = {
     help_center: '帮助中心',
     user_agreement: '用户协议',
     
+    // 发红包页
+    click_select_group: '点击选择群组',
+    currency: '币种',
+    packet_type: '红包类型',
+    random_amount: '随机金额',
+    fixed_amount: '固定金额',
+    enter_amount: '请输入金额',
+    enter_quantity: '请输入数量',
+    
+    // 兑换页
+    currency_exchange: '币种兑换',
+    from: '从',
+    to: '到',
+    energy: '能量',
+    exchange_rate: '汇率',
+    exchange_now: '立即兑换',
+    exchange_success: '兑换成功！',
+    exchange_desc: '兑换说明',
+    exchange_tip_1: '支持 USDT、TON、能量之间的互相兑换',
+    exchange_tip_2: '汇率实时更新，以实际兑换时为准',
+    exchange_tip_3: '兑换即时到账，无需等待',
+    exchange_tip_4: '能量可通过签到、邀请等方式获得',
+    
     // 充值页
     select_currency: '选择币种',
     quick_amount: '快捷金额',
@@ -384,6 +430,29 @@ const translations: Record<Language, Record<string, string>> = {
     security_settings: 'Security',
     help_center: 'Help Center',
     user_agreement: 'Terms of Service',
+    
+    // Send packet page
+    click_select_group: 'Click to select group',
+    currency: 'Currency',
+    packet_type: 'Packet Type',
+    random_amount: 'Random',
+    fixed_amount: 'Fixed',
+    enter_amount: 'Please enter amount',
+    enter_quantity: 'Please enter quantity',
+    
+    // Exchange page
+    currency_exchange: 'Currency Exchange',
+    from: 'From',
+    to: 'To',
+    energy: 'Energy',
+    exchange_rate: 'Rate',
+    exchange_now: 'Exchange Now',
+    exchange_success: 'Exchange successful!',
+    exchange_desc: 'Exchange Info',
+    exchange_tip_1: 'Support USDT, TON, Energy exchange',
+    exchange_tip_2: 'Real-time exchange rate',
+    exchange_tip_3: 'Instant credit, no waiting',
+    exchange_tip_4: 'Earn Energy via check-in and invite',
     
     // Recharge page
     select_currency: 'Select Currency',

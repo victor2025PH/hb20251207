@@ -55,7 +55,7 @@ export default function ExchangePage() {
     }
     playSound('success')
     // TODO: 调用兑换API
-    alert(`兑换成功！${amount} ${fromToken} = ${convertedAmount} ${toToken}`)
+    alert(`${t('exchange_success')} ${amount} ${fromToken} = ${convertedAmount} ${toToken}`)
   }
 
   const tokenConfig = {
@@ -69,14 +69,14 @@ export default function ExchangePage() {
       <div className="h-full flex flex-col p-4 pb-24 gap-4 overflow-y-auto scrollbar-hide">
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
           <ArrowRightLeft size={24} className="text-purple-400" />
-          {t('exchange') || '币种兑换'}
+          {t('currency_exchange')}
         </h1>
 
         {/* 兑换卡片 */}
         <div className="bg-[#1C1C1E] border border-white/5 rounded-3xl p-6 space-y-4">
           {/* 从 */}
           <div className="space-y-2">
-            <label className="block text-gray-300 text-sm font-medium">从</label>
+            <label className="block text-gray-300 text-sm font-medium">{t('from')}</label>
             <div className="flex gap-3">
               <div className="flex-1">
                 <input
@@ -87,7 +87,7 @@ export default function ExchangePage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold focus:outline-none focus:border-purple-500/50 transition-colors"
                 />
                 <div className="mt-1 text-xs text-gray-500">
-                  余额: {getBalanceValue(fromToken).toFixed(6)}
+                  {t('balance')}: {getBalanceValue(fromToken).toFixed(6)}
                 </div>
               </div>
               <select
@@ -101,7 +101,7 @@ export default function ExchangePage() {
               >
                 <option value="USDT">USDT</option>
                 <option value="TON">TON</option>
-                <option value="ENERGY">能量</option>
+                <option value="ENERGY">{t('energy')}</option>
               </select>
             </div>
           </div>
@@ -125,14 +125,14 @@ export default function ExchangePage() {
 
           {/* 到 */}
           <div className="space-y-2">
-            <label className="block text-gray-300 text-sm font-medium">到</label>
+            <label className="block text-gray-300 text-sm font-medium">{t('to')}</label>
             <div className="flex gap-3">
               <div className="flex-1">
                 <div className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold">
                   {convertedAmount}
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
-                  余额: {getBalanceValue(toToken).toFixed(6)}
+                  {t('balance')}: {getBalanceValue(toToken).toFixed(6)}
                 </div>
               </div>
               <select
@@ -146,14 +146,14 @@ export default function ExchangePage() {
               >
                 <option value="USDT">USDT</option>
                 <option value="TON">TON</option>
-                <option value="ENERGY">能量</option>
+                <option value="ENERGY">{t('energy')}</option>
               </select>
             </div>
           </div>
 
           {/* 汇率显示 */}
           <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 flex items-center justify-between">
-            <span className="text-xs text-gray-400">汇率</span>
+            <span className="text-xs text-gray-400">{t('exchange_rate')}</span>
             <span className="text-sm font-bold text-purple-300">
               1 {fromToken} = {rate} {toToken}
             </span>
@@ -167,18 +167,18 @@ export default function ExchangePage() {
             whileTap={{ scale: 0.98 }}
           >
             <Sparkles size={18} />
-            立即兑换
+            {t('exchange_now')}
           </motion.button>
         </div>
 
         {/* 说明 */}
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-          <h3 className="text-sm font-bold text-blue-300 mb-2">💡 兑换说明</h3>
+          <h3 className="text-sm font-bold text-blue-300 mb-2">💡 {t('exchange_desc')}</h3>
           <ul className="text-xs text-gray-400 space-y-1">
-            <li>• 支持 USDT、TON、能量之间的互相兑换</li>
-            <li>• 汇率实时更新，以实际兑换时为准</li>
-            <li>• 兑换即时到账，无需等待</li>
-            <li>• 能量可通过签到、邀请等方式获得</li>
+            <li>• {t('exchange_tip_1')}</li>
+            <li>• {t('exchange_tip_2')}</li>
+            <li>• {t('exchange_tip_3')}</li>
+            <li>• {t('exchange_tip_4')}</li>
           </ul>
         </div>
       </div>
