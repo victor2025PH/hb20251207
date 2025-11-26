@@ -8,7 +8,6 @@ import { getBalance, getUserProfile } from '../utils/api'
 import { useSound } from '../hooks/useSound'
 import TelegramStar from '../components/TelegramStar'
 import PageTransition from '../components/PageTransition'
-import AssetHeader from '../components/AssetHeader'
 
 export default function WalletPage() {
   const navigate = useNavigate()
@@ -200,13 +199,61 @@ export default function WalletPage() {
         <div className="absolute inset-0 border-2 border-emerald-500/30 rounded-3xl m-4 shadow-[0_0_30px_rgba(16,185,129,0.5)]" />
       </div>
       
-      <div className={`h-full w-full flex flex-col pb-24 gap-2 overflow-y-auto scrollbar-hide transition-all duration-500 ${
+      <div className={`h-full w-full flex flex-col pb-24 gap-2 overflow-hidden transition-all duration-500 ${
         isRadarScanning ? '[&>*]:border-cyan-500/50 [&>*]:shadow-[0_0_20px_rgba(6,182,212,0.3)]' : ''
       }`}>
-        {/* 總資產頭部（僅在首頁顯示） */}
-        <AssetHeader />
-        
-        <div className="px-3 space-y-2">
+        <div className="px-3 space-y-2 shrink-0">
+        {/* 總資產和邀請好友（並排） */}
+        <div className="flex gap-2 shrink-0">
+          {/* 總資產卡片（縮小版） */}
+          <div className="relative flex-1 bg-gradient-to-br from-cyan-900/20 via-[#1C1C1E] to-blue-900/20 border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col items-center justify-center shadow-lg group active:scale-[0.98] transition-all h-20">
+            <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-cyan-500/10 to-transparent opacity-60" />
+            <div className="z-10 flex flex-col items-center gap-0.5">
+              <span className="text-cyan-300/60 text-[8px] font-bold uppercase tracking-[0.15em] flex items-center gap-1">
+                <Wallet size={8} /> {t('total_assets')}
+              </span>
+              <span className="text-lg font-black text-white tracking-tighter drop-shadow-md">
+                {balance?.usdt?.toFixed(2) ?? '0.00'}
+              </span>
+              <div className="bg-[#0f0f11]/60 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-cyan-500/20 flex items-center gap-1 shadow-sm">
+                <motion.div
+                  className="w-1 h-1 rounded-full bg-cyan-400"
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                <span className="text-cyan-200 text-[7px] font-bold">Stars</span>
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-cyan-500/20">
+              <motion.div
+                className="h-full bg-cyan-500 shadow-[0_0_10px_cyan]"
+                initial={{ width: '0%' }}
+                animate={{ width: '45%' }}
+                transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+              />
+            </div>
+          </div>
+
+          {/* 邀請好友（縮小版） */}
+          <button
+            onClick={() => { playSound('pop'); navigate('/earn') }}
+            className="relative flex-1 h-20 bg-[#1C1C1E] border border-purple-500/20 rounded-2xl flex items-center justify-between px-3 overflow-hidden group active:scale-[0.98] transition-transform cursor-pointer shadow-lg shadow-purple-900/10"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 via-[#1C1C1E] to-pink-900/10 opacity-50 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 relative z-10">
+              <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20 border border-white/10">
+                <Users size={12} className="text-white drop-shadow" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-[10px]">{t('invite_friends')}</span>
+                <span className="text-[8px] text-purple-300">永久獲得 10% 返佣</span>
+              </div>
+            </div>
+            <button className="w-5 h-5 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 relative z-10">
+              <ChevronRight size={8} className="text-gray-400" />
+            </button>
+          </button>
+        </div>
         {/* 發紅包按鈕（長按充電效果） */}
         <motion.div
           animate={controls}
@@ -215,7 +262,7 @@ export default function WalletPage() {
           onPointerLeave={endHold}
           onContextMenu={(e) => e.preventDefault()}
           className={`
-            relative h-[22%] min-h-[150px] shrink-0 bg-[#1C1C1E] border rounded-3xl overflow-hidden flex flex-col items-center justify-center shadow-2xl cursor-pointer select-none touch-none
+            relative h-24 shrink-0 bg-[#1C1C1E] border rounded-3xl overflow-hidden flex flex-col items-center justify-center shadow-2xl cursor-pointer select-none touch-none
             ${isHolding ? 'border-orange-400 shadow-orange-500/40' : 'border-orange-500/20 shadow-orange-900/10'} transition-colors duration-300
           `}
         >
@@ -352,29 +399,57 @@ export default function WalletPage() {
           <ActionButton icon={TrendingUp} label={t('exchange')} color="text-white" onClick={() => playSound('click')} />
         </div>
 
-        {/* 邀請好友 */}
-        <button
-          onClick={() => { playSound('pop'); navigate('/earn') }}
-          className="h-12 shrink-0 bg-[#1C1C1E] border border-purple-500/20 rounded-2xl flex items-center justify-between px-3 relative overflow-hidden group active:scale-[0.99] transition-transform cursor-pointer shadow-lg shadow-purple-900/10"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/10 via-[#1C1C1E] to-pink-900/10 opacity-50 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20 border border-white/10">
-              <Users size={14} className="text-white drop-shadow" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-white font-bold text-xs">{t('invite_friends')}</span>
-              <span className="text-[9px] text-purple-300">永久獲得 10% 返佣</span>
-            </div>
+        {/* 雷達統計信息（在雷達面板上方） */}
+        <div className="flex items-center justify-center gap-3 shrink-0">
+          {/* 在線用戶 */}
+          <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full border border-emerald-500/20">
+            <motion.div
+              className={`w-1.5 h-1.5 rounded-full ${isLocked ? 'bg-white' : 'bg-emerald-500'}`}
+              animate={isRadarScanning ? {
+                scale: [1, 1.3, 1],
+                opacity: [0.7, 1, 0.7]
+              } : {}}
+              transition={{ duration: 1, repeat: Infinity }}
+            />
+            <span className="text-[9px] font-mono font-bold text-emerald-100">
+              {onlineUsers} 在線
+            </span>
           </div>
-          <button className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 relative z-10">
-            <ChevronRight size={10} className="text-gray-400" />
-          </button>
-        </button>
+          
+          {/* 附近的紅包群 */}
+          <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full border border-cyan-500/20">
+            <motion.div
+              className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+              animate={isRadarScanning ? {
+                scale: [1, 1.3, 1],
+                opacity: [0.7, 1, 0.7]
+              } : {}}
+              transition={{ duration: 1.2, repeat: Infinity, delay: 0.3 }}
+            />
+            <span className="text-[9px] font-mono font-bold text-cyan-100">
+              {nearbyPacketGroups} 紅包群
+            </span>
+          </div>
+          
+          {/* 正在遊戲的人數 */}
+          <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full border border-purple-500/20">
+            <motion.div
+              className="w-1.5 h-1.5 rounded-full bg-purple-400"
+              animate={isRadarScanning ? {
+                scale: [1, 1.3, 1],
+                opacity: [0.7, 1, 0.7]
+              } : {}}
+              transition={{ duration: 1.4, repeat: Infinity, delay: 0.6 }}
+            />
+            <span className="text-[9px] font-mono font-bold text-purple-100">
+              {activeGamePlayers} 遊戲中
+            </span>
+          </div>
+        </div>
 
         {/* 雷達掃描器（全寬） */}
         <motion.div
-          className="relative w-full flex-1 min-h-[300px] bg-[#1C1C1E] border border-emerald-500/20 rounded-3xl overflow-hidden flex flex-col items-center justify-center shadow-lg group cursor-grab active:cursor-grabbing transition-all duration-500"
+          className="relative w-full flex-1 min-h-0 bg-[#1C1C1E] border border-emerald-500/20 rounded-3xl overflow-hidden flex flex-col items-center justify-center shadow-lg group cursor-grab active:cursor-grabbing transition-all duration-500"
             onPan={handleRadarDrag}
             onContextMenu={(e) => e.preventDefault()}
             onPointerDown={startRadarScan}
@@ -423,7 +498,7 @@ export default function WalletPage() {
               </>
             )}
 
-            <div className="relative z-10 w-32 h-32 flex items-center justify-center mb-4">
+            <div className="relative z-10 w-24 h-24 flex items-center justify-center">
               {/* 外層光環（科技感） */}
               <motion.div
                 className="absolute inset-0 rounded-full border border-cyan-400/30"
@@ -558,60 +633,13 @@ export default function WalletPage() {
               </div>
             </div>
 
-            <div className="mt-2 text-center z-10 select-none space-y-2">
-              <span className={`text-[10px] font-bold uppercase tracking-widest block ${
+            {/* 狀態文字 */}
+            <div className="mt-2 text-center z-10 select-none">
+              <span className={`text-[9px] font-bold uppercase tracking-widest block ${
                 isLocked ? 'text-white' : isRadarScanning ? 'text-cyan-400' : 'text-emerald-500/70'
               }`}>
                 {isLocked ? '目標鎖定' : isRadarScanning ? '主動掃描中...' : '被動掃描'}
               </span>
-              
-              {/* 統計信息（附近的紅包群和遊戲人數） */}
-              <div className="flex flex-col gap-2">
-                {/* 在線用戶計數 */}
-                <div className="flex items-center justify-center gap-1.5 bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-full border border-emerald-500/20">
-                  <motion.div
-                    className={`w-2 h-2 rounded-full ${isLocked ? 'bg-white' : 'bg-emerald-500'}`}
-                    animate={isRadarScanning ? {
-                      scale: [1, 1.3, 1],
-                      opacity: [0.7, 1, 0.7]
-                    } : {}}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  />
-                  <span className="text-[11px] font-mono font-bold text-emerald-100">
-                    {onlineUsers} 在線
-                  </span>
-                </div>
-                
-                {/* 附近的紅包群 */}
-                <div className="flex items-center justify-center gap-1.5 bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-full border border-cyan-500/20">
-                  <motion.div
-                    className="w-2 h-2 rounded-full bg-cyan-400"
-                    animate={isRadarScanning ? {
-                      scale: [1, 1.3, 1],
-                      opacity: [0.7, 1, 0.7]
-                    } : {}}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: 0.3 }}
-                  />
-                  <span className="text-[11px] font-mono font-bold text-cyan-100">
-                    {nearbyPacketGroups} 紅包群
-                  </span>
-                </div>
-                
-                {/* 正在遊戲的人數 */}
-                <div className="flex items-center justify-center gap-1.5 bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-full border border-purple-500/20">
-                  <motion.div
-                    className="w-2 h-2 rounded-full bg-purple-400"
-                    animate={isRadarScanning ? {
-                      scale: [1, 1.3, 1],
-                      opacity: [0.7, 1, 0.7]
-                    } : {}}
-                    transition={{ duration: 1.4, repeat: Infinity, delay: 0.6 }}
-                  />
-                  <span className="text-[11px] font-mono font-bold text-purple-100">
-                    {activeGamePlayers} 遊戲中
-                  </span>
-                </div>
-              </div>
             </div>
             
             {/* 幫助文字 */}
