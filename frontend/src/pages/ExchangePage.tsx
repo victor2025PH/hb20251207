@@ -46,11 +46,11 @@ export default function ExchangePage() {
 
   const handleExchange = () => {
     if (!amount || parseFloat(amount) <= 0) {
-      playSound('error')
+      playSound('click')
       return
     }
     if (parseFloat(amount) > getBalanceValue(fromToken)) {
-      playSound('error')
+      playSound('click')
       return
     }
     playSound('success')
