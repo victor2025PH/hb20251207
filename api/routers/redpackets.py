@@ -1,0 +1,217 @@
+"""
+Lucky Red - 紅包路由
+"""
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime, timedelta
+from decimal import Decimal
+import uuid
+import random
+
+from shared.database.connection import get_db_session
+from shared.database.models import User, RedPacket, RedPacketClaim, CurrencyType, RedPacketType, RedPacketStatus
+
+router = APIRouter()
+
+
+class CreateRedPacketRequest(BaseModel):
+    """創建紅包請求"""
+    currency: CurrencyType = CurrencyType.USDT
+    packet_type: RedPacketType = RedPacketType.RANDOM
+    total_amount: float = Field(..., gt=0)
+    total_count: int = Field(..., ge=1, le=100)
+    message: str = Field(default="恭喜發財！🧧", max_length=256)
+    chat_id: Optional[int] = None
+    chat_title: Optional[str] = None
+
+
+class RedPacketResponse(BaseModel):
+    """紅包響應"""
+    id: int
+    uuid: str
+    currency: str
+    packet_type: str
+    total_amount: float
+    total_count: int
+    claimed_amount: float
+    claimed_count: int
+    message: str
+    status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ClaimResult(BaseModel):
+    """領取結果"""
+    success: bool
+    amount: float
+    is_luckiest: bool
+    message: str
+
+
+@router.post("/create", response_model=RedPacketResponse)
+async def create_red_packet(
+    request: CreateRedPacketRequest,
+    sender_tg_id: int,  # TODO: 從 JWT 獲取
+    db: AsyncSession = Depends(get_db_session)
+):
+    """創建紅包"""
+    
+    # 查找發送者
+    result = await db.execute(select(User).where(User.tg_id == sender_tg_id))
+    sender = result.scalar_one_or_none()
+    
+    if not sender:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 檢查餘額
+    balance_field = f"balance_{request.currency.value}"
+    current_balance = getattr(sender, balance_field, 0) or Decimal(0)
+    
+    if current_balance < Decimal(str(request.total_amount)):
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    
+    # 扣除餘額
+    setattr(sender, balance_field, current_balance - Decimal(str(request.total_amount)))
+    
+    # 創建紅包
+    packet = RedPacket(
+        uuid=str(uuid.uuid4()),
+        sender_id=sender.id,
+        currency=request.currency,
+        packet_type=request.packet_type,
+        total_amount=Decimal(str(request.total_amount)),
+        total_count=request.total_count,
+        message=request.message,
+        chat_id=request.chat_id,
+        chat_title=request.chat_title,
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    
+    db.add(packet)
+    await db.commit()
+    await db.refresh(packet)
+    
+    return packet
+
+
+@router.post("/{packet_uuid}/claim", response_model=ClaimResult)
+async def claim_red_packet(
+    packet_uuid: str,
+    claimer_tg_id: int,  # TODO: 從 JWT 獲取
+    db: AsyncSession = Depends(get_db_session)
+):
+    """領取紅包"""
+    
+    # 查找紅包
+    result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
+    packet = result.scalar_one_or_none()
+    
+    if not packet:
+        raise HTTPException(status_code=404, detail="Red packet not found")
+    
+    if packet.status != RedPacketStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Red packet is not active")
+    
+    if packet.expires_at and packet.expires_at < datetime.utcnow():
+        packet.status = RedPacketStatus.EXPIRED
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Red packet expired")
+    
+    # 查找領取者
+    result = await db.execute(select(User).where(User.tg_id == claimer_tg_id))
+    claimer = result.scalar_one_or_none()
+    
+    if not claimer:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 檢查是否已領取
+    result = await db.execute(
+        select(RedPacketClaim).where(
+            and_(
+                RedPacketClaim.red_packet_id == packet.id,
+                RedPacketClaim.user_id == claimer.id
+            )
+        )
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Already claimed")
+    
+    # 計算領取金額
+    remaining_amount = packet.total_amount - packet.claimed_amount
+    remaining_count = packet.total_count - packet.claimed_count
+    
+    if remaining_count <= 0:
+        packet.status = RedPacketStatus.COMPLETED
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Red packet is empty")
+    
+    if packet.packet_type == RedPacketType.EQUAL:
+        amount = remaining_amount / remaining_count
+    else:
+        # 隨機金額 (保證最後一個人能拿到剩餘)
+        if remaining_count == 1:
+            amount = remaining_amount
+        else:
+            max_amount = remaining_amount * Decimal("0.9") / remaining_count * 2
+            amount = Decimal(str(random.uniform(0.01, float(max_amount))))
+            amount = min(amount, remaining_amount - Decimal("0.01") * (remaining_count - 1))
+    
+    amount = round(amount, 8)
+    
+    # 創建領取記錄
+    claim = RedPacketClaim(
+        red_packet_id=packet.id,
+        user_id=claimer.id,
+        amount=amount,
+    )
+    db.add(claim)
+    
+    # 更新紅包狀態
+    packet.claimed_amount += amount
+    packet.claimed_count += 1
+    
+    if packet.claimed_count >= packet.total_count:
+        packet.status = RedPacketStatus.COMPLETED
+        packet.completed_at = datetime.utcnow()
+    
+    # 更新用戶餘額
+    balance_field = f"balance_{packet.currency.value}"
+    current_balance = getattr(claimer, balance_field, 0) or Decimal(0)
+    setattr(claimer, balance_field, current_balance + amount)
+    
+    await db.commit()
+    
+    return ClaimResult(
+        success=True,
+        amount=float(amount),
+        is_luckiest=False,  # TODO: 計算手氣最佳
+        message=f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
+    )
+
+
+@router.get("/list", response_model=List[RedPacketResponse])
+async def list_red_packets(
+    status: Optional[RedPacketStatus] = None,
+    chat_id: Optional[int] = None,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """獲取紅包列表"""
+    query = select(RedPacket).order_by(RedPacket.created_at.desc()).limit(limit)
+    
+    if status:
+        query = query.where(RedPacket.status == status)
+    if chat_id:
+        query = query.where(RedPacket.chat_id == chat_id)
+    
+    result = await db.execute(query)
+    packets = result.scalars().all()
+    
+    return packets
+

@@ -1,0 +1,33 @@
+# =====================
+# Lucky Red 環境配置
+# =====================
+# 複製此文件為 .env 並填寫配置
+
+# Telegram Bot
+BOT_TOKEN=your_bot_token_here
+BOT_USERNAME=your_bot_username
+
+# 管理員 ID（多個用逗號分隔）
+ADMIN_IDS=123456789
+
+# 數據庫 (PostgreSQL)
+DATABASE_URL=postgresql://user:password@localhost:5432/luckyred
+
+# MiniApp URL
+MINIAPP_URL=https://mini.usdt2026.cc
+
+# API URL
+API_URL=https://mini.usdt2026.cc/api
+
+# Admin URL
+ADMIN_URL=https://admin.usdt2026.cc
+
+# 加密密鑰（用於 session 等）
+SECRET_KEY=your-secret-key-here
+
+# 環境
+ENVIRONMENT=production
+
+# 日誌級別
+LOG_LEVEL=INFO
+

@@ -1,0 +1,18 @@
+[Unit]
+Description=LuckyRed Web Admin
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/luckyred/admin
+Environment="PATH=/opt/luckyred/admin/.venv/bin"
+EnvironmentFile=/opt/luckyred/.env
+ExecStart=/opt/luckyred/admin/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8081
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

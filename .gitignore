@@ -1,0 +1,66 @@
+# ============================================
+# LuckyRed .gitignore
+# ============================================
+
+# === 環境變量 (敏感信息) ===
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# === 構建輸出 ===
+frontend/dist/
+admin/dist/
+*.tsbuildinfo
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === 日誌和數據 ===
+*.log
+logs/
+*.sqlite
+*.db
+data/
+
+# === 臨時文件 ===
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# === 會話和緩存 ===
+sessions/
+*.session
+*.session-journal

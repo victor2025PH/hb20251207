@@ -1,0 +1,18 @@
+[Unit]
+Description=LuckyRed MiniApp API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/luckyred/api
+Environment="PATH=/opt/luckyred/api/.venv/bin"
+EnvironmentFile=/opt/luckyred/.env
+ExecStart=/opt/luckyred/api/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
