@@ -453,45 +453,71 @@ export default function LuckyWheelPage() {
               }}
             >
               <div className="absolute inset-0 overflow-hidden rounded-3xl">
-              {/* 光泽效果 */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, transparent 40%, rgba(0, 0, 0, 0.15) 100%)',
-                  mixBlendMode: 'overlay',
-                }}
-              />
+                {/* 光泽效果 */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, transparent 40%, rgba(0, 0, 0, 0.15) 100%)',
+                    mixBlendMode: 'overlay',
+                  }}
+                />
 
-              {/* 高光反射 */}
-              <motion.div
-                className="absolute top-0 left-0 w-full h-1/3"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, transparent 100%)',
-                }}
-                animate={isHolding ? {
-                  opacity: [0.35, 0.6, 0.35],
-                } : {}}
-                transition={{
-                  duration: 0.5,
-                  repeat: isHolding ? Infinity : 0,
-                  ease: "easeInOut",
-                }}
-              />
+                {/* 高光反射 */}
+                <motion.div
+                  className="absolute top-0 left-0 w-full h-1/3"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, transparent 100%)',
+                  }}
+                  animate={isHolding ? {
+                    opacity: [0.35, 0.6, 0.35],
+                  } : {}}
+                  transition={{
+                    duration: 0.5,
+                    repeat: isHolding ? Infinity : 0,
+                    ease: "easeInOut",
+                  }}
+                />
 
-              {/* 红包纹理 */}
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: `
-                    repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px),
-                    repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)
-                  `,
-                }}
-              />
+                {/* 红包纹理 */}
+                <div
+                  className="absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage: `
+                      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px),
+                      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)
+                    `,
+                  }}
+                />
 
-              {/* 金色横带 */}
-              <div className="absolute bottom-32 left-0 right-0 h-12 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-y-2 border-amber-600/30 shadow-inner">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                {/* 金色横带 */}
+                <div className="absolute bottom-32 left-0 right-0 h-12 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-y-2 border-amber-600/30 shadow-inner">
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                </div>
+
+                {/* 进度条 */}
+                {isHolding && (
+                  <div className="absolute bottom-8 left-8 right-8 h-2 bg-white/20 rounded-full overflow-hidden z-30">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${holdProgress}%` }}
+                      transition={{ duration: 0.1 }}
+                    />
+                  </div>
+                )}
+
+                {/* 爆炸光效 */}
+                {isExploding && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, rgba(220, 38, 38, 0.7) 30%, transparent 70%)',
+                    }}
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 3, opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                )}
               </div>
             </motion.div>
             
@@ -542,33 +568,6 @@ export default function LuckyWheelPage() {
                   />
                 </div>
               </motion.div>
-
-              {/* 进度条 */}
-              {isHolding && (
-                <div className="absolute bottom-8 left-8 right-8 h-2 bg-white/20 rounded-full overflow-hidden z-30">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${holdProgress}%` }}
-                    transition={{ duration: 0.1 }}
-                  />
-                </div>
-              )}
-
-              {/* 爆炸光效 */}
-              {isExploding && (
-                <motion.div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: 'radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, rgba(220, 38, 38, 0.7) 30%, transparent 70%)',
-                  }}
-                  initial={{ scale: 0, opacity: 1 }}
-                  animate={{ scale: 3, opacity: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                />
-              )}
-            </motion.div>
-
           </div>
 
           {/* 剩余次数 */}
