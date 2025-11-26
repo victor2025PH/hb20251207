@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Gift, Zap, Sparkles, Trophy, TrendingUp, ArrowLeft, Star } from 'lucide-react'
+import { Gift, Zap, Sparkles, Trophy, TrendingUp, ArrowLeft, Star, Coins, DollarSign, Circle } from 'lucide-react'
 import { useTranslation } from '../providers/I18nProvider'
 import { useSound } from '../hooks/useSound'
 import { useNavigate } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
-import TelegramStar from '../components/TelegramStar'
 import confetti from 'canvas-confetti'
 
 interface Prize {
@@ -27,17 +26,25 @@ const prizes: Prize[] = [
   { id: 6, name: '经验值', value: 50, icon: TrendingUp, color: 'text-cyan-400', bgGradient: 'from-cyan-500/40 to-blue-500/40', probability: 10 },
 ]
 
-interface StarParticle {
+interface CoinSymbol {
   id: string
   x: number
   y: number
-  vx: number
-  vy: number
+  icon: React.ElementType
   size: number
   rotation: number
-  rotationSpeed: number
+  isFlying: boolean
+  vx: number
+  vy: number
   life: number
   maxLife: number
+}
+
+interface LightRay {
+  id: string
+  angle: number
+  distance: number
+  opacity: number
 }
 
 export default function LuckyWheelPage() {
@@ -49,12 +56,48 @@ export default function LuckyWheelPage() {
   const [isExploding, setIsExploding] = useState(false)
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null)
   const [spinsLeft, setSpinsLeft] = useState(3)
-  const [stars, setStars] = useState<StarParticle[]>([])
+  const [coins, setCoins] = useState<CoinSymbol[]>([])
+  const [lightRays, setLightRays] = useState<LightRay[]>([])
   const holdTimerRef = useRef<number | null>(null)
   const progressTimerRef = useRef<number | null>(null)
-  const starIntervalRef = useRef<number | null>(null)
+  const coinIntervalRef = useRef<number | null>(null)
+  const lightRayIntervalRef = useRef<number | null>(null)
   const redPacketRef = useRef<HTMLDivElement>(null)
   const HOLD_DURATION = 2000 // 长按2秒触发
+
+  // 虚拟币图标类型
+  const coinIcons = [Coins, DollarSign, Star, Sparkles, Circle, Trophy]
+
+  // 初始化红包上的虚拟币符号
+  useEffect(() => {
+    if (!redPacketRef.current) return
+
+    const initialCoins: CoinSymbol[] = []
+    const rect = redPacketRef.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+
+    // 在红包上随机分布虚拟币符号
+    for (let i = 0; i < 30; i++) {
+      const angle = (Math.PI * 2 * i) / 30 + Math.random() * 0.3
+      const distance = 40 + Math.random() * 60
+      initialCoins.push({
+        id: `coin-${i}`,
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
+        icon: coinIcons[Math.floor(Math.random() * coinIcons.length)],
+        size: 12 + Math.random() * 8,
+        rotation: Math.random() * 360,
+        isFlying: false,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 100,
+      })
+    }
+
+    setCoins(initialCoins)
+  }, [])
 
   // 抽奖逻辑
   const drawPrize = () => {
@@ -82,37 +125,33 @@ export default function LuckyWheelPage() {
     setHoldProgress(0)
     playSound('click')
 
-    // 开始生成星星
-    const generateStars = () => {
-      if (!redPacketRef.current || !isHolding) return
-
-      const rect = redPacketRef.current.getBoundingClientRect()
-      const centerX = rect.left + rect.width / 2
-      const topY = rect.top + 20 // 红包开口位置
-
-      // 每次生成更多星星
-      const newStars: StarParticle[] = []
-      for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI / 2) + (Math.random() - 0.5) * 0.8 // 向上喷发，稍微分散
-        const speed = 2 + Math.random() * 3
-        newStars.push({
-          id: `star-${Date.now()}-${i}`,
-          x: centerX + (Math.random() - 0.5) * 40, // 从开口处分散
-          y: topY,
-          vx: Math.cos(angle) * speed,
-          vy: -Math.abs(Math.sin(angle) * speed), // 向上
-          size: 8 + Math.random() * 12,
-          rotation: Math.random() * 360,
-          rotationSpeed: (Math.random() - 0.5) * 15,
-          life: 0,
-          maxLife: 60 + Math.random() * 40,
+    // 生成光芒效果
+    const generateLightRays = () => {
+      const rays: LightRay[] = []
+      for (let i = 0; i < 20; i++) {
+        rays.push({
+          id: `ray-${Date.now()}-${i}`,
+          angle: (Math.PI * 2 * i) / 20 + Math.random() * 0.3,
+          distance: 80 + Math.random() * 40,
+          opacity: 0.3 + Math.random() * 0.4,
         })
       }
-      setStars(prev => [...prev, ...newStars])
+      setLightRays(rays)
     }
 
-    // 持续生成星星
-    starIntervalRef.current = window.setInterval(generateStars, 100)
+    generateLightRays()
+    lightRayIntervalRef.current = window.setInterval(() => {
+      generateLightRays()
+    }, 200)
+
+    // 让虚拟币符号开始飞升
+    setCoins(prev => prev.map(coin => ({
+      ...coin,
+      isFlying: true,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -3 - Math.random() * 3, // 向上飞
+      life: 0,
+    })))
 
     // 进度条
     const startTime = Date.now()
@@ -138,11 +177,16 @@ export default function LuckyWheelPage() {
       window.clearInterval(progressTimerRef.current)
       progressTimerRef.current = null
     }
-    if (starIntervalRef.current) {
-      window.clearInterval(starIntervalRef.current)
-      starIntervalRef.current = null
+    if (coinIntervalRef.current) {
+      window.clearInterval(coinIntervalRef.current)
+      coinIntervalRef.current = null
+    }
+    if (lightRayIntervalRef.current) {
+      window.clearInterval(lightRayIntervalRef.current)
+      lightRayIntervalRef.current = null
     }
     setHoldProgress(0)
+    setLightRays([])
   }
 
   // 完成长按，触发爆炸
@@ -153,40 +197,41 @@ export default function LuckyWheelPage() {
     setIsExploding(true)
     playSound('success')
 
-    // 停止生成星星
-    if (starIntervalRef.current) {
-      window.clearInterval(starIntervalRef.current)
-      starIntervalRef.current = null
-    }
+    // 停止所有定时器
     if (progressTimerRef.current) {
       window.clearInterval(progressTimerRef.current)
       progressTimerRef.current = null
     }
+    if (lightRayIntervalRef.current) {
+      window.clearInterval(lightRayIntervalRef.current)
+      lightRayIntervalRef.current = null
+    }
 
-    // 生成大量爆炸星星
+    // 生成大量爆炸虚拟币
     if (redPacketRef.current) {
       const rect = redPacketRef.current.getBoundingClientRect()
       const centerX = rect.left + rect.width / 2
       const centerY = rect.top + rect.height / 2
 
-      const explosionStars: StarParticle[] = []
-      for (let i = 0; i < 100; i++) {
-        const angle = (Math.PI * 2 * i) / 100 + Math.random() * 0.5
-        const speed = 3 + Math.random() * 5
-        explosionStars.push({
+      const explosionCoins: CoinSymbol[] = []
+      for (let i = 0; i < 50; i++) {
+        const angle = (Math.PI * 2 * i) / 50 + Math.random() * 0.5
+        const speed = 4 + Math.random() * 4
+        explosionCoins.push({
           id: `explosion-${Date.now()}-${i}`,
           x: centerX,
           y: centerY,
+          icon: coinIcons[Math.floor(Math.random() * coinIcons.length)],
+          size: 10 + Math.random() * 12,
+          rotation: Math.random() * 360,
+          isFlying: true,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          size: 6 + Math.random() * 10,
-          rotation: Math.random() * 360,
-          rotationSpeed: (Math.random() - 0.5) * 20,
           life: 0,
           maxLife: 80 + Math.random() * 40,
         })
       }
-      setStars(prev => [...prev, ...explosionStars])
+      setCoins(prev => [...prev, ...explosionCoins])
     }
 
     // 彩纸特效
@@ -195,7 +240,7 @@ export default function LuckyWheelPage() {
     const frame = () => {
       for (let i = 0; i < 8; i++) {
         confetti({
-          particleCount: 10,
+          particleCount: 15,
           angle: i * 45,
           spread: 70,
           origin: { x: 0.5, y: 0.5 },
@@ -220,24 +265,31 @@ export default function LuckyWheelPage() {
     }, 1500)
   }
 
-  // 更新星星动画
+  // 更新虚拟币动画
   useEffect(() => {
-    if (stars.length === 0) return
+    if (coins.length === 0) return
 
     const animate = () => {
-      setStars(prev => {
+      setCoins(prev => {
         const updated = prev
-          .map(star => ({
-            ...star,
-            x: star.x + star.vx,
-            y: star.y + star.vy,
-            rotation: star.rotation + star.rotationSpeed,
-            life: star.life + 1,
-            vy: star.vy + 0.15, // 重力
-          }))
-          .filter(star => star.life < star.maxLife && star.y < window.innerHeight + 100)
+          .map(coin => {
+            if (!coin.isFlying) return coin
 
-        if (updated.length > 0) {
+            return {
+              ...coin,
+              x: coin.x + coin.vx,
+              y: coin.y + coin.vy,
+              rotation: coin.rotation + 5,
+              life: coin.life + 1,
+              vy: coin.vy + 0.1, // 重力
+            }
+          })
+          .filter(coin => {
+            if (!coin.isFlying) return true
+            return coin.life < coin.maxLife && coin.y > -100 && coin.y < window.innerHeight + 100
+          })
+
+        if (updated.some(c => c.isFlying)) {
           requestAnimationFrame(animate)
         }
         return updated
@@ -245,7 +297,7 @@ export default function LuckyWheelPage() {
     }
 
     requestAnimationFrame(animate)
-  }, [stars.length])
+  }, [coins.length])
 
   return (
     <PageTransition>
@@ -265,33 +317,88 @@ export default function LuckyWheelPage() {
           <div className="w-10" />
         </div>
 
-        {/* 星星粒子层 */}
+        {/* 虚拟币符号层 */}
         <div className="fixed inset-0 pointer-events-none z-30">
-          {stars.map(star => (
-            <motion.div
-              key={star.id}
-              className="absolute"
-              style={{
-                left: star.x,
-                top: star.y,
-                transform: `translate(-50%, -50%) rotate(${star.rotation}deg)`,
-              }}
-              animate={{
-                scale: [1, 1.2, 0.8, 1],
-              }}
-              transition={{
-                duration: 0.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            >
-              <TelegramStar
-                size={star.size}
-                className="drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]"
-              />
-            </motion.div>
-          ))}
+          {coins.map(coin => {
+            const Icon = coin.icon
+            return (
+              <motion.div
+                key={coin.id}
+                className="absolute"
+                style={{
+                  left: coin.x,
+                  top: coin.y,
+                  transform: `translate(-50%, -50%) rotate(${coin.rotation}deg)`,
+                }}
+                animate={isHolding && !coin.isFlying ? {
+                  scale: [1, 1.3, 1],
+                  opacity: [0.8, 1, 0.8],
+                } : coin.isFlying ? {
+                  scale: [1, 1.2, 0.8],
+                } : {}}
+                transition={{
+                  duration: 0.5,
+                  repeat: isHolding && !coin.isFlying ? Infinity : 0,
+                  ease: "easeInOut",
+                }}
+              >
+                <Icon
+                  size={coin.size}
+                  className="text-yellow-400"
+                  style={{
+                    filter: isHolding && !coin.isFlying
+                      ? 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #fbbf24)'
+                      : coin.isFlying
+                      ? 'drop-shadow(0 0 6px #fbbf24)'
+                      : 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.5))',
+                  }}
+                />
+              </motion.div>
+            )
+          })}
         </div>
+
+        {/* 光芒效果层 */}
+        {isHolding && redPacketRef.current && (
+          <div className="fixed inset-0 pointer-events-none z-20">
+            <svg className="absolute inset-0 w-full h-full" style={{ overflow: 'visible' }}>
+              {lightRays.map(ray => {
+                const rect = redPacketRef.current?.getBoundingClientRect()
+                if (!rect) return null
+
+                const centerX = rect.left + rect.width / 2
+                const centerY = rect.top + rect.height / 2
+                const endX = centerX + Math.cos(ray.angle) * ray.distance
+                const endY = centerY + Math.sin(ray.angle) * ray.distance
+
+                return (
+                  <motion.line
+                    key={ray.id}
+                    x1={centerX}
+                    y1={centerY}
+                    x2={endX}
+                    y2={endY}
+                    stroke="#fbbf24"
+                    strokeWidth="3"
+                    opacity={ray.opacity}
+                    initial={{ opacity: 0 }}
+                    animate={{
+                      opacity: [0, ray.opacity, 0],
+                    }}
+                    transition={{
+                      duration: 0.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    style={{
+                      filter: 'blur(3px)',
+                    }}
+                  />
+                )
+              })}
+            </svg>
+          </div>
+        )}
 
         {/* 主要内容区域 */}
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-4 min-h-0">
@@ -308,71 +415,61 @@ export default function LuckyWheelPage() {
           >
             {/* 红包主体 */}
             <motion.div
-              className="relative w-64 h-80 bg-gradient-to-b from-red-600 via-red-700 to-red-800 rounded-t-3xl rounded-b-2xl shadow-2xl border-4 border-red-900/50 overflow-hidden"
+              className="relative w-64 h-80 rounded-3xl shadow-2xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 25%, #ff4500 50%, #dc2626 75%, #b91c1c 100%)',
+                boxShadow: isHolding
+                  ? '0 0 80px rgba(255, 107, 53, 0.9), 0 0 120px rgba(255, 107, 53, 0.7), inset 0 0 60px rgba(255, 255, 255, 0.3)'
+                  : isExploding
+                  ? '0 0 120px rgba(255, 107, 53, 1), 0 0 180px rgba(255, 107, 53, 0.8)'
+                  : '0 0 40px rgba(255, 107, 53, 0.6), inset 0 0 30px rgba(255, 255, 255, 0.1)',
+              }}
               animate={isHolding ? {
-                x: [0, -5, 5, -5, 5, -3, 3, 0],
-                y: [0, -3, 3, -3, 3, -2, 2, 0],
-                rotate: [0, -2, 2, -2, 2, -1, 1, 0],
-                scale: [1, 1.05, 1, 1.05, 1],
+                x: [0, -4, 4, -4, 4, -2, 2, 0],
+                y: [0, -2, 2, -2, 2, -1, 1, 0],
+                rotate: [0, -1, 1, -1, 1, -0.5, 0.5, 0],
+                scale: [1, 1.03, 1, 1.03, 1],
               } : isExploding ? {
-                scale: [1, 1.2, 0.8, 1],
-                rotate: [0, 10, -10, 0],
+                scale: [1, 1.3, 0.9, 1],
+                rotate: [0, 8, -8, 0],
               } : {
                 scale: 1,
                 rotate: 0,
               }}
               transition={{
-                duration: isHolding ? 0.3 : isExploding ? 0.5 : 0.2,
+                duration: isHolding ? 0.25 : isExploding ? 0.5 : 0.2,
                 repeat: isHolding ? Infinity : 0,
                 ease: "easeInOut",
               }}
-              style={{
-                boxShadow: isHolding
-                  ? '0 0 60px rgba(239, 68, 68, 0.8), 0 0 100px rgba(239, 68, 68, 0.6), inset 0 0 50px rgba(255, 255, 255, 0.2)'
-                  : isExploding
-                  ? '0 0 100px rgba(239, 68, 68, 1), 0 0 150px rgba(239, 68, 68, 0.8)'
-                  : '0 0 30px rgba(239, 68, 68, 0.5)',
-              }}
             >
-              {/* 发光效果 */}
-              {isHolding && (
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-b from-yellow-400/30 via-orange-400/20 to-red-600/30"
-                  animate={{
-                    opacity: [0.5, 1, 0.5],
-                  }}
-                  transition={{
-                    duration: 0.5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              )}
+              {/* 光泽效果 */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, transparent 50%, rgba(0, 0, 0, 0.2) 100%)',
+                  mixBlendMode: 'overlay',
+                }}
+              />
+
+              {/* 高光反射 */}
+              <motion.div
+                className="absolute top-0 left-0 w-full h-1/3"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%)',
+                }}
+                animate={isHolding ? {
+                  opacity: [0.4, 0.7, 0.4],
+                } : {}}
+                transition={{
+                  duration: 0.5,
+                  repeat: isHolding ? Infinity : 0,
+                  ease: "easeInOut",
+                }}
+              />
 
               {/* 红包开口（顶部） */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-red-500 to-red-600 rounded-b-full border-2 border-red-800/50">
-                {/* 开口装饰线 */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-gradient-to-b from-orange-500 to-red-600 rounded-b-full border-2 border-red-800/50">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-red-900/50 rounded-full" />
-              </div>
-
-              {/* 红包装饰 - 金色边框 */}
-              <div className="absolute inset-0 border-4 border-yellow-400/30 rounded-t-3xl rounded-b-2xl pointer-events-none" />
-
-              {/* 红包装饰 - 福字区域 */}
-              <div className="absolute top-24 left-1/2 -translate-x-1/2 w-32 h-32 flex items-center justify-center">
-                <motion.div
-                  className="text-6xl font-black text-yellow-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]"
-                  animate={isHolding ? {
-                    scale: [1, 1.1, 1],
-                  } : {}}
-                  transition={{
-                    duration: 0.3,
-                    repeat: isHolding ? Infinity : 0,
-                    ease: "easeInOut",
-                  }}
-                >
-                  福
-                </motion.div>
               </div>
 
               {/* 进度条 */}
@@ -392,7 +489,7 @@ export default function LuckyWheelPage() {
                 <motion.div
                   className="absolute inset-0 rounded-full"
                   style={{
-                    background: 'radial-gradient(circle, rgba(251, 191, 36, 0.8) 0%, rgba(249, 115, 22, 0.6) 30%, transparent 70%)',
+                    background: 'radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, rgba(255, 107, 53, 0.7) 30%, transparent 70%)',
                   }}
                   initial={{ scale: 0, opacity: 1 }}
                   animate={{ scale: 3, opacity: 0 }}
