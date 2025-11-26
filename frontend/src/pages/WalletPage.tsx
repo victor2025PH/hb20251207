@@ -574,9 +574,16 @@ export default function WalletPage() {
                   } : {}}
                   transition={{ duration: 1, repeat: Infinity }}
                 />
-                <span className="text-xs font-mono font-bold text-emerald-100 whitespace-nowrap">
+                <motion.span 
+                  key={onlineUsers}
+                  className="text-xs font-mono font-bold text-emerald-100 whitespace-nowrap"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                   {onlineUsers} 在線
-                </span>
+                </motion.span>
               </div>
               
               {/* 附近的紅包群 */}
@@ -589,9 +596,16 @@ export default function WalletPage() {
                   } : {}}
                   transition={{ duration: 1.2, repeat: Infinity, delay: 0.3 }}
                 />
-                <span className="text-xs font-mono font-bold text-cyan-100 whitespace-nowrap">
+                <motion.span 
+                  key={nearbyPacketGroups}
+                  className="text-xs font-mono font-bold text-cyan-100 whitespace-nowrap"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                   {nearbyPacketGroups} 紅包群
-                </span>
+                </motion.span>
               </div>
               
               {/* 正在遊戲的人數 */}
@@ -604,9 +618,16 @@ export default function WalletPage() {
                   } : {}}
                   transition={{ duration: 1.4, repeat: Infinity, delay: 0.6 }}
                 />
-                <span className="text-xs font-mono font-bold text-purple-100 whitespace-nowrap">
+                <motion.span 
+                  key={activeGamePlayers}
+                  className="text-xs font-mono font-bold text-purple-100 whitespace-nowrap"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                   {activeGamePlayers} 遊戲中
-                </span>
+                </motion.span>
               </div>
             </div>
 
@@ -784,15 +805,14 @@ export default function WalletPage() {
                 </div>
               </div>
 
-            </div>
-            
-            {/* 狀態文字（移到最右側） */}
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 select-none">
-              <span className={`text-xs font-bold uppercase tracking-widest block ${
-                isLocked ? 'text-white' : isRadarScanning ? 'text-cyan-400' : 'text-emerald-500/70'
-              }`}>
-                {isLocked ? '目標鎖定' : isRadarScanning ? '主動掃描中...' : '被動掃描'}
-              </span>
+              {/* 狀態文字（移到最右側） */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 select-none">
+                <span className={`text-xs font-bold uppercase tracking-widest block ${
+                  isLocked ? 'text-white' : isRadarScanning ? 'text-cyan-400' : 'text-emerald-500/70'
+                }`}>
+                  {isLocked ? '目標鎖定' : isRadarScanning ? '主動掃描中...' : '被動掃描'}
+                </span>
+              </div>
             </div>
           </div>
             
