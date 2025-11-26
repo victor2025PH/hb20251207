@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuckyRed 管理後台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stat-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="border-b border-white/10 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">🧧</span>
+                </div>
+                <h1 class="text-xl font-bold">LuckyRed Admin</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-400" id="currentTime"></span>
+                <div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+                    <span>👤</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Users -->
+            <div class="card stat-card rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                        <span class="text-2xl">👥</span>
+                    </div>
+                    <span class="text-green-400 text-sm">+<span id="newUsersToday">0</span> 今日</span>
+                </div>
+                <h3 class="text-3xl font-bold mb-1" id="totalUsers">0</h3>
+                <p class="text-gray-400 text-sm">總用戶數</p>
+            </div>
+
+            <!-- Active Red Packets -->
+            <div class="card stat-card rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                        <span class="text-2xl">🧧</span>
+                    </div>
+                    <span class="text-orange-400 text-sm" id="activePackets">0 活躍</span>
+                </div>
+                <h3 class="text-3xl font-bold mb-1" id="totalPackets">0</h3>
+                <p class="text-gray-400 text-sm">總紅包數</p>
+            </div>
+
+            <!-- Total Transactions -->
+            <div class="card stat-card rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                        <span class="text-2xl">💳</span>
+                    </div>
+                </div>
+                <h3 class="text-3xl font-bold mb-1" id="totalTransactions">0</h3>
+                <p class="text-gray-400 text-sm">總交易數</p>
+            </div>
+
+            <!-- Total Volume -->
+            <div class="card stat-card rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                        <span class="text-2xl">💰</span>
+                    </div>
+                </div>
+                <h3 class="text-3xl font-bold mb-1">$<span id="totalVolume">0</span></h3>
+                <p class="text-gray-400 text-sm">總交易額</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6">
+            <button onclick="showTab('users')" class="tab-btn px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition" data-tab="users">
+                👥 用戶管理
+            </button>
+            <button onclick="showTab('packets')" class="tab-btn px-6 py-2 rounded-xl hover:bg-white/20 transition" data-tab="packets">
+                🧧 紅包記錄
+            </button>
+            <button onclick="showTab('transactions')" class="tab-btn px-6 py-2 rounded-xl hover:bg-white/20 transition" data-tab="transactions">
+                💳 交易記錄
+            </button>
+        </div>
+
+        <!-- Users Table -->
+        <div id="usersTab" class="card rounded-2xl overflow-hidden">
+            <div class="p-6 border-b border-white/10">
+                <h2 class="text-lg font-semibold">用戶列表</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-white/5">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">Telegram ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">用戶名</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">餘額</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">能量</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">等級</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">註冊時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody" class="divide-y divide-white/5">
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-400">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Packets Table -->
+        <div id="packetsTab" class="card rounded-2xl overflow-hidden hidden">
+            <div class="p-6 border-b border-white/10">
+                <h2 class="text-lg font-semibold">紅包記錄</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-white/5">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">發送者</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">總金額</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">總數量</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">已領取</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">狀態</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">創建時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packetsTableBody" class="divide-y divide-white/5">
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-400">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div id="transactionsTab" class="card rounded-2xl overflow-hidden hidden">
+            <div class="p-6 border-b border-white/10">
+                <h2 class="text-lg font-semibold">交易記錄</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-white/5">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">用戶ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">類型</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">金額</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">狀態</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-400">時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody" class="divide-y divide-white/5">
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-400">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('zh-TW');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Fetch stats
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('totalUsers').textContent = data.data.users.total;
+                    document.getElementById('newUsersToday').textContent = data.data.users.new_today;
+                    document.getElementById('totalPackets').textContent = data.data.red_packets.total;
+                    document.getElementById('activePackets').textContent = data.data.red_packets.active + ' 活躍';
+                    document.getElementById('totalTransactions').textContent = data.data.transactions.total;
+                    document.getElementById('totalVolume').textContent = data.data.transactions.volume.toFixed(2);
+                }
+            } catch (e) {
+                console.error('Failed to fetch stats:', e);
+            }
+        }
+
+        // Fetch users
+        async function fetchUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                const tbody = document.getElementById('usersTableBody');
+                if (data.success && data.data.users.length > 0) {
+                    tbody.innerHTML = data.data.users.map(u => `
+                        <tr class="hover:bg-white/5">
+                            <td class="px-6 py-4 text-sm">${u.id}</td>
+                            <td class="px-6 py-4 text-sm">${u.telegram_id}</td>
+                            <td class="px-6 py-4 text-sm">${u.username || '-'}</td>
+                            <td class="px-6 py-4 text-sm text-green-400">$${u.balance.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-sm">${u.energy}</td>
+                            <td class="px-6 py-4 text-sm">${u.level}</td>
+                            <td class="px-6 py-4 text-sm text-gray-400">${u.created_at ? new Date(u.created_at).toLocaleString('zh-TW') : '-'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400">暫無用戶數據</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to fetch users:', e);
+            }
+        }
+
+        // Fetch red packets
+        async function fetchPackets() {
+            try {
+                const res = await fetch('/api/red-packets');
+                const data = await res.json();
+                const tbody = document.getElementById('packetsTableBody');
+                if (data.success && data.data.packets.length > 0) {
+                    tbody.innerHTML = data.data.packets.map(p => `
+                        <tr class="hover:bg-white/5">
+                            <td class="px-6 py-4 text-sm">${p.id}</td>
+                            <td class="px-6 py-4 text-sm">${p.sender_id}</td>
+                            <td class="px-6 py-4 text-sm text-yellow-400">$${p.total_amount.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-sm">${p.total_count}</td>
+                            <td class="px-6 py-4 text-sm">${p.claimed_count}</td>
+                            <td class="px-6 py-4 text-sm">
+                                <span class="px-2 py-1 rounded-full text-xs ${p.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">
+                                    ${p.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-400">${p.created_at ? new Date(p.created_at).toLocaleString('zh-TW') : '-'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400">暫無紅包數據</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to fetch packets:', e);
+            }
+        }
+
+        // Fetch transactions
+        async function fetchTransactions() {
+            try {
+                const res = await fetch('/api/transactions');
+                const data = await res.json();
+                const tbody = document.getElementById('transactionsTableBody');
+                if (data.success && data.data.transactions.length > 0) {
+                    tbody.innerHTML = data.data.transactions.map(t => `
+                        <tr class="hover:bg-white/5">
+                            <td class="px-6 py-4 text-sm">${t.id}</td>
+                            <td class="px-6 py-4 text-sm">${t.user_id}</td>
+                            <td class="px-6 py-4 text-sm">${t.type}</td>
+                            <td class="px-6 py-4 text-sm ${t.amount >= 0 ? 'text-green-400' : 'text-red-400'}">
+                                ${t.amount >= 0 ? '+' : ''}$${t.amount.toFixed(2)}
+                            </td>
+                            <td class="px-6 py-4 text-sm">
+                                <span class="px-2 py-1 rounded-full text-xs ${t.status === 'completed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}">
+                                    ${t.status}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-400">${t.created_at ? new Date(t.created_at).toLocaleString('zh-TW') : '-'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-400">暫無交易數據</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to fetch transactions:', e);
+            }
+        }
+
+        // Tab switching
+        function showTab(tab) {
+            document.querySelectorAll('[id$="Tab"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('bg-white/10'));
+            
+            document.getElementById(tab + 'Tab').classList.remove('hidden');
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('bg-white/10');
+
+            if (tab === 'users') fetchUsers();
+            else if (tab === 'packets') fetchPackets();
+            else if (tab === 'transactions') fetchTransactions();
+        }
+
+        // Initial load
+        fetchStats();
+        fetchUsers();
+    </script>
+</body>
+</html>
+
