@@ -57,36 +57,76 @@ export default function LuckyWheelPage() {
   const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null)
   const [spinsLeft, setSpinsLeft] = useState(3)
   const [coins, setCoins] = useState<CoinSymbol[]>([])
-  const [lightRays, setLightRays] = useState<LightRay[]>([])
+  const [showNoChancesModal, setShowNoChancesModal] = useState(false)
   const holdTimerRef = useRef<number | null>(null)
   const progressTimerRef = useRef<number | null>(null)
   const coinIntervalRef = useRef<number | null>(null)
-  const lightRayIntervalRef = useRef<number | null>(null)
   const redPacketRef = useRef<HTMLDivElement>(null)
   const HOLD_DURATION = 2000 // 长按2秒触发
 
   // 虚拟币图标类型
   const coinIcons = [Coins, DollarSign, Star, Sparkles, Circle, Trophy]
 
-  // 初始化红包上的虚拟币符号
+  // 初始化红包上的虚拟币符号 - 底部密集，向上稀疏
   useEffect(() => {
     if (!redPacketRef.current) return
 
     const initialCoins: CoinSymbol[] = []
     const rect = redPacketRef.current.getBoundingClientRect()
-    const centerX = rect.left + rect.width / 2
-    const centerY = rect.top + rect.height / 2
+    const packetWidth = rect.width
+    const packetHeight = rect.height
+    const packetTop = rect.top
+    const packetLeft = rect.left
 
-    // 在红包上随机分布虚拟币符号
-    for (let i = 0; i < 30; i++) {
-      const angle = (Math.PI * 2 * i) / 30 + Math.random() * 0.3
-      const distance = 40 + Math.random() * 60
+    // 底部密集，向上稀疏的分布
+    // 底部区域（0-40%）：密集分布
+    for (let i = 0; i < 40; i++) {
+      const yPercent = Math.random() * 0.4 // 0-40%
+      const xPercent = Math.random() // 0-100%
       initialCoins.push({
-        id: `coin-${i}`,
-        x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance,
+        id: `coin-bottom-${i}`,
+        x: packetLeft + xPercent * packetWidth,
+        y: packetTop + (1 - yPercent) * packetHeight, // 从底部开始
         icon: coinIcons[Math.floor(Math.random() * coinIcons.length)],
-        size: 12 + Math.random() * 8,
+        size: 10 + Math.random() * 8,
+        rotation: Math.random() * 360,
+        isFlying: false,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 100,
+      })
+    }
+
+    // 中部区域（40-70%）：中等密度
+    for (let i = 0; i < 20; i++) {
+      const yPercent = 0.4 + Math.random() * 0.3 // 40-70%
+      const xPercent = Math.random()
+      initialCoins.push({
+        id: `coin-middle-${i}`,
+        x: packetLeft + xPercent * packetWidth,
+        y: packetTop + (1 - yPercent) * packetHeight,
+        icon: coinIcons[Math.floor(Math.random() * coinIcons.length)],
+        size: 8 + Math.random() * 6,
+        rotation: Math.random() * 360,
+        isFlying: false,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 100,
+      })
+    }
+
+    // 上部区域（70-100%）：稀疏分布
+    for (let i = 0; i < 10; i++) {
+      const yPercent = 0.7 + Math.random() * 0.3 // 70-100%
+      const xPercent = Math.random()
+      initialCoins.push({
+        id: `coin-top-${i}`,
+        x: packetLeft + xPercent * packetWidth,
+        y: packetTop + (1 - yPercent) * packetHeight,
+        icon: coinIcons[Math.floor(Math.random() * coinIcons.length)],
+        size: 6 + Math.random() * 6,
         rotation: Math.random() * 360,
         isFlying: false,
         vx: 0,
@@ -119,30 +159,15 @@ export default function LuckyWheelPage() {
 
   // 开始长按
   const handleStart = () => {
-    if (spinsLeft <= 0 || isExploding) return
+    if (spinsLeft <= 0) {
+      setShowNoChancesModal(true)
+      return
+    }
+    if (isExploding) return
 
     setIsHolding(true)
     setHoldProgress(0)
     playSound('click')
-
-    // 生成光芒效果
-    const generateLightRays = () => {
-      const rays: LightRay[] = []
-      for (let i = 0; i < 20; i++) {
-        rays.push({
-          id: `ray-${Date.now()}-${i}`,
-          angle: (Math.PI * 2 * i) / 20 + Math.random() * 0.3,
-          distance: 80 + Math.random() * 40,
-          opacity: 0.3 + Math.random() * 0.4,
-        })
-      }
-      setLightRays(rays)
-    }
-
-    generateLightRays()
-    lightRayIntervalRef.current = window.setInterval(() => {
-      generateLightRays()
-    }, 200)
 
     // 让虚拟币符号开始飞升
     setCoins(prev => prev.map(coin => ({
@@ -181,12 +206,7 @@ export default function LuckyWheelPage() {
       window.clearInterval(coinIntervalRef.current)
       coinIntervalRef.current = null
     }
-    if (lightRayIntervalRef.current) {
-      window.clearInterval(lightRayIntervalRef.current)
-      lightRayIntervalRef.current = null
-    }
     setHoldProgress(0)
-    setLightRays([])
   }
 
   // 完成长按，触发爆炸
@@ -201,10 +221,6 @@ export default function LuckyWheelPage() {
     if (progressTimerRef.current) {
       window.clearInterval(progressTimerRef.current)
       progressTimerRef.current = null
-    }
-    if (lightRayIntervalRef.current) {
-      window.clearInterval(lightRayIntervalRef.current)
-      lightRayIntervalRef.current = null
     }
 
     // 生成大量爆炸虚拟币
@@ -312,7 +328,7 @@ export default function LuckyWheelPage() {
           </button>
           <h1 className="text-lg font-bold text-white flex items-center gap-2">
             <Trophy size={20} className="text-yellow-400" />
-            幸运转盘
+            抢红包
           </h1>
           <div className="w-10" />
         </div>
@@ -358,50 +374,8 @@ export default function LuckyWheelPage() {
           })}
         </div>
 
-        {/* 光芒效果层 */}
-        {isHolding && redPacketRef.current && (
-          <div className="fixed inset-0 pointer-events-none z-20">
-            <svg className="absolute inset-0 w-full h-full" style={{ overflow: 'visible' }}>
-              {lightRays.map(ray => {
-                const rect = redPacketRef.current?.getBoundingClientRect()
-                if (!rect) return null
-
-                const centerX = rect.left + rect.width / 2
-                const centerY = rect.top + rect.height / 2
-                const endX = centerX + Math.cos(ray.angle) * ray.distance
-                const endY = centerY + Math.sin(ray.angle) * ray.distance
-
-                return (
-                  <motion.line
-                    key={ray.id}
-                    x1={centerX}
-                    y1={centerY}
-                    x2={endX}
-                    y2={endY}
-                    stroke="#fbbf24"
-                    strokeWidth="3"
-                    opacity={ray.opacity}
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: [0, ray.opacity, 0],
-                    }}
-                    transition={{
-                      duration: 0.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                    style={{
-                      filter: 'blur(3px)',
-                    }}
-                  />
-                )
-              })}
-            </svg>
-          </div>
-        )}
-
         {/* 主要内容区域 */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-4 min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-start gap-4 p-4 min-h-0 pt-8">
           {/* 大红包 */}
           <div
             ref={redPacketRef}
@@ -474,75 +448,56 @@ export default function LuckyWheelPage() {
                 }}
               />
 
-              {/* 文字内容区域 */}
-              <div className="absolute top-20 left-0 right-0 flex flex-col items-center gap-2 px-6 z-10">
-                <motion.h2
-                  className="text-3xl font-black text-red-900 drop-shadow-lg"
-                  animate={isHolding ? {
-                    scale: [1, 1.05, 1],
-                  } : {}}
-                  transition={{
-                    duration: 0.5,
-                    repeat: isHolding ? Infinity : 0,
-                    ease: "easeInOut",
-                  }}
-                >
-                  恭喜获得红包
-                </motion.h2>
-                <motion.p
-                  className="text-lg font-semibold text-red-800/90"
-                  animate={isHolding ? {
-                    opacity: [0.9, 1, 0.9],
-                  } : {}}
-                  transition={{
-                    duration: 0.5,
-                    repeat: isHolding ? Infinity : 0,
-                    ease: "easeInOut",
-                  }}
-                >
-                  领取现金奖励
-                </motion.p>
-              </div>
+              {/* 红包纹理 */}
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage: `
+                    repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px),
+                    repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)
+                  `,
+                }}
+              />
 
               {/* 金色横带 */}
               <div className="absolute bottom-32 left-0 right-0 h-12 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-y-2 border-amber-600/30 shadow-inner">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-              </div>
-
-              {/* "开"按钮 */}
-              <motion.div
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 w-24 h-24 z-20"
-                animate={isHolding ? {
-                  scale: [1, 1.1, 1],
-                } : {}}
-                transition={{
-                  duration: 0.5,
-                  repeat: isHolding ? Infinity : 0,
-                  ease: "easeInOut",
-                }}
-              >
-                <div className="relative w-full h-full">
-                  {/* 四叶草形状背景 */}
-                  <div
-                    className="absolute inset-0 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 rounded-full"
-                    style={{
-                      clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                      boxShadow: '0 0 20px rgba(245, 158, 11, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3)',
-                    }}
-                  />
-                  {/* 按钮文字 */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl font-black text-red-700 drop-shadow-lg">开</span>
+                
+                {/* "开"按钮 - 居中在横带上 */}
+                <motion.div
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 z-20"
+                  animate={isHolding ? {
+                    scale: [1, 1.1, 1],
+                  } : {}}
+                  transition={{
+                    duration: 0.5,
+                    repeat: isHolding ? Infinity : 0,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <div className="relative w-full h-full">
+                    {/* 四叶草形状背景 */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 rounded-full"
+                      style={{
+                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                        boxShadow: '0 0 20px rgba(245, 158, 11, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3)',
+                      }}
+                    />
+                    {/* 按钮文字 */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl font-black text-red-700 drop-shadow-lg">开</span>
+                    </div>
+                    {/* 按钮高光 */}
+                    <div
+                      className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-full"
+                      style={{
+                        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 50%, 0% 75%, 0% 25%)',
+                      }}
+                    />
                   </div>
-                  {/* 按钮高光 */}
-                  <div
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-gradient-to-b from-white/40 to-transparent rounded-full"
-                    style={{
-                      clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 50%, 0% 75%, 0% 25%)',
-                    }}
-                  />
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
 
               {/* 进度条 */}
               {isHolding && (
@@ -570,18 +525,6 @@ export default function LuckyWheelPage() {
               )}
             </motion.div>
 
-            {/* 提示文字 */}
-            {!isHolding && !isExploding && (
-              <motion.div
-                className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-center"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <p className="text-sm text-gray-300 font-medium">
-                  {spinsLeft <= 0 ? '今日次数已用完' : '长按红包开启'}
-                </p>
-              </motion.div>
-            )}
           </div>
 
           {/* 剩余次数 */}
@@ -595,6 +538,41 @@ export default function LuckyWheelPage() {
             </div>
           </div>
         </div>
+
+        {/* 次数用完提示窗 */}
+        <AnimatePresence>
+          {showNoChancesModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                onClick={() => setShowNoChancesModal(false)}
+              />
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0, y: 50 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.5, opacity: 0, y: 50 }}
+                className="relative bg-[#1C1C1E] border border-purple-500/30 rounded-3xl p-8 text-center shadow-2xl max-w-sm w-full"
+              >
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500/40 to-pink-500/40 rounded-full flex items-center justify-center border-4 border-white/20">
+                  <Sparkles size={32} className="text-purple-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-4">今日次数已用完</h2>
+                <p className="text-gray-400 mb-6">明日再来</p>
+                <motion.button
+                  onClick={() => setShowNoChancesModal(false)}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  知道了
+                </motion.button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* 结果弹窗 */}
         <AnimatePresence>
