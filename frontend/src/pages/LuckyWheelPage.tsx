@@ -93,8 +93,6 @@ export default function LuckyWheelPage() {
           vy: 0,
           life: 0,
           maxLife: 100 + Math.random() * 50,
-          initialX: initialX,
-          initialY: initialY,
         })
       }
     }
