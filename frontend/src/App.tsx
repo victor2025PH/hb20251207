@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
 import TopToolbar from './components/TopToolbar'
+import AssetHeader from './components/AssetHeader'
 import Loading from './components/Loading'
 
 // 懒加载页面
@@ -18,8 +19,9 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-brand-dark text-white flex flex-col overflow-hidden">
       <TopToolbar />
+      <AssetHeader />
       
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden pt-24">
         <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/" element={<WalletPage />} />

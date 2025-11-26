@@ -1,11 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Gift, Users, Calendar, ChevronRight, CheckCircle } from 'lucide-react'
+import { Check, Star, Sparkles, UserPlus, Trophy } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useTranslation } from '../providers/I18nProvider'
 import { checkIn, getCheckInStatus } from '../utils/api'
 import { haptic, showAlert, getTelegram } from '../utils/telegram'
+import { useSound } from '../hooks/useSound'
+import TelegramStar from '../components/TelegramStar'
+import PageTransition from '../components/PageTransition'
 
 export default function EarnPage() {
   const { t } = useTranslation()
+  const { playSound } = useSound()
   const queryClient = useQueryClient()
 
   const { data: checkInStatus } = useQuery({
@@ -17,162 +22,196 @@ export default function EarnPage() {
     mutationFn: checkIn,
     onSuccess: (data) => {
       haptic('success')
+      playSound('success')
       showAlert(`簽到成功！獲得 ${data.reward} 積分，已連續簽到 ${data.streak} 天`)
       queryClient.invalidateQueries({ queryKey: ['checkin-status'] })
     },
     onError: (error: Error) => {
       haptic('error')
+      playSound('click')
       showAlert(error.message)
     },
   })
 
   const handleInvite = () => {
+    playSound('pop')
     const telegram = getTelegram()
     if (telegram) {
-      // 分享邀請鏈接
       const inviteLink = `https://t.me/YourBotUsername?start=invite_${Date.now()}`
       telegram.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent('來一起搶紅包吧！')}`)
     }
   }
 
+  const totalDays = 7
+  const DURATION = 4 // 動畫週期
+
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4">
-      <h1 className="text-xl font-bold">{t('earn')}</h1>
+    <PageTransition>
+      <div className="h-full flex flex-col p-3 pb-20 gap-3 overflow-y-auto scrollbar-hide">
+        {/* 響應式網格 */}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 h-full">
+          {/* 左側/頂部：每日簽到（大） */}
+          <div className="lg:col-span-7 bg-[#1C1C1E] border border-white/5 rounded-2xl p-4 shadow-xl relative overflow-hidden shrink-0 group flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[80px] rounded-full pointer-events-none" />
+            
+            <h2 className="text-sm font-bold text-white mb-4 relative z-10 pl-1">{t('daily_checkin')}</h2>
+            
+            {/* 時間線容器 */}
+            <div className="relative mb-4 px-2 h-24 flex items-center justify-center">
+              <div className="absolute left-[14px] right-[14px] top-[50%] -translate-y-1/2 h-[4px] z-0">
+                <div className="w-full h-full bg-[#2C2C2E] rounded-full overflow-hidden relative">
+                  <motion.div
+                    className="w-[18%] h-full bg-orange-500/50 blur-[1px]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((checkInStatus?.streak || 0) / totalDays) * 100}%` }}
+                    transition={{ duration: 0.8 }}
+                  />
+                </div>
+              </div>
 
-      {/* 每日簽到 */}
-      <div className="bg-gradient-to-br from-orange-500/20 via-brand-darker to-red-500/20 border border-orange-500/30 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
-              <Calendar size={24} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-bold">{t('daily_checkin')}</h3>
-              <p className="text-orange-300 text-sm">
-                已連續簽到 {checkInStatus?.streak || 0} 天
-              </p>
-            </div>
-          </div>
-          
-          <button
-            onClick={() => checkInMutation.mutate()}
-            disabled={checkInStatus?.checked_today || checkInMutation.isPending}
-            className={`px-6 py-2 rounded-xl font-bold transition-colors ${
-              checkInStatus?.checked_today
-                ? 'bg-gray-600 text-gray-400'
-                : 'bg-gradient-to-r from-orange-500 to-red-600 text-white active:scale-95'
-            }`}
-          >
-            {checkInStatus?.checked_today ? (
-              <span className="flex items-center gap-1">
-                <CheckCircle size={16} /> 已簽到
-              </span>
-            ) : checkInMutation.isPending ? (
-              '簽到中...'
-            ) : (
-              '簽到'
-            )}
-          </button>
-        </div>
+              {/* 軌道星星 */}
+              <div className="absolute left-[14px] right-[14px] top-[50%] -translate-y-1/2 h-0 pointer-events-none z-0">
+                <motion.div
+                  className="absolute top-0"
+                  style={{ width: 0, height: 0 }}
+                  initial={{ left: '0%' }}
+                  animate={{ left: '100%' }}
+                  transition={{ duration: DURATION, repeat: Infinity, ease: "linear" }}
+                >
+                  <motion.div
+                    animate={{
+                      y: [0, -18, 0, 18, 0],
+                      scale: [1.3, 1, 0.6, 1, 1.3],
+                      zIndex: [30, 20, 0, 20, 30]
+                    }}
+                    transition={{
+                      duration: DURATION / (totalDays - 1) * 2,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                    className="relative flex items-center justify-center"
+                  >
+                    <TelegramStar size={12} withSpray={false} className="drop-shadow-[0_0_8px_rgba(255,215,0,1)] relative z-20" />
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute bg-white rounded-full blur-[0.5px] z-10"
+                        style={{
+                          width: Math.random() * 3 + 1,
+                          height: Math.random() * 3 + 1
+                        }}
+                        initial={{ x: 0, y: 0, opacity: 0.6, scale: 1 }}
+                        animate={{
+                          x: -15 - Math.random() * 30,
+                          y: (Math.random() - 0.5) * 4,
+                          opacity: 0,
+                          scale: 0
+                        }}
+                        transition={{
+                          duration: 0.2 + Math.random() * 0.3,
+                          repeat: Infinity,
+                          ease: "easeOut",
+                          delay: Math.random() * 0.1
+                        }}
+                      />
+                    ))}
+                  </motion.div>
+                </motion.div>
+              </div>
 
-        {/* 簽到日曆預覽 */}
-        <div className="flex justify-between">
-          {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-            <div
-              key={day}
-              className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                day <= (checkInStatus?.streak || 0)
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-white/5 text-gray-500'
-              }`}
+              {/* 龍珠網格 */}
+              <div className="w-full flex justify-between relative z-10">
+                {Array.from({ length: totalDays }).map((_, i) => {
+                  const day = i + 1
+                  const isChecked = day <= (checkInStatus?.streak || 0)
+                  const isToday = day === (checkInStatus?.streak || 0) + 1 && !checkInStatus?.checked_today
+                  const cycleDelay = (i / (totalDays - 1)) * DURATION
+                  return (
+                    <div key={day} className="flex flex-col items-center gap-3 relative group/day">
+                      <motion.div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center relative shadow-[inset_-3px_-3px_6px_rgba(0,0,0,0.5),inset_2px_2px_4px_rgba(255,255,255,0.2),0_4px_6px_rgba(0,0,0,0.3)]`}
+                        style={{
+                          background: isChecked || isToday
+                            ? 'radial-gradient(circle at 35% 35%, #fbbf24, #f97316, #ea580c)'
+                            : 'radial-gradient(circle at 35% 35%, #52525b, #27272a, #18181b)'
+                        }}
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          filter: ['brightness(1)', 'brightness(1.4)', 'brightness(1)']
+                        }}
+                        transition={{
+                          duration: 0.5,
+                          repeat: Infinity,
+                          delay: cycleDelay,
+                          repeatDelay: DURATION - 0.5,
+                          ease: "easeOut"
+                        }}
+                      >
+                        {isChecked ? (
+                          <Check size={16} strokeWidth={4} className="text-red-900 drop-shadow-sm" />
+                        ) : (
+                          <Star size={14} className={`${isChecked || isToday ? 'fill-red-600 text-red-700' : 'fill-gray-600 text-gray-700'}`} />
+                        )}
+                        <div className="absolute top-1.5 left-2 w-2.5 h-1.5 bg-white/30 rounded-full blur-[0.5px] -rotate-45" />
+                      </motion.div>
+                      <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday || isChecked ? 'text-white' : 'text-gray-600'}`}>
+                        Day {day}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <motion.button
+              onClick={() => checkInMutation.mutate()}
+              disabled={checkInStatus?.checked_today || checkInMutation.isPending}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-xs shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: checkInStatus?.checked_today ? 1 : 1.02 }}
+              whileTap={{ scale: checkInStatus?.checked_today ? 1 : 0.98 }}
             >
-              {day}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 邀請好友 */}
-      <div className="bg-brand-darker border border-purple-500/20 rounded-2xl overflow-hidden">
-        <div className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-              <Users size={24} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-bold">{t('invite_friends')}</h3>
-              <p className="text-purple-300 text-sm">邀請好友獲得永久 10% 返佣</p>
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] animate-shimmer" />
+              <Sparkles size={16} className="fill-white" />
+              {checkInStatus?.checked_today ? '已簽到' : checkInMutation.isPending ? '簽到中...' : '簽到 +20 積分'}
+            </motion.button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-white">0</div>
-              <div className="text-xs text-gray-400">已邀請</div>
-            </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-green-400">0</div>
-              <div className="text-xs text-gray-400">有效用戶</div>
-            </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-brand-gold">0</div>
-              <div className="text-xs text-gray-400">總收益</div>
-            </div>
+          {/* 右側/底部：操作網格（較小） */}
+          <div className="lg:col-span-5 grid grid-cols-2 gap-3 flex-1">
+            <motion.div
+              onClick={() => { playSound('pop'); handleInvite(); }}
+              className="bg-[#1C1C1E] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center border-dashed border-2 border-[#2C2C2E] hover:border-orange-500/30 transition-colors cursor-pointer group h-full active:bg-[#252527]"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="w-12 h-12 bg-[#2C2C2E] rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg group-hover:shadow-orange-500/10">
+                <UserPlus className="text-orange-500" size={20} />
+              </div>
+              <h3 className="text-white text-xs font-bold mb-1">{t('invite_friends')}</h3>
+              <p className="text-gray-500 text-[10px]">獲得大獎勵</p>
+            </motion.div>
+
+            <motion.div
+              onClick={() => playSound('pop')}
+              className="bg-[#1C1C1E] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center border-dashed border-2 border-[#2C2C2E] hover:border-blue-500/30 transition-colors cursor-pointer group h-full active:bg-[#252527]"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="w-12 h-12 bg-[#2C2C2E] rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg group-hover:shadow-blue-500/10">
+                <Trophy className="text-blue-500" size={20} />
+              </div>
+              <h3 className="text-white text-xs font-bold mb-1">任務</h3>
+              <p className="text-gray-500 text-[10px]">完成獲得 XP</p>
+            </motion.div>
           </div>
+        </div>
 
-          <button
-            onClick={handleInvite}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl text-white font-bold active:scale-[0.98] transition-transform"
-          >
-            立即邀請
-          </button>
+        {/* 重置提示 */}
+        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-white/5 rounded-xl p-3 flex items-center justify-between shrink-0">
+          <span className="text-[10px] text-gray-400 font-medium">下次重置 12h 30m</span>
+          <span className="text-[10px] text-orange-400 font-bold cursor-pointer hover:underline">查看規則</span>
         </div>
       </div>
-
-      {/* 任務列表 */}
-      <div className="space-y-2">
-        <h3 className="text-gray-400 text-sm font-medium">更多任務</h3>
-        
-        <TaskItem
-          icon={Gift}
-          title="首次發紅包"
-          reward="+50 積分"
-          completed={false}
-        />
-        <TaskItem
-          icon={Users}
-          title="邀請 5 位好友"
-          reward="+200 積分"
-          completed={false}
-        />
-      </div>
-    </div>
+    </PageTransition>
   )
 }
-
-function TaskItem({ icon: Icon, title, reward, completed }: {
-  icon: React.ElementType
-  title: string
-  reward: string
-  completed: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between p-4 bg-brand-darker rounded-xl">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-          <Icon size={18} className="text-gray-400" />
-        </div>
-        <div>
-          <div className="text-white font-medium">{title}</div>
-          <div className="text-brand-gold text-sm">{reward}</div>
-        </div>
-      </div>
-      {completed ? (
-        <CheckCircle size={20} className="text-green-500" />
-      ) : (
-        <ChevronRight size={20} className="text-gray-500" />
-      )}
-    </div>
-  )
-}
-
