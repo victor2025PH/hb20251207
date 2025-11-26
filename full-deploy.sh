@@ -87,3 +87,4 @@ echo "檢查服務狀態："
 sudo systemctl status luckyred-api --no-pager -l | head -5
 sudo systemctl status luckyred-bot --no-pager -l | head -5
 
+
