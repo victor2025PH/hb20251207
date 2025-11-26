@@ -8,6 +8,7 @@ import { getBalance, getUserProfile } from '../utils/api'
 import { useSound } from '../hooks/useSound'
 import TelegramStar from '../components/TelegramStar'
 import PageTransition from '../components/PageTransition'
+import EnergyFortunePanel from '../components/EnergyFortunePanel'
 
 export default function WalletPage() {
   const navigate = useNavigate()
