@@ -43,6 +43,7 @@ export interface UserProfile {
   first_name: string | null
   level: number
   xp: number
+  energy_balance?: number
   created_at: string
 }
 

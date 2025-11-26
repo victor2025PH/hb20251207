@@ -203,39 +203,13 @@ export default function WalletPage() {
         isRadarScanning ? '[&>*]:border-cyan-500/50 [&>*]:shadow-[0_0_20px_rgba(6,182,212,0.3)]' : ''
       }`}>
         <div className="px-3 flex flex-col gap-2 flex-1 min-h-0">
-        {/* 總資產和邀請好友（並排） */}
+        {/* 能量运势和邀請好友（並排） */}
         <div className="flex gap-2 shrink-0">
-          {/* 總資產卡片（縮小版） */}
-          <div className="relative flex-1 bg-gradient-to-br from-cyan-900/20 via-[#1C1C1E] to-blue-900/20 border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col items-center justify-center shadow-lg group active:scale-[0.98] transition-all h-20">
-            <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-cyan-500/10 to-transparent opacity-60" />
-            <div className="z-10 flex flex-col items-center gap-0.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Wallet size={12} className="text-cyan-300/60" />
-                <span className="text-cyan-300/60 text-xs font-bold uppercase tracking-wide">
-                  {t('total_assets')}
-                </span>
-              </div>
-              <span className="text-lg font-black text-white tracking-tighter drop-shadow-md">
-                {balance?.usdt?.toFixed(2) ?? '0.00'}
-              </span>
-              <div className="bg-[#0f0f11]/60 backdrop-blur-md px-2 py-1 rounded-full border border-cyan-500/20 flex items-center gap-1.5 shadow-sm mt-1">
-                <motion.div
-                  className="w-1.5 h-1.5 rounded-full bg-cyan-400"
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-                <span className="text-cyan-200 text-xs font-bold">Stars</span>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-cyan-500/20">
-              <motion.div
-                className="h-full bg-cyan-500 shadow-[0_0_10px_cyan]"
-                initial={{ width: '0%' }}
-                animate={{ width: '45%' }}
-                transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-              />
-            </div>
-          </div>
+          {/* 能量运势面板 */}
+          <EnergyFortunePanel 
+            energy={profile?.energy_balance || 50}
+            maxEnergy={100}
+          />
 
           {/* 邀請好友（縮小版） */}
           <button
