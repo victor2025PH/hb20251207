@@ -6,32 +6,54 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from contextlib import contextmanager, asynccontextmanager
 from typing import Generator, AsyncGenerator
+import os
 
 from shared.config.settings import get_settings
 from shared.database.models import Base
 
 settings = get_settings()
 
-# 同步引擎 (用於 Bot)
-sync_engine = create_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://"),
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+# 獲取數據庫 URL，支持 SQLite 本地開發
+database_url = settings.DATABASE_URL
+
+# 檢查是否使用 SQLite（本地開發）
+is_sqlite = database_url.startswith("sqlite")
+
+if is_sqlite:
+    # SQLite 配置
+    sync_engine = create_engine(
+        database_url,
+        connect_args={"check_same_thread": False},  # SQLite 需要這個參數
+    )
+    
+    # SQLite 異步需要 aiosqlite
+    async_database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    async_engine = create_async_engine(
+        async_database_url,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    # PostgreSQL 配置
+    # 同步引擎 (用於 Bot)
+    sync_engine = create_engine(
+        database_url.replace("postgresql://", "postgresql+psycopg2://"),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+    
+    # 異步引擎 (用於 API)
+    async_engine = create_async_engine(
+        database_url.replace("postgresql://", "postgresql+asyncpg://"),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
 
 SyncSessionLocal = sessionmaker(
     bind=sync_engine,
     autocommit=False,
     autoflush=False,
-)
-
-# 異步引擎 (用於 API)
-async_engine = create_async_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
 )
 
 AsyncSessionLocal = async_sessionmaker(

@@ -97,7 +97,7 @@ class RedPacket(Base):
     sender = relationship("User", back_populates="sent_packets", foreign_keys=[sender_id])
     
     # 目標群組
-    chat_id = Column(BigInteger, nullable=True, index=True)
+    chat_id = Column(BigInteger, nullable=True)  # 索引在 __table_args__ 中定義
     chat_title = Column(String(256), nullable=True)
     message_id = Column(BigInteger, nullable=True)
     

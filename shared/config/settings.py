@@ -7,6 +7,12 @@ from typing import List
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
+# 項目根目錄
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# .env 文件路徑
+ENV_FILE = BASE_DIR / ".env"
+
 
 class Settings(BaseSettings):
     """應用配置"""
@@ -32,7 +38,7 @@ class Settings(BaseSettings):
         return [int(x.strip()) for x in self.ADMIN_IDS.split(",") if x.strip().isdigit()]
     
     # 數據庫
-    DATABASE_URL: str = "postgresql://localhost/luckyred"
+    DATABASE_URL: str = "postgresql://luckyred:LuckyRed2025!@localhost:5432/luckyred"
     
     # API
     API_HOST: str = "0.0.0.0"
@@ -56,17 +62,14 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     class Config:
-        env_file = ".env"
+        env_file = str(ENV_FILE)
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"  # 忽略額外的環境變量
 
 
 @lru_cache()
 def get_settings() -> Settings:
     """獲取配置單例"""
     return Settings()
-
-
-# 項目根目錄
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
 

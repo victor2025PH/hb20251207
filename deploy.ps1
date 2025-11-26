@@ -1,7 +1,7 @@
 # PowerShell 部署腳本 - 上傳到服務器並部署
 
 param(
-    [string]$Server = "ubuntu@usdt2026.cc",
+    [string]$Server = "ubuntu@165.154.254.99",
     [string]$RemotePath = "/opt/luckyred"
 )
 
