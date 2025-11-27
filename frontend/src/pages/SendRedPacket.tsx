@@ -48,7 +48,8 @@ export default function SendRedPacket() {
       const checkResult = await checkUserInChat(chat.id, chat.link)
       if (!checkResult.in_group) {
         // 如果用戶不在群組中，提供加入群組的選項
-        if (chat.link) {
+        const groupLink = chat.link
+        if (groupLink) {
           const telegram = window.Telegram?.WebApp
           if (telegram) {
             const shouldJoin = await new Promise<boolean>((resolve) => {
@@ -58,7 +59,7 @@ export default function SendRedPacket() {
               )
             })
             if (shouldJoin) {
-              telegram.openLink(chat.link)
+              telegram.openLink(groupLink)
             }
           } else {
             showAlert(t('join_group_first'))
@@ -73,14 +74,15 @@ export default function SendRedPacket() {
       setSearchQuery('')
     } catch (error: any) {
       if (error.message?.includes('not in group') || error.message?.includes('不在群組')) {
-        if (chat.link) {
+        const groupLink = chat.link
+        if (groupLink) {
           const telegram = window.Telegram?.WebApp
           if (telegram) {
             telegram.showConfirm(
               t('join_group_first') + '\n\n' + t('open_group_link'),
               (confirmed) => {
                 if (confirmed) {
-                  telegram.openLink(chat.link)
+                  telegram.openLink(groupLink)
                 }
               }
             )
@@ -387,7 +389,7 @@ export default function SendRedPacket() {
                   {!isSearchingChats && searchChatsResult && searchChatsResult.length > 0 && (
                     <>
                       <div className="px-4 py-2 text-xs text-gray-500 font-medium">{t('search_group')}</div>
-                      {searchChatsResult.map((chat) => (
+                      {searchChatsResult.map((chat: ChatInfo) => (
                         <button
                           key={`chat-${chat.id}`}
                           onClick={() => handleSelectChat(chat)}
@@ -409,7 +411,7 @@ export default function SendRedPacket() {
                   {!isSearchingUsers && searchUsersResult && searchUsersResult.length > 0 && (
                     <>
                       <div className="px-4 py-2 text-xs text-gray-500 font-medium border-t border-white/5 mt-2 pt-2">{t('search_user')}</div>
-                      {searchUsersResult.map((user) => (
+                      {searchUsersResult.map((user: ChatInfo) => (
                         <button
                           key={`user-${user.id}`}
                           onClick={() => handleSelectChat(user)}
