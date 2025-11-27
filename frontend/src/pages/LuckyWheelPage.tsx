@@ -610,8 +610,8 @@ export default function LuckyWheelPage() {
                 exit={{ scale: 0.5, opacity: 0, y: 50 }}
                 className="relative bg-[#1C1C1E] border border-amber-500/30 rounded-3xl p-8 text-center shadow-2xl max-w-sm w-full"
               >
-                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-500/40 to-green-500/40 rounded-full flex items-center justify-center border-4 border-white/20">
-                  <FourLeafClover size={40} />
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-500/40 to-yellow-500/40 rounded-full flex items-center justify-center border-4 border-white/20">
+                  <TelegramStar size={40} />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-4">{t('no_chances_left')}</h2>
                 <p className="text-gray-400 mb-6">{t('come_tomorrow')}</p>
@@ -648,11 +648,11 @@ export default function LuckyWheelPage() {
                 <motion.div
                   animate={{ rotate: [0, 360] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-500/40 to-amber-500/40 rounded-full flex items-center justify-center border-4 border-white/20"
+                  className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-yellow-500/40 to-amber-500/40 rounded-full flex items-center justify-center border-4 border-white/20"
                 >
-                  <FourLeafClover size={50} />
+                  <TelegramStar size={50} withSpray={true} />
                 </motion.div>
-                <h2 className="text-2xl font-bold text-white mb-2">🍀 Lucky!</h2>
+                <h2 className="text-2xl font-bold text-white mb-2">⭐ Lucky!</h2>
                 <p className={`text-4xl font-black ${selectedPrize.color} mb-1`}>
                   +{selectedPrize.value}
                 </p>
