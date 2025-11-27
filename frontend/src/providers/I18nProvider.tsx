@@ -105,8 +105,8 @@ const translations: Record<Language, Record<string, string>> = {
     click_select_group: '點擊選擇群組',
     currency: '幣種',
     packet_type: '紅包類型',
-    random_amount: '隨機金額',
-    fixed_amount: '固定金額',
+    random_amount: '手氣最佳',
+    fixed_amount: '紅包炸彈',
     enter_quantity: '請輸入數量',
     
     // 抽獎頁
@@ -278,8 +278,8 @@ const translations: Record<Language, Record<string, string>> = {
     click_select_group: '点击选择群组',
     currency: '币种',
     packet_type: '红包类型',
-    random_amount: '随机金额',
-    fixed_amount: '固定金额',
+    random_amount: '手气最佳',
+    fixed_amount: '红包炸弹',
     enter_quantity: '请输入数量',
     
     // 抽奖页
@@ -451,8 +451,8 @@ const translations: Record<Language, Record<string, string>> = {
     click_select_group: 'Click to select group',
     currency: 'Currency',
     packet_type: 'Packet Type',
-    random_amount: 'Random',
-    fixed_amount: 'Fixed',
+    random_amount: 'Best MVP',
+    fixed_amount: 'Red Packet Bomb',
     enter_quantity: 'Please enter quantity',
     
     // Lucky page
