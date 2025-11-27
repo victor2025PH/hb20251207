@@ -44,6 +44,8 @@ export default function EarnPage() {
 
   const totalDays = 7
   const DURATION = 4 // 動畫週期
+  const currentStreak = checkInStatus?.streak || 0
+  const progressPercent = (currentStreak / totalDays) * 100
 
   return (
     <PageTransition>
@@ -56,78 +58,19 @@ export default function EarnPage() {
             
             <h2 className="text-base font-bold text-white mb-4 relative z-10 pl-1">{t('daily_checkin')}</h2>
             
-            {/* 時間線容器 */}
-            <div className="relative mb-4 px-2 h-24 flex items-center justify-center">
-              <div className="absolute left-[14px] right-[14px] top-[50%] -translate-y-1/2 h-[4px] z-0">
-                <div className="w-full h-full bg-[#2C2C2E] rounded-full overflow-hidden relative">
-                  <motion.div
-                    className="w-[18%] h-full bg-orange-500/50 blur-[1px]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${((checkInStatus?.streak || 0) / totalDays) * 100}%` }}
-                    transition={{ duration: 0.8 }}
-                  />
-                </div>
-              </div>
-
-              {/* 軌道星星 */}
-              <div className="absolute left-[14px] right-[14px] top-[50%] -translate-y-1/2 h-0 pointer-events-none z-0">
-                <motion.div
-                  className="absolute top-0"
-                  style={{ width: 0, height: 0 }}
-                  initial={{ left: '0%' }}
-                  animate={{ left: '100%' }}
-                  transition={{ duration: DURATION, repeat: Infinity, ease: "linear" }}
-                >
-                  <motion.div
-                    animate={{
-                      y: [0, -18, 0, 18, 0],
-                      scale: [1.3, 1, 0.6, 1, 1.3],
-                      zIndex: [30, 20, 0, 20, 30]
-                    }}
-                    transition={{
-                      duration: DURATION / (totalDays - 1) * 2,
-                      repeat: Infinity,
-                      ease: "linear"
-                    }}
-                    className="relative flex items-center justify-center"
-                  >
-                    <TelegramStar size={12} withSpray={false} className="drop-shadow-[0_0_8px_rgba(255,215,0,1)] relative z-20" />
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute bg-white rounded-full blur-[0.5px] z-10"
-                        style={{
-                          width: Math.random() * 3 + 1,
-                          height: Math.random() * 3 + 1
-                        }}
-                        initial={{ x: 0, y: 0, opacity: 0.6, scale: 1 }}
-                        animate={{
-                          x: -15 - Math.random() * 30,
-                          y: (Math.random() - 0.5) * 4,
-                          opacity: 0,
-                          scale: 0
-                        }}
-                        transition={{
-                          duration: 0.2 + Math.random() * 0.3,
-                          repeat: Infinity,
-                          ease: "easeOut",
-                          delay: Math.random() * 0.1
-                        }}
-                      />
-                    ))}
-                  </motion.div>
-                </motion.div>
-              </div>
-
+            {/* 時間線容器 - 龍珠和橫線 */}
+            <div className="relative mb-4 px-2">
               {/* 龍珠網格 */}
               <div className="w-full flex justify-between relative z-10">
                 {Array.from({ length: totalDays }).map((_, i) => {
                   const day = i + 1
-                  const isChecked = day <= (checkInStatus?.streak || 0)
-                  const isToday = day === (checkInStatus?.streak || 0) + 1 && !checkInStatus?.checked_today
+                  const isChecked = day <= currentStreak
+                  const isToday = day === currentStreak + 1 && !checkInStatus?.checked_today
                   const cycleDelay = (i / (totalDays - 1)) * DURATION
+                  
                   return (
-                    <div key={day} className="flex flex-col items-center gap-3 relative group/day">
+                    <div key={day} className="flex flex-col items-center relative group/day">
+                      {/* 龍珠 */}
                       <motion.div
                         className={`w-9 h-9 rounded-full flex items-center justify-center relative shadow-[inset_-3px_-3px_6px_rgba(0,0,0,0.5),inset_2px_2px_4px_rgba(255,255,255,0.2),0_4px_6px_rgba(0,0,0,0.3)]`}
                         style={{
@@ -154,12 +97,122 @@ export default function EarnPage() {
                         )}
                         <div className="absolute top-1.5 left-2 w-2.5 h-1.5 bg-white/30 rounded-full blur-[0.5px] -rotate-45" />
                       </motion.div>
-                      <span className={`text-xs font-bold uppercase tracking-wide ${isToday || isChecked ? 'text-white' : 'text-gray-600'}`}>
+                      
+                      {/* Day 標籤 */}
+                      <span className={`text-xs font-bold uppercase tracking-wide mt-3 ${isToday || isChecked ? 'text-white' : 'text-gray-600'}`}>
                         Day {day}
                       </span>
                     </div>
                   )
                 })}
+              </div>
+              
+              {/* 橫線 - 放在球形中央位置 */}
+              <div 
+                className="absolute left-[18px] right-[18px] h-[4px] z-0"
+                style={{ top: '18px' }} // 球形中央 (36/2 = 18)
+              >
+                {/* 灰色背景線 */}
+                <div className="w-full h-full bg-[#2C2C2E] rounded-full overflow-hidden relative">
+                  {/* 彩色進度條 - 隨進度變化 */}
+                  <motion.div
+                    className="h-full rounded-full relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(90deg, 
+                        #fbbf24 0%, 
+                        #f97316 25%, 
+                        #ef4444 50%, 
+                        #ec4899 75%, 
+                        #a855f7 100%
+                      )`,
+                    }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  >
+                    {/* 流動光效 */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                      animate={{
+                        x: ['-100%', '100%'],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: 'linear',
+                      }}
+                    />
+                  </motion.div>
+                  
+                  {/* 發光效果 */}
+                  {currentStreak > 0 && (
+                    <motion.div
+                      className="absolute top-0 left-0 h-full rounded-full pointer-events-none"
+                      style={{ width: `${progressPercent}%` }}
+                      animate={{
+                        boxShadow: [
+                          '0 0 8px rgba(251, 191, 36, 0.5)',
+                          '0 0 16px rgba(249, 115, 22, 0.7)',
+                          '0 0 8px rgba(251, 191, 36, 0.5)',
+                        ],
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 軌道星星 */}
+              <div 
+                className="absolute left-[18px] right-[18px] h-0 pointer-events-none z-20"
+                style={{ top: '18px' }}
+              >
+                <motion.div
+                  className="absolute"
+                  style={{ width: 0, height: 0 }}
+                  initial={{ left: '0%' }}
+                  animate={{ left: '100%' }}
+                  transition={{ duration: DURATION, repeat: Infinity, ease: "linear" }}
+                >
+                  <motion.div
+                    animate={{
+                      y: [0, -20, 0, 20, 0],
+                      scale: [1.3, 1, 0.6, 1, 1.3],
+                    }}
+                    transition={{
+                      duration: DURATION / (totalDays - 1) * 2,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                    className="relative flex items-center justify-center"
+                  >
+                    <TelegramStar size={14} withSpray={false} className="drop-shadow-[0_0_8px_rgba(255,215,0,1)]" />
+                    {/* 尾跡粒子 */}
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute bg-yellow-300 rounded-full"
+                        style={{
+                          width: 2 + Math.random() * 2,
+                          height: 2 + Math.random() * 2,
+                        }}
+                        initial={{ x: 0, y: 0, opacity: 0.8, scale: 1 }}
+                        animate={{
+                          x: -10 - Math.random() * 20,
+                          y: (Math.random() - 0.5) * 6,
+                          opacity: 0,
+                          scale: 0,
+                        }}
+                        transition={{
+                          duration: 0.3 + Math.random() * 0.2,
+                          repeat: Infinity,
+                          ease: "easeOut",
+                          delay: Math.random() * 0.1,
+                        }}
+                      />
+                    ))}
+                  </motion.div>
+                </motion.div>
               </div>
             </div>
 

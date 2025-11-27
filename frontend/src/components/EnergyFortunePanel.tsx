@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Sparkles, TrendingUp } from 'lucide-react'
+import { Zap, TrendingUp } from 'lucide-react'
 import { useTranslation } from '../providers/I18nProvider'
 import { useSound } from '../hooks/useSound'
+import TelegramStar from './TelegramStar'
 
 interface EnergyFortunePanelProps {
   energy?: number
@@ -94,6 +95,7 @@ export default function EnergyFortunePanel({
   }
 
   const energyPercent = (currentEnergy / maxEnergy) * 100
+  const isFull = currentEnergy >= maxEnergy
 
   return (
     <div 
@@ -103,8 +105,8 @@ export default function EnergyFortunePanel({
       {/* 背景光晕 */}
       <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-purple-500/10 via-cyan-500/10 to-transparent opacity-60" />
       
-      {/* 能量粒子效果 */}
-      {currentEnergy >= maxEnergy && (
+      {/* 能量满时的粒子效果 */}
+      {isFull && (
         <div className="absolute inset-0 pointer-events-none">
           {Array.from({ length: 5 }).map((_, i) => (
             <motion.div
@@ -132,16 +134,30 @@ export default function EnergyFortunePanel({
       <div className="z-10 flex flex-col items-center gap-1 w-full px-2">
         {/* 能量条 */}
         <div className="flex items-center gap-1.5 w-full mb-0.5">
+          {/* 闪电符号 - 微微放大缩小 + 发光，不旋转 */}
           <motion.div
-            animate={currentEnergy >= maxEnergy ? {
-              scale: [1, 1.2, 1],
-              rotate: [0, 180, 360],
-            } : {}}
-            transition={{ duration: 2, repeat: Infinity }}
+            animate={isFull ? {
+              scale: [1, 1.3, 1],
+              filter: [
+                'drop-shadow(0 0 2px #fbbf24)',
+                'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b)',
+                'drop-shadow(0 0 2px #fbbf24)',
+              ],
+            } : {
+              scale: [1, 1.1, 1],
+              filter: [
+                'drop-shadow(0 0 1px #fbbf24)',
+                'drop-shadow(0 0 4px #fbbf24)',
+                'drop-shadow(0 0 1px #fbbf24)',
+              ],
+            }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           >
-            <Zap size={12} className="text-yellow-400" fill={currentEnergy >= maxEnergy ? 'currentColor' : 'none'} />
+            <Zap size={12} className="text-yellow-400" fill={isFull ? 'currentColor' : 'none'} />
           </motion.div>
-          <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden relative">
+          
+          {/* 能量条 - 满时动态发光 */}
+          <div className={`flex-1 h-2 bg-white/10 rounded-full overflow-hidden relative ${isFull ? 'shadow-[0_0_12px_rgba(251,191,36,0.6)]' : ''}`}>
             <motion.div
               className="h-full bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded-full relative"
               initial={{ width: 0 }}
@@ -149,7 +165,7 @@ export default function EnergyFortunePanel({
               transition={{ duration: 0.5 }}
             >
               {/* 能量流动效果 */}
-              {currentEnergy < maxEnergy && (
+              {!isFull && (
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
                   animate={{
@@ -163,6 +179,21 @@ export default function EnergyFortunePanel({
                 />
               )}
             </motion.div>
+            
+            {/* 满时整个横线动态发光 */}
+            {isFull && (
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                animate={{
+                  boxShadow: [
+                    'inset 0 0 8px rgba(251, 191, 36, 0.4), 0 0 8px rgba(251, 191, 36, 0.3)',
+                    'inset 0 0 16px rgba(251, 191, 36, 0.7), 0 0 16px rgba(251, 191, 36, 0.5)',
+                    'inset 0 0 8px rgba(251, 191, 36, 0.4), 0 0 8px rgba(251, 191, 36, 0.3)',
+                  ],
+                }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+            )}
           </div>
           <span className="text-[10px] font-bold text-yellow-300 min-w-[35px] text-right">
             {currentEnergy}/{maxEnergy}
@@ -171,17 +202,19 @@ export default function EnergyFortunePanel({
 
         {/* 运势显示 */}
         <div className="flex items-center gap-1.5 w-full justify-center">
+          {/* 星光符号 - 不旋转，微微发光 */}
           <motion.div
             animate={{
-              rotate: [0, 360],
+              scale: [1, 1.15, 1],
+              opacity: [0.8, 1, 0.8],
             }}
             transition={{
-              duration: 3,
+              duration: 2,
               repeat: Infinity,
-              ease: 'linear',
+              ease: 'easeInOut',
             }}
           >
-            <Sparkles size={10} className={fortune.color} />
+            <TelegramStar size={12} withSpray={false} />
           </motion.div>
           <span className={`text-xs font-bold ${fortune.color}`}>
             {t(fortune.labelKey)}
@@ -216,4 +249,3 @@ export default function EnergyFortunePanel({
     </div>
   )
 }
-
