@@ -107,7 +107,6 @@ const translations: Record<Language, Record<string, string>> = {
     packet_type: '紅包類型',
     random_amount: '隨機金額',
     fixed_amount: '固定金額',
-    enter_amount: '請輸入金額',
     enter_quantity: '請輸入數量',
     
     // 兌換頁
@@ -147,8 +146,8 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: '提交中...',
     submit_withdraw: '提交提現',
     withdraw_submitted: '提現申請已提交，請等待審核',
-    enter_amount: '請輸入提現金額',
     enter_receiving_address: '請輸入收款地址',
+    enter_amount: '請輸入金額',
     
     // 通用
     select_group: '選擇群組',
@@ -272,7 +271,6 @@ const translations: Record<Language, Record<string, string>> = {
     packet_type: '红包类型',
     random_amount: '随机金额',
     fixed_amount: '固定金额',
-    enter_amount: '请输入金额',
     enter_quantity: '请输入数量',
     
     // 兑换页
@@ -312,8 +310,8 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: '提交中...',
     submit_withdraw: '提交提现',
     withdraw_submitted: '提现申请已提交，请等待审核',
-    enter_amount: '请输入提现金额',
     enter_receiving_address: '请输入收款地址',
+    enter_amount: '请输入金额',
     
     // 通用
     select_group: '选择群组',
@@ -437,7 +435,6 @@ const translations: Record<Language, Record<string, string>> = {
     packet_type: 'Packet Type',
     random_amount: 'Random',
     fixed_amount: 'Fixed',
-    enter_amount: 'Please enter amount',
     enter_quantity: 'Please enter quantity',
     
     // Exchange page
@@ -477,8 +474,8 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: 'Submitting...',
     submit_withdraw: 'Submit Withdrawal',
     withdraw_submitted: 'Withdrawal submitted, please wait for review',
-    enter_amount: 'Please enter amount',
     enter_receiving_address: 'Please enter receiving address',
+    enter_amount: 'Please enter amount',
     
     // Common
     select_group: 'Select Group',
