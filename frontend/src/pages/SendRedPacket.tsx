@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, X, Users, Wallet, Gift, DollarSign, MessageSquare, Info, Bomb, Search, User, CheckCircle, XCircle, Bot } from 'lucide-react'
+import { ChevronDown, X, Users, Wallet, Gift, DollarSign, MessageSquare, Info, Bomb, Search, User, CheckCircle, XCircle, Bot, RefreshCw, Trash2 } from 'lucide-react'
 import { useTranslation } from '../providers/I18nProvider'
 import { getUserChats, sendRedPacket, searchChats, searchUsers, checkUserInChat, type ChatInfo } from '../utils/api'
 import { haptic, showAlert, showConfirm, getTelegramUser } from '../utils/telegram'
@@ -607,7 +607,7 @@ export default function SendRedPacket() {
                               e.stopPropagation()
                               // 更新記錄：重新搜索並更新信息
                               try {
-                                const updatedChat = await searchChats(chat.username || chat.title || String(chat.id), tgId || undefined)
+                                const updatedChat = await searchChats((chat as any).username || chat.title || String(chat.id), tgId || undefined)
                                 if (updatedChat && updatedChat.length > 0) {
                                   const found = updatedChat.find((c: ChatInfo) => c.id === chat.id) || updatedChat[0]
                                   saveChatToHistory(found)
