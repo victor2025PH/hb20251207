@@ -346,9 +346,9 @@ export default function UserManagement() {
         rowKey="id"
         rowSelection={rowSelection}
         pagination={{
-          total: data?.data?.total || 0,
-          pageSize: data?.data?.limit || 20,
-          current: (data?.data?.offset || 0) / (data?.data?.limit || 20) + 1,
+          total: data?.total || 0,
+          pageSize: data?.limit || 20,
+          current: data?.page || 1,
           showTotal: (total) => `共 ${total} 條記錄`,
         }}
       />
