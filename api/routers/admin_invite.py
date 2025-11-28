@@ -136,7 +136,7 @@ async def get_invite_tree(
     admin: AdminUser = Depends(get_current_active_admin),
 ):
     """获取邀请关系树"""
-    def build_tree(uid: int, current_depth: int) -> Optional[InviteTreeItem]:
+    async def build_tree(uid: int, current_depth: int) -> Optional[InviteTreeItem]:
         if current_depth > depth:
             return None
         
@@ -174,13 +174,13 @@ async def get_invite_tree(
         
         children = []
         for invitee in invitees:
-            child_tree = build_tree(invitee.id, current_depth + 1)
+            child_tree = await build_tree(invitee.id, current_depth + 1)
             if child_tree:
                 children.append(child_tree)
         
         return InviteTreeItem(user=user_item, children=children)
     
-    tree = build_tree(user_id, 1)
+    tree = await build_tree(user_id, 1)
     
     if not tree:
         raise HTTPException(status_code=404, detail="用户不存在")
