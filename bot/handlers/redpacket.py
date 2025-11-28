@@ -377,14 +377,30 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n"
     
     if packet_status == RedPacketStatus.COMPLETED:
-        text += "\n✅ 紅包已搶完"
+        text += "✅ 紅包已搶完"
         keyboard = []
     else:
-        keyboard = [[InlineKeyboardButton("🧧 搶紅包", callback_data=f"claim:{packet_uuid}")]]
+        remaining = total_count - claimed_count
+        keyboard = [[InlineKeyboardButton(f"🧧 搶紅包 ({remaining} 份剩餘)", callback_data=f"claim:{packet_uuid}")]]
     
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
-    )
+    # 更新群組消息
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
+        )
+        logger.info(f"Red packet message updated successfully for packet {packet_uuid}, claimed: {claimed_count}/{total_count}")
+    except Exception as e:
+        logger.error(f"Failed to edit message: {e}")
+        # 如果編輯失敗，至少確保用戶收到了提示
+        # 嘗試發送新消息作為備用
+        try:
+            if query.message and query.message.chat:
+                await query.message.reply_text(
+                    f"🎉 {user.first_name} 搶到了 {float(claim_amount):.4f} {currency_symbol}！",
+                    parse_mode="Markdown"
+                )
+        except Exception as e2:
+            logger.error(f"Failed to send backup message: {e2}")
 
