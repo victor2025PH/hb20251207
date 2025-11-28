@@ -17,6 +17,9 @@ from shared.database.connection import SyncSessionLocal
 from shared.database.models import User, RedPacket, Transaction, CheckinRecord
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
+from decimal import Decimal
+from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI(
     title="LuckyRed Admin",
@@ -177,7 +180,8 @@ def get_transactions(page: int = 1, limit: int = 20, db=Depends(get_db)):
                         "user_id": t.user_id,
                         "type": t.type,
                         "amount": float(t.amount) if t.amount else 0,
-                        "status": "completed",
+                        "currency": t.currency.value if t.currency else "usdt",
+                        "note": t.note or "",
                         "created_at": t.created_at.isoformat() if t.created_at else None
                     }
                     for t in transactions
@@ -185,6 +189,106 @@ def get_transactions(page: int = 1, limit: int = 20, db=Depends(get_db)):
                 "total": total,
                 "page": page,
                 "limit": limit
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# 充值請求模型
+class AdjustBalanceRequest(BaseModel):
+    user_id: int
+    amount: float
+    currency: str = "usdt"  # usdt, ton, stars, points
+    reason: Optional[str] = None
+
+
+@app.post("/api/adjust-balance")
+def adjust_balance(request: AdjustBalanceRequest, db=Depends(get_db)):
+    """調整用戶餘額（充值/扣款）"""
+    try:
+        user = db.query(User).filter(User.id == request.user_id).first()
+        if not user:
+            return {"success": False, "error": "用戶不存在"}
+        
+        # 獲取當前餘額
+        balance_field = f"balance_{request.currency}"
+        if not hasattr(user, balance_field):
+            return {"success": False, "error": f"不支持的貨幣類型: {request.currency}"}
+        
+        old_balance = getattr(user, balance_field) or Decimal(0)
+        amount_decimal = Decimal(str(request.amount))
+        new_balance = old_balance + amount_decimal
+        
+        # 更新餘額
+        setattr(user, balance_field, new_balance)
+        
+        # 創建交易記錄
+        from shared.database.models import CurrencyType
+        currency_enum = CurrencyType.USDT
+        if request.currency.lower() == "usdt":
+            currency_enum = CurrencyType.USDT
+        elif request.currency.lower() == "ton":
+            currency_enum = CurrencyType.TON
+        elif request.currency.lower() == "stars":
+            currency_enum = CurrencyType.STARS
+        elif request.currency.lower() == "points":
+            currency_enum = CurrencyType.POINTS
+        
+        transaction = Transaction(
+            user_id=user.id,
+            type="admin_adjust" if amount_decimal >= 0 else "admin_deduct",
+            amount=amount_decimal,
+            currency=currency_enum,
+            balance_before=old_balance,
+            balance_after=new_balance,
+            note=request.reason or f"管理員{'充值' if amount_decimal >= 0 else '扣款'}: {amount_decimal} {request.currency.upper()}"
+        )
+        db.add(transaction)
+        db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "user_id": user.id,
+                "username": user.username,
+                "telegram_id": user.tg_id,
+                "currency": request.currency,
+                "old_balance": float(old_balance),
+                "amount": float(amount_decimal),
+                "new_balance": float(new_balance),
+                "transaction_id": transaction.id
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/user/{user_id}")
+def get_user(user_id: int, db=Depends(get_db)):
+    """獲取單個用戶詳情"""
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"success": False, "error": "用戶不存在"}
+        
+        return {
+            "success": True,
+            "data": {
+                "id": user.id,
+                "telegram_id": user.tg_id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "balance_usdt": float(user.balance_usdt) if user.balance_usdt else 0,
+                "balance_ton": float(user.balance_ton) if user.balance_ton else 0,
+                "balance_stars": user.balance_stars or 0,
+                "balance_points": user.balance_points or 0,
+                "level": user.level,
+                "xp": user.xp,
+                "is_banned": user.is_banned,
+                "created_at": user.created_at.isoformat() if user.created_at else None
             }
         }
     except Exception as e:
