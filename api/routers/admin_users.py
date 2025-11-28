@@ -20,6 +20,7 @@ class UserListItem(BaseModel):
     """用户列表项"""
     id: int
     tg_id: int
+    telegram_id: int  # 前端使用的字段名
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -34,6 +35,14 @@ class UserListItem(BaseModel):
     
     class Config:
         from_attributes = True
+    
+    def __init__(self, **data):
+        # 确保 telegram_id 和 tg_id 一致
+        if 'telegram_id' not in data and 'tg_id' in data:
+            data['telegram_id'] = data['tg_id']
+        elif 'tg_id' not in data and 'telegram_id' in data:
+            data['tg_id'] = data['telegram_id']
+        super().__init__(**data)
 
 
 @router.get("/list")
@@ -113,6 +122,7 @@ async def list_users(
         UserListItem(
             id=user.id,
             tg_id=user.tg_id,
+            telegram_id=user.tg_id,  # 添加 telegram_id 字段以兼容前端
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
