@@ -347,18 +347,6 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         await query.answer(f"🎉 恭喜獲得 {float(claim_amount):.4f} {currency_symbol}！", show_alert=True)
-        
-        # 獲取所有搶包用戶的信息
-        claimers_info = []
-        for claim_record in all_claims:
-            claimer_user = db.query(User).filter(User.id == claim_record.user_id).first()
-            if claimer_user:
-                claimers_info.append({
-                    'name': claimer_user.first_name or '用戶',
-                    'amount': float(claim_record.amount),
-                    'is_bomb': claim_record.is_bomb if hasattr(claim_record, 'is_bomb') else False,
-                    'penalty': float(claim_record.penalty_amount) if hasattr(claim_record, 'penalty_amount') and claim_record.penalty_amount else None,
-                })
     
     # 更新消息（使用已保存的變量，而不是數據庫對象）
     text = f"""
