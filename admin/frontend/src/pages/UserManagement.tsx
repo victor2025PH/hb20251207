@@ -84,9 +84,12 @@ export default function UserManagement() {
     onSuccess: () => {
       message.success('消息發送成功')
       setSendMessageModalVisible(false)
+      form.resetFields(['message'])
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.error || '發送失敗')
+      console.error('Send message error:', error)
+      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || '發送失敗'
+      message.error(errorMsg)
     },
   })
 
