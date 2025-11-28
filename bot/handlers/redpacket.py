@@ -252,6 +252,35 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         packet.claimed_amount += claim_amount
         packet.claimed_count += 1
         
+        # 標記最佳手氣（僅手氣最佳類型，當紅包搶完時）
+        is_luckiest = False
+        if packet.packet_type == RedPacketType.RANDOM and packet.claimed_count >= packet.total_count:
+            # 查找所有搶包記錄，找出金額最大的
+            all_existing_claims = db.query(RedPacketClaim).filter(
+                RedPacketClaim.red_packet_id == packet.id
+            ).all()
+            
+            # 找到金額最大的記錄
+            max_amount = Decimal(0)
+            luckiest_claim_id = None
+            for existing_claim in all_existing_claims:
+                if existing_claim.amount > max_amount:
+                    max_amount = existing_claim.amount
+                    luckiest_claim_id = existing_claim.id
+            
+            # 標記最佳手氣（清除之前的標記，設置新的）
+            if luckiest_claim_id:
+                # 清除所有記錄的最佳手氣標記
+                for existing_claim in all_existing_claims:
+                    existing_claim.is_luckiest = False
+                # 設置新的最佳手氣
+                luckiest_claim = db.query(RedPacketClaim).filter(RedPacketClaim.id == luckiest_claim_id).first()
+                if luckiest_claim:
+                    luckiest_claim.is_luckiest = True
+                    # 如果當前用戶是最佳手氣
+                    if luckiest_claim.id == claim.id:
+                        is_luckiest = True
+        
         if packet.claimed_count >= packet.total_count:
             packet.status = RedPacketStatus.COMPLETED
             packet.completed_at = datetime.utcnow()
@@ -326,6 +355,7 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             claim_amount = float(claim_record.amount)
             claim_is_bomb = claim_record.is_bomb if hasattr(claim_record, 'is_bomb') else False
             claim_penalty = float(claim_record.penalty_amount) if hasattr(claim_record, 'penalty_amount') and claim_record.penalty_amount else None
+            claim_is_luckiest = claim_record.is_luckiest if hasattr(claim_record, 'is_luckiest') else False
             
             # 查詢用戶信息
             claimer_user = db.query(User).filter(User.id == claim_user_id).first()
@@ -336,17 +366,23 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'amount': claim_amount,
                     'is_bomb': claim_is_bomb,
                     'penalty': claim_penalty,
+                    'is_luckiest': claim_is_luckiest,
                 })
+        
+        # 按金額排序（用於排行榜顯示）
+        claimers_info_sorted = sorted(claimers_info, key=lambda x: x['amount'], reverse=True)
     
-    # 根據是否踩雷顯示不同的提示
+    # 根據是否踩雷和是否最佳手氣顯示不同的提示
     if is_bomb_value and penalty_amount_value:
         thunder_type = "單雷" if total_count == 10 else "雙雷"
-        await query.answer(
-            f"💣 踩雷了！需要賠付 {float(penalty_amount_value):.2f} {currency_symbol}（{thunder_type}）",
-            show_alert=True
-        )
+        alert_text = f"💣 踩雷了！需要賠付 {float(penalty_amount_value):.2f} {currency_symbol}（{thunder_type}）"
+    elif is_luckiest and packet_status == RedPacketStatus.COMPLETED:
+        alert_text = f"🎉 恭喜獲得 {float(claim_amount):.4f} {currency_symbol}！\n🏆 你是最佳手氣！"
     else:
-        await query.answer(f"🎉 恭喜獲得 {float(claim_amount):.4f} {currency_symbol}！", show_alert=True)
+        alert_text = f"🎉 恭喜獲得 {float(claim_amount):.4f} {currency_symbol}！"
+    
+    # 確保彈窗提示始終顯示
+    await query.answer(alert_text, show_alert=True)
     
     # 更新消息（使用已保存的變量，而不是數據庫對象）
     text = f"""
@@ -362,15 +398,30 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text += f"📝 {packet_message}\n\n"
     
-    # 顯示所有已搶紅包的用戶和金額
-    if claimers_info:
-        text += "已搶紅包：\n"
-        for idx, claimer in enumerate(claimers_info, 1):
+    # 顯示所有已搶紅包的用戶和金額（排行榜，按金額排序）
+    if claimers_info_sorted:
+        text += "📊 搶包排行榜：\n"
+        for idx, claimer in enumerate(claimers_info_sorted, 1):
+            # 構建顯示文本
+            rank_icon = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+            name_text = claimer['name']
+            
+            # 添加最佳手氣標記（僅手氣最佳類型且已搶完）
+            if claimer['is_luckiest'] and packet_type == RedPacketType.RANDOM and packet_status == RedPacketStatus.COMPLETED:
+                name_text = f"🏆 {name_text} (最佳手氣)"
+            
+            # 添加踩雷標記
             if claimer['is_bomb'] and claimer['penalty']:
-                text += f"{idx}. {claimer['name']} 搶到了 {claimer['amount']:.4f} {currency_symbol}，💣 踩雷了！需賠付 {claimer['penalty']:.2f} {currency_symbol}\n"
+                text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.4f} {currency_symbol}，💣 踩雷了！需賠付 {claimer['penalty']:.2f} {currency_symbol}\n"
             else:
-                text += f"{idx}. {claimer['name']} 搶到了 {claimer['amount']:.4f} {currency_symbol}！\n"
+                text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.4f} {currency_symbol}！\n"
         text += "\n"
+        
+        # 如果紅包已搶完且是手氣最佳類型，顯示最佳手氣提示
+        if packet_status == RedPacketStatus.COMPLETED and packet_type == RedPacketType.RANDOM:
+            luckiest_claimer = next((c for c in claimers_info_sorted if c['is_luckiest']), None)
+            if luckiest_claimer:
+                text += f"🏆 *{luckiest_claimer['name']}* 是本次最佳手氣！\n"
     
     if packet_status == RedPacketStatus.COMPLETED:
         text += "✅ 紅包已搶完"
