@@ -151,7 +151,15 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ).first()
         
         if existing:
-            await query.answer(f"你已經領過了！獲得 {float(existing.amount):.4f} USDT", show_alert=True)
+            # 獲取貨幣符號
+            currency_symbol_map = {
+                CurrencyType.USDT: "USDT",
+                CurrencyType.TON: "TON",
+                CurrencyType.STARS: "Stars",
+                CurrencyType.POINTS: "Points",
+            }
+            currency_symbol = currency_symbol_map.get(packet.currency, "USDT")
+            await query.answer(f"你已經領過了！獲得 {float(existing.amount):.4f} {currency_symbol}", show_alert=True)
             return
         
         # 計算金額
@@ -189,8 +197,16 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             packet.status = RedPacketStatus.COMPLETED
             packet.completed_at = datetime.utcnow()
         
-        # 更新用戶餘額
-        db_user.balance_usdt = (db_user.balance_usdt or 0) + claim_amount
+        # 更新用戶餘額（根據貨幣類型）
+        currency_field_map = {
+            CurrencyType.USDT: "balance_usdt",
+            CurrencyType.TON: "balance_ton",
+            CurrencyType.STARS: "balance_stars",
+            CurrencyType.POINTS: "balance_points",
+        }
+        balance_field = currency_field_map.get(packet.currency, "balance_usdt")
+        current_balance = getattr(db_user, balance_field, 0) or 0
+        setattr(db_user, balance_field, current_balance + claim_amount)
         
         db.commit()
         
@@ -205,17 +221,27 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         packet_message = packet.message
         packet_status = packet.status
         packet_uuid = packet.uuid
+        packet_currency = packet.currency
+        
+        # 獲取貨幣符號
+        currency_symbol_map = {
+            CurrencyType.USDT: "USDT",
+            CurrencyType.TON: "TON",
+            CurrencyType.STARS: "Stars",
+            CurrencyType.POINTS: "Points",
+        }
+        currency_symbol = currency_symbol_map.get(packet_currency, "USDT")
     
-    await query.answer(f"🎉 恭喜獲得 {float(claim_amount):.4f} USDT！", show_alert=True)
+    await query.answer(f"🎉 恭喜獲得 {float(claim_amount):.4f} {currency_symbol}！", show_alert=True)
     
     # 更新消息（使用已保存的變量，而不是數據庫對象）
     text = f"""
 🧧 *{sender_name} 發了一個紅包*
 
-💰 {total_amount:.2f} USDT | 👥 {claimed_count}/{total_count} 份
+💰 {total_amount:.2f} {currency_symbol} | 👥 {claimed_count}/{total_count} 份
 📝 {packet_message}
 
-{user.first_name} 搶到了 {float(claim_amount):.4f} USDT！
+{user.first_name} 搶到了 {float(claim_amount):.4f} {currency_symbol}！
 """
     
     if packet_status == RedPacketStatus.COMPLETED:
