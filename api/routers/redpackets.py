@@ -4,8 +4,8 @@ Lucky Red - 紅包路由
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Union
 from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
@@ -26,13 +26,28 @@ bot = Bot(token=settings.BOT_TOKEN)
 
 class CreateRedPacketRequest(BaseModel):
     """創建紅包請求"""
-    currency: CurrencyType = CurrencyType.USDT
+    currency: Union[CurrencyType, str] = CurrencyType.USDT
     packet_type: RedPacketType = RedPacketType.RANDOM
     total_amount: float = Field(..., gt=0)
     total_count: int = Field(..., ge=1, le=100)
     message: str = Field(default="恭喜發財！🧧", max_length=256)
     chat_id: Optional[int] = None
     chat_title: Optional[str] = None
+    
+    @field_validator('currency', mode='before')
+    @classmethod
+    def normalize_currency(cls, v):
+        """將 currency 轉換為小寫並映射到 CurrencyType 枚舉"""
+        if isinstance(v, str):
+            v_lower = v.lower()
+            currency_map = {
+                "usdt": CurrencyType.USDT,
+                "ton": CurrencyType.TON,
+                "stars": CurrencyType.STARS,
+                "points": CurrencyType.POINTS,
+            }
+            return currency_map.get(v_lower, CurrencyType.USDT)
+        return v
 
 
 class RedPacketResponse(BaseModel):
@@ -72,7 +87,6 @@ async def create_red_packet(
     """創建紅包"""
     if sender_tg_id is None:
         raise HTTPException(status_code=401, detail="Telegram user ID is required")
-    """創建紅包"""
     
     # 查找發送者
     result = await db.execute(select(User).where(User.tg_id == sender_tg_id))
