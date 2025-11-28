@@ -73,7 +73,9 @@ export default function UserManagement() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.error || '調整失敗')
+      console.error('Adjust balance error:', error)
+      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || '調整失敗'
+      message.error(errorMsg)
     },
   })
 
