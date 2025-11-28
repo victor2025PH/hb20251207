@@ -156,7 +156,7 @@ export default function SendRedPacket() {
           setShowChatModal(false)
           setSearchQuery('')
           haptic('success')
-          showAlert('✅ 已選擇 ' + chat.title)
+          showAlert('✅ 已選擇 ' + chat.title, 'success')
           return
         }
       }
@@ -227,7 +227,7 @@ export default function SendRedPacket() {
   // 發送紅包
   const sendMutation = useMutation({
     mutationFn: sendRedPacket,
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       haptic('success')
       queryClient.invalidateQueries({ queryKey: ['balance'] })
       queryClient.invalidateQueries({ queryKey: ['redpackets'] })
