@@ -17,6 +17,7 @@ from shared.database.models import User, RedPacket, RedPacketClaim, CurrencyType
 from shared.config.settings import get_settings
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
+from api.utils.telegram_auth import get_tg_id_from_header
 
 settings = get_settings()
 router = APIRouter()
@@ -65,9 +66,12 @@ class ClaimResult(BaseModel):
 @router.post("/create", response_model=RedPacketResponse)
 async def create_red_packet(
     request: CreateRedPacketRequest,
-    sender_tg_id: int,  # TODO: 從 JWT 獲取
+    sender_tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
+    """創建紅包"""
+    if sender_tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
     """創建紅包"""
     
     # 查找發送者

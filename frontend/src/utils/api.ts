@@ -109,7 +109,19 @@ export async function getRedPacket(id: string): Promise<RedPacket> {
 }
 
 export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPacket> {
-  return api.post('/v1/redpackets', params)
+  // 轉換參數格式以匹配後端 API
+  const requestBody = {
+    currency: params.currency || 'USDT',
+    packet_type: params.type || 'random',
+    total_amount: params.amount,
+    total_count: params.quantity,
+    message: params.message || '恭喜發財！🧧',
+    chat_id: params.chat_id,
+    chat_title: params.chat_title,
+    bomb_number: params.bomb_number, // 如果有的話
+  }
+  console.log('[sendRedPacket] Sending request:', requestBody)
+  return api.post('/redpackets/create', requestBody)
 }
 
 export async function claimRedPacket(id: string): Promise<{ amount: number; message: string }> {
