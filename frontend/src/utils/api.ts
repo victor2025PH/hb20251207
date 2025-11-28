@@ -110,16 +110,25 @@ export async function getRedPacket(id: string): Promise<RedPacket> {
 
 export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPacket> {
   // 轉換參數格式以匹配後端 API
-  const requestBody = {
+  const requestBody: any = {
     currency: params.currency || 'USDT',
     packet_type: params.type || 'random',
     total_amount: params.amount,
     total_count: params.quantity,
     message: params.message || '恭喜發財！🧧',
     chat_id: params.chat_id,
-    chat_title: params.chat_title,
-    bomb_number: params.bomb_number, // 如果有的話
   }
+  
+  // 如果提供了 chat_title，添加到請求中
+  if ('chat_title' in params && params.chat_title) {
+    requestBody.chat_title = params.chat_title
+  }
+  
+  // 如果提供了 bomb_number，添加到請求中
+  if (params.bomb_number !== undefined) {
+    requestBody.bomb_number = params.bomb_number
+  }
+  
   console.log('[sendRedPacket] Sending request:', requestBody)
   return api.post('/redpackets/create', requestBody)
 }
