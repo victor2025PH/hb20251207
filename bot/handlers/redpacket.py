@@ -213,9 +213,25 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # 根據紅包類型計算金額（保留兩位小數）
-        if packet.packet_type == RedPacketType.EQUAL:  # 紅包炸彈（固定金額分配）
-            # 固定金額：平分剩餘金額
-            claim_amount = remaining_amount / Decimal(str(remaining_count))
+        if packet.packet_type == RedPacketType.EQUAL:  # 紅包炸彈（需要隨機金額以便檢測炸彈）
+            # 炸彈紅包也需要隨機金額，但總和必須等於總金額
+            # 最後一個包直接取剩餘金額，其他包隨機分配
+            if remaining_count == 1:
+                claim_amount = remaining_amount
+            else:
+                # 計算平均金額
+                avg_amount = remaining_amount / Decimal(str(remaining_count))
+                # 隨機範圍：平均金額的 50% 到 150%
+                min_amount = avg_amount * Decimal("0.5")
+                max_amount = avg_amount * Decimal("1.5")
+                # 確保不會超過剩餘金額，且為其他包留出至少 0.01
+                max_amount = min(max_amount, remaining_amount - Decimal("0.01") * (remaining_count - 1))
+                # 生成隨機金額
+                claim_amount = Decimal(str(random.uniform(float(min_amount), float(max_amount))))
+                # 確保至少 0.01
+                claim_amount = max(claim_amount, Decimal("0.01"))
+                # 確保不超過剩餘金額
+                claim_amount = min(claim_amount, remaining_amount - Decimal("0.01") * (remaining_count - 1))
             claim_amount = round(claim_amount, 2)  # 保留兩位小數
         else:  # 手氣最佳（隨機金額）
             if remaining_count == 1:
