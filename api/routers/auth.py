@@ -2,21 +2,26 @@
 Lucky Red - 認證路由
 """
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional
 import hashlib
 import hmac
 from datetime import datetime, timedelta
-from jose import jwt
+from jose import jwt, JWTError
 from loguru import logger
 
 from shared.config.settings import get_settings
 from shared.database.connection import get_db_session
 from shared.database.models import User
+from sqlalchemy import select
 
 router = APIRouter()
 settings = get_settings()
+
+# HTTP Bearer 認證
+security = HTTPBearer()
 
 
 class TelegramAuthData(BaseModel):
@@ -35,6 +40,23 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class UserResponse(BaseModel):
+    """用戶響應"""
+    id: int
+    tg_id: int
+    username: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
+    level: int
+    balance_usdt: float
+    balance_ton: float
+    balance_stars: int
+    balance_points: int
+    
+    class Config:
+        from_attributes = True
 
 
 def verify_telegram_auth(data: dict, bot_token: str) -> bool:
@@ -134,9 +156,63 @@ async def telegram_auth(
     )
 
 
-@router.get("/me")
-async def get_current_user():
-    """獲取當前用戶信息 (需要實現 JWT 驗證中間件)"""
-    # TODO: 實現 JWT 驗證
-    pass
+async def get_current_user_from_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db_session)
+) -> User:
+    """從 JWT Token 獲取當前用戶"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
+            raise credentials_exception
+        user_id: int = int(user_id_str)
+    except (JWTError, ValueError, TypeError) as e:
+        logger.warning(f"JWT 驗證失敗: {str(e)}")
+        raise credentials_exception
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        raise credentials_exception
+    
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is banned"
+        )
+    
+    return user
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user(
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session)
+):
+    """獲取當前用戶信息"""
+    return UserResponse(
+        id=current_user.id,
+        tg_id=current_user.tg_id,
+        username=current_user.username,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        level=current_user.level,
+        balance_usdt=float(current_user.balance_usdt or 0),
+        balance_ton=float(current_user.balance_ton or 0),
+        balance_stars=current_user.balance_stars or 0,
+        balance_points=current_user.balance_points or 0,
+    )
 

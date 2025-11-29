@@ -124,6 +124,7 @@ class RedPacket(Base):
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)  # 軟刪除時間戳
     
     # 關聯
     claims = relationship("RedPacketClaim", back_populates="red_packet")
@@ -131,6 +132,10 @@ class RedPacket(Base):
     __table_args__ = (
         Index("ix_red_packets_status", "status"),
         Index("ix_red_packets_chat_id", "chat_id"),
+        Index("ix_red_packets_status_created", "status", "created_at"),
+        Index("ix_red_packets_sender_created", "sender_id", "created_at"),
+        Index("ix_red_packets_chat_status", "chat_id", "status"),
+        Index("ix_red_packets_expires_at", "expires_at"),
     )
 
 
@@ -159,6 +164,8 @@ class RedPacketClaim(Base):
     
     __table_args__ = (
         Index("ix_claims_user_packet", "user_id", "red_packet_id"),
+        Index("ix_claims_user_created", "user_id", "claimed_at"),
+        Index("ix_claims_packet_created", "red_packet_id", "claimed_at"),
     )
 
 
@@ -184,12 +191,16 @@ class Transaction(Base):
     # 備註
     note = Column(Text, nullable=True)
     
+    # 狀態（用於充值/提現審核）
+    status = Column(String(16), default="completed")  # pending, completed, rejected, cancelled
+    
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
         Index("ix_transactions_user_id", "user_id"),
         Index("ix_transactions_type", "type"),
+        Index("ix_transactions_status", "status"),
     )
 
 

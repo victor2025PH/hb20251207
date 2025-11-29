@@ -3,7 +3,7 @@ Lucky Red - 紅包路由
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, desc, asc
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Union
 from datetime import datetime, timedelta
@@ -230,10 +230,13 @@ async def create_red_packet(
 @router.post("/{packet_uuid}/claim", response_model=ClaimResult)
 async def claim_red_packet(
     packet_uuid: str,
-    claimer_tg_id: int,  # TODO: 從 JWT 獲取
+    claimer_tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
     """領取紅包"""
+    
+    if claimer_tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
     
     # 查找紅包
     result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
@@ -291,11 +294,31 @@ async def claim_red_packet(
     
     amount = round(amount, 8)
     
+    # 紅包炸彈：檢查是否踩雷
+    is_bomb = False
+    penalty_amount = Decimal(0)
+    
+    if packet.packet_type == RedPacketType.EQUAL and packet.bomb_number is not None:
+        # 獲取金額的最後一位有效數字
+        # 方法：將金額轉換為整數（乘以100000000，保留8位小數精度），然後取模10
+        # 這樣可以準確獲取最後一位數字，不受小數點影響
+        amount_int = int(amount * Decimal("100000000"))  # 轉換為整數（8位小數精度）
+        last_digit = amount_int % 10  # 取最後一位數字
+        
+        # 檢查是否等於炸彈數字
+        if last_digit == packet.bomb_number:
+            is_bomb = True
+            # 計算賠付：單雷（10個）賠1倍，雙雷（5個）賠2倍
+            multiplier = 1 if packet.total_count == 10 else 2
+            penalty_amount = amount * Decimal(multiplier)
+    
     # 創建領取記錄
     claim = RedPacketClaim(
         red_packet_id=packet.id,
         user_id=claimer.id,
         amount=amount,
+        is_bomb=is_bomb,
+        penalty_amount=penalty_amount if is_bomb else None,
     )
     db.add(claim)
     
@@ -303,17 +326,60 @@ async def claim_red_packet(
     packet.claimed_amount += amount
     packet.claimed_count += 1
     
-    if packet.claimed_count >= packet.total_count:
+    is_luckiest = False
+    is_completed = packet.claimed_count >= packet.total_count
+    
+    if is_completed:
         packet.status = RedPacketStatus.COMPLETED
         packet.completed_at = datetime.utcnow()
     
     # 更新用戶餘額
     balance_field = f"balance_{packet.currency.value}"
     current_balance = getattr(claimer, balance_field, 0) or Decimal(0)
+    # 先加上領取金額
     new_balance = current_balance + amount
+    # 如果踩雷，扣除賠付金額
+    if is_bomb:
+        new_balance = new_balance - penalty_amount
+        # 檢查餘額是否足夠賠付
+        if new_balance < 0:
+            # 如果餘額不足，只扣除現有餘額（不能為負）
+            actual_penalty = current_balance + amount
+            new_balance = Decimal(0)
+            penalty_amount = actual_penalty
+            claim.penalty_amount = penalty_amount
+        # 將賠付金額轉給發送者
+        sender_result = await db.execute(select(User).where(User.id == packet.sender_id))
+        sender = sender_result.scalar_one_or_none()
+        if sender:
+            sender_balance = getattr(sender, balance_field, 0) or Decimal(0)
+            setattr(sender, balance_field, sender_balance + penalty_amount)
+    
     setattr(claimer, balance_field, new_balance)
     
+    # 先提交以便查詢包含當前的 claim
     await db.commit()
+    await db.refresh(claim)
+    
+    # 計算手氣最佳（僅對隨機紅包，且紅包已領完）
+    if is_completed and packet.packet_type == RedPacketType.RANDOM:
+        # 查詢所有領取記錄，按金額降序、領取時間升序排序
+        # 這樣可以找出金額最大的，如果金額相同則選最早領取的
+        result = await db.execute(
+            select(RedPacketClaim)
+            .where(RedPacketClaim.red_packet_id == packet.id)
+            .order_by(desc(RedPacketClaim.amount), asc(RedPacketClaim.claimed_at))
+        )
+        all_claims = result.scalars().all()
+        
+        if all_claims:
+            # 第一個就是手氣最佳的（金額最大，如果相同則最早領取）
+            luckiest_claim = all_claims[0]
+            luckiest_claim.is_luckiest = True
+            # 如果當前領取者是最佳手氣
+            if luckiest_claim.id == claim.id:
+                is_luckiest = True
+            await db.commit()
     
     # 發送消息通知（異步，不阻塞響應）
     try:
@@ -337,11 +403,19 @@ async def claim_red_packet(
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
     
+    # 構建消息
+    if is_bomb:
+        message = f"💣 踩雷了！獲得 {amount} {packet.currency.value.upper()}，但需賠付 {penalty_amount} {packet.currency.value.upper()}！"
+    else:
+        message = f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
+        if is_luckiest:
+            message += " 🎉 手氣最佳！"
+    
     return ClaimResult(
         success=True,
-        amount=float(amount),
-        is_luckiest=False,  # TODO: 計算手氣最佳
-        message=f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
+        amount=float(amount - penalty_amount if is_bomb else amount),  # 實際到賬金額
+        is_luckiest=is_luckiest,
+        message=message
     )
 
 

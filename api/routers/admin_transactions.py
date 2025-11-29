@@ -1,7 +1,7 @@
 """
 交易管理 API
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -14,6 +14,7 @@ from shared.database.models import Transaction, User, CurrencyType
 from sqlalchemy.orm import joinedload
 from api.utils.auth import get_current_admin
 from pydantic import BaseModel
+from loguru import logger
 
 router = APIRouter(prefix="/api/v1/admin/transactions", tags=["管理后台-交易管理"])
 
@@ -32,6 +33,7 @@ class TransactionListItem(BaseModel):
     balance_after: Optional[Decimal] = None
     ref_id: Optional[str] = None
     note: Optional[str] = None
+    status: str  # pending, completed, rejected, cancelled
     created_at: datetime
 
     class Config:
@@ -140,6 +142,7 @@ async def list_transactions(
             balance_after=tx.balance_after,
             ref_id=tx.ref_id,
             note=tx.note,
+            status=tx.status,
             created_at=tx.created_at,
         ))
     
@@ -183,6 +186,7 @@ async def get_transaction_detail(
         balance_after=transaction.balance_after,
         ref_id=transaction.ref_id,
         note=transaction.note,
+        status=transaction.status,
         created_at=transaction.created_at,
     )
 
@@ -315,5 +319,222 @@ async def get_transaction_trend(
         "counts": counts,
         "incomes": incomes,
         "expenses": expenses,
+    }
+
+
+class ApproveRequest(BaseModel):
+    """審核請求"""
+    note: Optional[str] = None  # 審核備註
+
+
+class RejectRequest(BaseModel):
+    """拒絕請求"""
+    reason: str  # 拒絕原因
+
+
+@router.get("/pending", response_model=dict)
+async def get_pending_transactions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    transaction_type: Optional[str] = Query(None),  # deposit 或 withdraw
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """獲取待審核的交易列表"""
+    query = select(Transaction).where(Transaction.status == "pending")
+    
+    if transaction_type:
+        query = query.where(Transaction.type == transaction_type)
+    
+    # 只顯示充值或提現
+    query = query.where(Transaction.type.in_(["deposit", "withdraw"]))
+    
+    # 獲取總數
+    count_query = select(func.count()).select_from(Transaction).where(
+        Transaction.status == "pending",
+        Transaction.type.in_(["deposit", "withdraw"])
+    )
+    if transaction_type:
+        count_query = count_query.where(Transaction.type == transaction_type)
+    total = await db.scalar(count_query)
+    
+    # 分頁查詢
+    query = query.order_by(Transaction.created_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    
+    result = await db.execute(query)
+    transactions = result.scalars().all()
+    
+    # 獲取用戶信息
+    user_ids = list(set(tx.user_id for tx in transactions))
+    users_query = select(User).where(User.id.in_(user_ids))
+    users_result = await db.execute(users_query)
+    users = {user.id: user for user in users_result.scalars().all()}
+    
+    # 構建響應數據
+    items = []
+    for tx in transactions:
+        user = users.get(tx.user_id)
+        items.append(TransactionListItem(
+            id=tx.id,
+            user_id=tx.user_id,
+            user_tg_id=user.tg_id if user else None,
+            user_username=user.username if user else None,
+            user_name=f"{user.first_name or ''} {user.last_name or ''}".strip() if user else None,
+            type=tx.type,
+            currency=tx.currency.value,
+            amount=tx.amount,
+            balance_before=tx.balance_before,
+            balance_after=tx.balance_after,
+            ref_id=tx.ref_id,
+            note=tx.note,
+            status=tx.status,
+            created_at=tx.created_at,
+        ))
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
+    }
+
+
+@router.post("/{transaction_id}/approve")
+async def approve_transaction(
+    transaction_id: int,
+    request: Optional[ApproveRequest] = Body(None),
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """批准交易（充值或提現）"""
+    if request is None:
+        request = ApproveRequest()
+    
+    # 查找交易
+    result = await db.execute(select(Transaction).where(Transaction.id == transaction_id))
+    transaction = result.scalar_one_or_none()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="交易不存在")
+    
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"交易狀態為 {transaction.status}，無法審核")
+    
+    # 查找用戶
+    result = await db.execute(select(User).where(User.id == transaction.user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用戶不存在")
+    
+    balance_field = f"balance_{transaction.currency.value}"
+    current_balance = getattr(user, balance_field, 0) or Decimal(0)
+    
+    if transaction.type == "deposit":
+        # 批准充值：增加用戶餘額
+        new_balance = current_balance + transaction.amount
+        setattr(user, balance_field, new_balance)
+        transaction.balance_after = new_balance
+        transaction.status = "completed"
+        
+        if request.note:
+            transaction.note = f"{transaction.note or ''} [審核通過: {request.note}]".strip()
+        
+        logger.info(
+            f"Deposit approved: tx_id={transaction_id}, user_id={user.id}, "
+            f"amount={transaction.amount}, currency={transaction.currency.value}, "
+            f"admin_id={current_admin.get('id')}"
+        )
+        
+    elif transaction.type == "withdraw":
+        # 批准提現：餘額已經在申請時凍結，這裡只需要標記為完成
+        # 實際轉賬應該由管理員手動執行或通過支付網關自動執行
+        transaction.status = "completed"
+        
+        if request.note:
+            transaction.note = f"{transaction.note or ''} [審核通過: {request.note}]".strip()
+        
+        logger.info(
+            f"Withdraw approved: tx_id={transaction_id}, user_id={user.id}, "
+            f"amount={transaction.amount}, currency={transaction.currency.value}, "
+            f"address={transaction.ref_id}, admin_id={current_admin.get('id')}"
+        )
+    else:
+        raise HTTPException(status_code=400, detail="只能審核充值或提現交易")
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "交易已批准",
+        "transaction_id": transaction_id,
+        "status": transaction.status,
+    }
+
+
+@router.post("/{transaction_id}/reject")
+async def reject_transaction(
+    transaction_id: int,
+    request: RejectRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """拒絕交易（充值或提現）"""
+    # 查找交易
+    result = await db.execute(select(Transaction).where(Transaction.id == transaction_id))
+    transaction = result.scalar_one_or_none()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="交易不存在")
+    
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"交易狀態為 {transaction.status}，無法審核")
+    
+    # 查找用戶
+    result = await db.execute(select(User).where(User.id == transaction.user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用戶不存在")
+    
+    balance_field = f"balance_{transaction.currency.value}"
+    current_balance = getattr(user, balance_field, 0) or Decimal(0)
+    
+    if transaction.type == "deposit":
+        # 拒絕充值：不更新餘額，只標記為拒絕
+        transaction.status = "rejected"
+        transaction.note = f"{transaction.note or ''} [審核拒絕: {request.reason}]".strip()
+        
+        logger.info(
+            f"Deposit rejected: tx_id={transaction_id}, user_id={user.id}, "
+            f"amount={transaction.amount}, currency={transaction.currency.value}, "
+            f"reason={request.reason}, admin_id={current_admin.get('id')}"
+        )
+        
+    elif transaction.type == "withdraw":
+        # 拒絕提現：退回凍結的餘額
+        new_balance = current_balance + transaction.amount  # 退回凍結的金額
+        setattr(user, balance_field, new_balance)
+        transaction.balance_after = new_balance
+        transaction.status = "rejected"
+        transaction.note = f"{transaction.note or ''} [審核拒絕: {request.reason}]".strip()
+        
+        logger.info(
+            f"Withdraw rejected: tx_id={transaction_id}, user_id={user.id}, "
+            f"amount={transaction.amount}, currency={transaction.currency.value}, "
+            f"reason={request.reason}, admin_id={current_admin.get('id')}"
+        )
+    else:
+        raise HTTPException(status_code=400, detail="只能審核充值或提現交易")
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "交易已拒絕",
+        "transaction_id": transaction_id,
+        "status": transaction.status,
     }
 

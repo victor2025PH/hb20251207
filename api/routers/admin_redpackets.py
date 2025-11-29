@@ -10,9 +10,10 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from shared.database.connection import get_db_session
-from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType
+from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType, Transaction
 from api.utils.auth import get_current_admin
 from pydantic import BaseModel
+from loguru import logger
 
 router = APIRouter(prefix="/api/v1/admin/redpackets", tags=["管理后台-红包管理"])
 
@@ -93,8 +94,8 @@ async def list_redpackets(
     """获取红包列表"""
     query = select(RedPacket).options(selectinload(RedPacket.sender))
     
-    # 构建筛选条件
-    conditions = []
+    # 構建篩選條件（排除已軟刪除的）
+    conditions = [RedPacket.deleted_at.is_(None)]
     
     if status:
         try:
@@ -258,24 +259,62 @@ async def refund_redpacket(
     redpacket = result.scalar_one_or_none()
     
     if not redpacket:
-        raise HTTPException(status_code=404, detail="红包不存在")
+        raise HTTPException(status_code=404, detail="紅包不存在")
     
     if redpacket.status == RedPacketStatus.REFUNDED:
-        raise HTTPException(status_code=400, detail="红包已退款")
+        raise HTTPException(status_code=400, detail="紅包已退款")
     
-    if redpacket.status == RedPacketStatus.COMPLETED and redpacket.claimed_count > 0:
-        raise HTTPException(status_code=400, detail="红包已被领取，无法退款")
+    # 查找發送者
+    sender_result = await db.execute(select(User).where(User.id == redpacket.sender_id))
+    sender = sender_result.scalar_one_or_none()
     
-    # 更新状态
+    if not sender:
+        raise HTTPException(status_code=404, detail="發送者不存在")
+    
+    balance_field = f"balance_{redpacket.currency.value}"
+    current_balance = getattr(sender, balance_field, 0) or Decimal(0)
+    
+    # 計算需要退還的金額
+    # 如果紅包已被領取，只退還剩餘金額；如果未被領取，退還全部金額
+    remaining_amount = redpacket.total_amount - redpacket.claimed_amount
+    
+    if remaining_amount > 0:
+        # 退還剩餘金額給發送者
+        new_balance = current_balance + remaining_amount
+        setattr(sender, balance_field, new_balance)
+        
+        # 創建退款交易記錄
+        refund_transaction = Transaction(
+            user_id=sender.id,
+            type="refund",
+            currency=redpacket.currency,
+            amount=remaining_amount,
+            balance_before=current_balance,
+            balance_after=new_balance,
+            ref_id=f"redpacket_{redpacket.id}",
+            note=f"紅包退款: 紅包ID {redpacket.id}, 退還金額 {remaining_amount} {redpacket.currency.value.upper()}",
+            status="completed"
+        )
+        db.add(refund_transaction)
+        
+        logger.info(
+            f"Red packet refunded: redpacket_id={redpacket_id}, sender_id={sender.id}, "
+            f"amount={remaining_amount}, currency={redpacket.currency.value}, "
+            f"admin_id={current_admin.get('id')}"
+        )
+    
+    # 更新紅包狀態
     redpacket.status = RedPacketStatus.REFUNDED
-    
-    # 如果已领取，需要退还金额（这里简化处理，实际应该创建退款交易记录）
-    # TODO: 实现退款逻辑，退还金额到发送者账户
     
     await db.commit()
     await db.refresh(redpacket)
     
-    return {"success": True, "message": "退款成功"}
+    return {
+        "success": True,
+        "message": "退款成功",
+        "refunded_amount": float(remaining_amount),
+        "currency": redpacket.currency.value
+    }
 
 
 @router.post("/{redpacket_id}/extend")
@@ -310,30 +349,70 @@ async def extend_redpacket(
 @router.post("/{redpacket_id}/complete")
 async def complete_redpacket(
     redpacket_id: int,
+    refund_remaining: bool = Query(True, description="是否退還剩餘金額"),
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
-    """强制完成红包"""
+    """強制完成紅包"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
     redpacket = result.scalar_one_or_none()
     
     if not redpacket:
-        raise HTTPException(status_code=404, detail="红包不存在")
+        raise HTTPException(status_code=404, detail="紅包不存在")
     
     if redpacket.status != RedPacketStatus.ACTIVE:
-        raise HTTPException(status_code=400, detail="只能完成进行中的红包")
+        raise HTTPException(status_code=400, detail="只能完成進行中的紅包")
     
     redpacket.status = RedPacketStatus.COMPLETED
     redpacket.completed_at = datetime.utcnow()
     
-    # 如果未领取完，剩余金额需要处理（这里简化，实际应该退还）
-    # TODO: 实现剩余金额退还逻辑
+    # 如果未領取完且需要退還，退還剩餘金額給發送者
+    remaining_amount = redpacket.total_amount - redpacket.claimed_amount
+    refunded = False
+    
+    if refund_remaining and remaining_amount > 0:
+        # 查找發送者
+        sender_result = await db.execute(select(User).where(User.id == redpacket.sender_id))
+        sender = sender_result.scalar_one_or_none()
+        
+        if sender:
+            balance_field = f"balance_{redpacket.currency.value}"
+            current_balance = getattr(sender, balance_field, 0) or Decimal(0)
+            new_balance = current_balance + remaining_amount
+            setattr(sender, balance_field, new_balance)
+            
+            # 創建退款交易記錄
+            refund_transaction = Transaction(
+                user_id=sender.id,
+                type="refund",
+                currency=redpacket.currency,
+                amount=remaining_amount,
+                balance_before=current_balance,
+                balance_after=new_balance,
+                ref_id=f"redpacket_{redpacket.id}",
+                note=f"紅包強制完成退款: 紅包ID {redpacket.id}, 退還剩餘金額 {remaining_amount} {redpacket.currency.value.upper()}",
+                status="completed"
+            )
+            db.add(refund_transaction)
+            refunded = True
+            
+            logger.info(
+                f"Red packet completed with refund: redpacket_id={redpacket_id}, "
+                f"sender_id={sender.id}, refund_amount={remaining_amount}, "
+                f"currency={redpacket.currency.value}, admin_id={current_admin.get('id')}"
+            )
     
     await db.commit()
     await db.refresh(redpacket)
     
-    return {"success": True, "message": "红包已强制完成"}
+    return {
+        "success": True,
+        "message": "紅包已強制完成",
+        "refunded": refunded,
+        "refunded_amount": float(remaining_amount) if refunded else 0,
+        "currency": redpacket.currency.value if refunded else None
+    }
 
 
 @router.delete("/{redpacket_id}")
@@ -342,20 +421,29 @@ async def delete_redpacket(
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
-    """删除红包（软删除，实际应该标记删除）"""
+    """刪除紅包（軟刪除）"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
     redpacket = result.scalar_one_or_none()
     
     if not redpacket:
-        raise HTTPException(status_code=404, detail="红包不存在")
+        raise HTTPException(status_code=404, detail="紅包不存在")
     
-    # 注意：这里直接删除，实际应该软删除
-    # TODO: 添加 deleted_at 字段实现软删除
-    await db.delete(redpacket)
+    if redpacket.deleted_at:
+        raise HTTPException(status_code=400, detail="紅包已被刪除")
+    
+    # 軟刪除：標記刪除時間
+    redpacket.deleted_at = datetime.utcnow()
+    
+    logger.info(
+        f"Red packet soft deleted: redpacket_id={redpacket_id}, "
+        f"admin_id={current_admin.get('id')}"
+    )
+    
     await db.commit()
+    await db.refresh(redpacket)
     
-    return {"success": True, "message": "红包已删除"}
+    return {"success": True, "message": "紅包已刪除", "deleted_at": redpacket.deleted_at}
 
 
 @router.get("/stats/overview", response_model=RedPacketStats)

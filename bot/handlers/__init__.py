@@ -1,4 +1,4 @@
 """Lucky Red - Bot 處理器模塊"""
-from bot.handlers import start, redpacket, wallet, checkin, admin
+from bot.handlers import start, redpacket, wallet, checkin, admin, menu, packets, earn, profile, game, keyboard
 
-__all__ = ["start", "redpacket", "wallet", "checkin", "admin"]
+__all__ = ["start", "redpacket", "wallet", "checkin", "admin", "menu", "packets", "earn", "profile", "game", "keyboard"]

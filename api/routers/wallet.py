@@ -8,9 +8,11 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+from loguru import logger
 
 from shared.database.connection import get_db_session
 from shared.database.models import User, Transaction, CurrencyType
+from api.utils.telegram_auth import get_tg_id_from_header
 
 router = APIRouter()
 
@@ -48,15 +50,36 @@ class WithdrawRequest(BaseModel):
     """提現請求"""
     currency: CurrencyType
     amount: float = Field(..., gt=0)
-    address: str
+    address: str = Field(..., min_length=10, max_length=128)
 
 
-@router.get("/balance/{tg_id}", response_model=BalanceResponse)
+class DepositResponse(BaseModel):
+    """充值響應"""
+    success: bool
+    transaction_id: int
+    message: str
+    status: str  # pending, completed
+    note: Optional[str] = None
+
+
+class WithdrawResponse(BaseModel):
+    """提現響應"""
+    success: bool
+    transaction_id: int
+    message: str
+    status: str  # pending, completed
+    note: Optional[str] = None
+
+
+@router.get("/balance", response_model=BalanceResponse)
 async def get_balance(
-    tg_id: int,
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
     """獲取餘額"""
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
@@ -80,13 +103,16 @@ async def get_balance(
     )
 
 
-@router.get("/transactions/{tg_id}", response_model=List[TransactionResponse])
+@router.get("/transactions", response_model=List[TransactionResponse])
 async def get_transactions(
-    tg_id: int,
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
     limit: int = 50,
     db: AsyncSession = Depends(get_db_session)
 ):
     """獲取交易記錄"""
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
@@ -104,47 +130,138 @@ async def get_transactions(
     return transactions
 
 
-@router.post("/deposit")
+@router.post("/deposit", response_model=DepositResponse)
 async def deposit(
     request: DepositRequest,
-    tg_id: int,  # TODO: 從 JWT 獲取
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
     """充值 (需要管理員審核)"""
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # TODO: 實現充值邏輯
-    # 這裡應該創建一個待審核的充值訂單
+    # 驗證金額
+    amount = Decimal(str(request.amount))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
     
-    return {"message": "Deposit request submitted", "status": "pending"}
+    # 檢查最小充值金額（例如 1 USDT）
+    min_deposit = Decimal("1.0")
+    if amount < min_deposit:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Minimum deposit amount is {min_deposit} {request.currency.value.upper()}"
+        )
+    
+    # 獲取當前餘額
+    balance_field = f"balance_{request.currency.value}"
+    current_balance = getattr(user, balance_field, 0) or Decimal(0)
+    
+    # 創建充值交易記錄（狀態為 pending，等待管理員審核）
+    transaction = Transaction(
+        user_id=user.id,
+        type="deposit",
+        currency=request.currency,
+        amount=amount,
+        balance_before=current_balance,
+        balance_after=current_balance,  # 審核通過後才會更新
+        ref_id=request.tx_hash,  # 交易哈希
+        note=f"充值 {amount} {request.currency.value.upper()}" + (f" (TX: {request.tx_hash})" if request.tx_hash else ""),
+        status="pending"
+    )
+    
+    db.add(transaction)
+    await db.commit()
+    await db.refresh(transaction)
+    
+    logger.info(f"Deposit request created: user_id={user.id}, amount={amount}, currency={request.currency.value}, tx_id={transaction.id}")
+    
+    return DepositResponse(
+        success=True,
+        transaction_id=transaction.id,
+        message=f"充值申請已提交，等待管理員審核。金額: {amount} {request.currency.value.upper()}",
+        status="pending",
+        note="請等待管理員審核，審核通過後餘額將自動到賬"
+    )
 
 
-@router.post("/withdraw")
+@router.post("/withdraw", response_model=WithdrawResponse)
 async def withdraw(
     request: WithdrawRequest,
-    tg_id: int,  # TODO: 從 JWT 獲取
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
-    """提現"""
+    """提現 (需要管理員審核)"""
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # 驗證金額
+    amount = Decimal(str(request.amount))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+    
+    # 檢查最小提現金額（例如 10 USDT）
+    min_withdraw = Decimal("10.0")
+    if amount < min_withdraw:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Minimum withdraw amount is {min_withdraw} {request.currency.value.upper()}"
+        )
     
     # 檢查餘額
     balance_field = f"balance_{request.currency.value}"
     current_balance = getattr(user, balance_field, 0) or Decimal(0)
     
-    if current_balance < Decimal(str(request.amount)):
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+    if current_balance < amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance. Current: {current_balance} {request.currency.value.upper()}, Required: {amount} {request.currency.value.upper()}"
+        )
     
-    # TODO: 實現提現邏輯
-    # 這裡應該創建一個待處理的提現訂單
+    # 驗證地址格式（簡單驗證）
+    if not request.address or len(request.address) < 10:
+        raise HTTPException(status_code=400, detail="Invalid withdrawal address")
     
-    return {"message": "Withdraw request submitted", "status": "pending"}
+    # 凍結餘額（扣除，但狀態為 pending，審核通過後才真正轉出）
+    new_balance = current_balance - amount
+    setattr(user, balance_field, new_balance)
+    
+    # 創建提現交易記錄（狀態為 pending，等待管理員審核）
+    transaction = Transaction(
+        user_id=user.id,
+        type="withdraw",
+        currency=request.currency,
+        amount=amount,
+        balance_before=current_balance,
+        balance_after=new_balance,  # 已凍結
+        ref_id=request.address,  # 提現地址
+        note=f"提現 {amount} {request.currency.value.upper()} 到 {request.address}",
+        status="pending"
+    )
+    
+    db.add(transaction)
+    await db.commit()
+    await db.refresh(transaction)
+    
+    logger.info(f"Withdraw request created: user_id={user.id}, amount={amount}, currency={request.currency.value}, address={request.address}, tx_id={transaction.id}")
+    
+    return WithdrawResponse(
+        success=True,
+        transaction_id=transaction.id,
+        message=f"提現申請已提交，等待管理員審核。金額: {amount} {request.currency.value.upper()}",
+        status="pending",
+        note=f"餘額已凍結，審核通過後將轉賬到地址: {request.address}"
+    )
 

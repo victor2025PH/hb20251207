@@ -1,0 +1,133 @@
+"""
+Lucky Red - 緩存工具
+提供用戶數據緩存功能
+"""
+import time
+from typing import Optional, Dict, Any
+from loguru import logger
+from shared.database.models import User
+
+
+class UserCache:
+    """用戶數據緩存"""
+    _cache: Dict[str, Dict[str, Any]] = {}
+    _cache_ttl: int = 300  # 5分鐘
+    
+    @classmethod
+    def get_user(cls, tg_id: int, db) -> Optional[User]:
+        """
+        獲取用戶（帶緩存）
+        
+        Args:
+            tg_id: Telegram 用戶 ID
+            db: 數據庫會話
+        
+        Returns:
+            用戶對象或 None
+        """
+        cache_key = f"user_{tg_id}"
+        cached = cls._cache.get(cache_key)
+        
+        # 檢查緩存是否有效
+        if cached and (time.time() - cached['time']) < cls._cache_ttl:
+            logger.debug(f"Cache hit for user {tg_id}")
+            cached_user = cached['user']
+            # 緩存中的用戶對象可能已脫離會話，但基本屬性應該已經加載
+            # 如果後續需要訪問其他屬性，應該在會話內重新查詢
+            return cached_user
+        
+        # 緩存未命中，從數據庫查詢
+        logger.debug(f"Cache miss for user {tg_id}, querying database")
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        
+        if user:
+            # 在返回前訪問常用屬性，確保它們被加載到內存中
+            # 然後將對象從會話中分離，這樣即使會話關閉也可以訪問已加載的屬性
+            try:
+                _ = user.id
+                _ = user.tg_id
+                _ = user.username
+                _ = user.first_name
+                _ = user.last_name
+                _ = user.level
+                _ = user.balance_usdt
+                _ = user.balance_ton
+                _ = user.balance_points
+                # 將對象從會話中分離
+                db.expunge(user)
+            except Exception as e:
+                logger.warning(f"Error expunging user {tg_id} from cache: {e}")
+                # 如果分離失敗，至少確保基本屬性已加載
+            
+            cls._cache[cache_key] = {
+                'user': user,
+                'time': time.time()
+            }
+        
+        return user
+    
+    @classmethod
+    def invalidate(cls, tg_id: int):
+        """
+        清除用戶緩存
+        
+        Args:
+            tg_id: Telegram 用戶 ID
+        """
+        cache_key = f"user_{tg_id}"
+        if cache_key in cls._cache:
+            del cls._cache[cache_key]
+            logger.debug(f"Cache invalidated for user {tg_id}")
+    
+    @classmethod
+    def clear_all(cls):
+        """清除所有緩存"""
+        cls._cache.clear()
+        logger.info("All user cache cleared")
+    
+    @classmethod
+    def set_ttl(cls, ttl: int):
+        """
+        設置緩存 TTL（秒）
+        
+        Args:
+            ttl: 緩存生存時間（秒）
+        """
+        cls._cache_ttl = ttl
+        logger.info(f"Cache TTL set to {ttl} seconds")
+    
+    @classmethod
+    def get_cache_stats(cls) -> Dict[str, Any]:
+        """
+        獲取緩存統計信息
+        
+        Returns:
+            緩存統計字典
+        """
+        now = time.time()
+        valid_entries = sum(
+            1 for cached in cls._cache.values()
+            if (now - cached['time']) < cls._cache_ttl
+        )
+        
+        return {
+            'total_entries': len(cls._cache),
+            'valid_entries': valid_entries,
+            'expired_entries': len(cls._cache) - valid_entries,
+            'ttl': cls._cache_ttl
+        }
+    
+    @classmethod
+    def cleanup_expired(cls):
+        """清理過期的緩存條目"""
+        now = time.time()
+        expired_keys = [
+            key for key, cached in cls._cache.items()
+            if (now - cached['time']) >= cls._cache_ttl
+        ]
+        
+        for key in expired_keys:
+            del cls._cache[key]
+        
+        if expired_keys:
+            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")

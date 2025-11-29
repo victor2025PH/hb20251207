@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     # API
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8080
+    API_BASE_URL: str = "http://localhost:8080"
+    
+    @property
+    def api_url(self) -> str:
+        """獲取完整的 API URL"""
+        return f"{self.API_BASE_URL}/api"
     
     # JWT
     JWT_SECRET: str = "change-this-secret-key"
