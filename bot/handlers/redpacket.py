@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from shared.config.settings import get_settings
 from shared.database.connection import get_db
 from shared.database.models import User, RedPacket, RedPacketClaim, CurrencyType, RedPacketType, RedPacketStatus
+from telegram import Bot
 
 settings = get_settings()
 
