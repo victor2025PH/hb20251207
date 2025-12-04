@@ -6,3 +6,5 @@ Write-Host "正在連接服務器..." -ForegroundColor Cyan
 ssh ubuntu@165.154.254.99
 
 
+
+
