@@ -14,7 +14,7 @@ const miniGames = [
     name: '幸運轉盤',
     icon: '🎡',
     color: 'from-purple-500 to-pink-500',
-    path: '/game/wheel',
+    path: '/lucky-wheel',
     isNew: true,
   },
   {
