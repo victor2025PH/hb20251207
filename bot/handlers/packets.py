@@ -512,15 +512,9 @@ async def confirm_and_send_from_message(update, db_user, context):
         )
         return
     
-    # 最終檢查
-    if not bot_in_group:
-        await update.message.reply_text(
-            f"""❌ *機器人不在群組中*
-
-請先將機器人添加到群組 `{chat_id}`""",
-            parse_mode="Markdown"
-        )
-        return
+    # ⚠️ 注意：即使機器人不在群組中，也允許創建紅包
+    # 但會使用 web_app 按鈕（直接打開 MiniApp）而不是 callback_data
+    # 這樣用戶可以通過鏈接分享紅包
     
     # 在會話內檢查餘額
     # 注意：User 已在文件頂部導入，不再重複導入
@@ -609,12 +603,24 @@ async def confirm_and_send_from_message(update, db_user, context):
 🎁 點擊下方按鈕搶紅包！
 """
             # 構建搶紅包按鈕
-            claim_keyboard = [[
-                InlineKeyboardButton(
-                    "🧧 搶紅包",
-                    url=f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
-                )
-            ]]
+            # 如果机器人在群里，使用 callback_data（直接抢红包）
+            # 如果机器人不在群里，使用 web_app（直接打开 MiniApp，不弹出确认框）
+            if bot_in_group:
+                # 机器人在群里：使用 callback_data 按钮，直接抢红包
+                claim_keyboard = [[
+                    InlineKeyboardButton(
+                        "🧧 搶紅包",
+                        callback_data=f"claim:{packet_uuid}"
+                    )
+                ]]
+            else:
+                # 机器人不在群里：使用 web_app 按钮，直接打开 MiniApp
+                claim_keyboard = [[
+                    InlineKeyboardButton(
+                        "🧧 搶紅包",
+                        web_app={"url": f"{settings.MINIAPP_URL}/claim/{packet_uuid}"}
+                    )
+                ]]
             
             await bot.send_message(
                 chat_id=chat_id,
@@ -622,9 +628,26 @@ async def confirm_and_send_from_message(update, db_user, context):
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(claim_keyboard)
             )
-            logger.info(f"Red packet message sent to group {chat_id}")
+            logger.info(f"Red packet message sent to group {chat_id} (bot_in_group={bot_in_group})")
         except Exception as e:
             logger.error(f"Failed to send red packet message to group {chat_id}: {e}")
+            # 如果機器人不在群組中，提示用戶分享鏈接
+            if not bot_in_group:
+                share_link = f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
+                await update.message.reply_text(
+                    f"""✅ *紅包創建成功！*
+
+⚠️ *機器人不在群組中，無法自動發送紅包消息*
+
+*分享鏈接：*
+`{share_link}`
+
+💡 *如何分享：*
+1. 複製上面的鏈接
+2. 在群組中發送鏈接
+3. 點擊鏈接即可直接打開 MiniApp 搶紅包""",
+                    parse_mode="Markdown"
+                )
             # 群組發送失敗不影響紅包創建成功
         
         # 检查是否应该使用内联按钮（根据use_inline_buttons标志）
@@ -2207,7 +2230,7 @@ async def confirm_and_send_packet(query, db_user, context):
         # ✅ 發送紅包消息到群組
         packet_uuid = result.get('uuid', '')
         try:
-            from telegram import Bot
+            from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
             bot = Bot(token=settings.BOT_TOKEN)
             
             # 構建群組中的紅包消息
@@ -2222,12 +2245,24 @@ async def confirm_and_send_packet(query, db_user, context):
 🎁 點擊下方按鈕搶紅包！
 """
             # 構建搶紅包按鈕
-            claim_keyboard = [[
-                InlineKeyboardButton(
-                    "🧧 搶紅包",
-                    url=f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
-                )
-            ]]
+            # 如果机器人在群里，使用 callback_data（直接抢红包）
+            # 如果机器人不在群里，使用 web_app（直接打开 MiniApp，不弹出确认框）
+            if bot_in_group:
+                # 机器人在群里：使用 callback_data 按钮，直接抢红包
+                claim_keyboard = [[
+                    InlineKeyboardButton(
+                        "🧧 搶紅包",
+                        callback_data=f"claim:{packet_uuid}"
+                    )
+                ]]
+            else:
+                # 机器人不在群里：使用 web_app 按钮，直接打开 MiniApp
+                claim_keyboard = [[
+                    InlineKeyboardButton(
+                        "🧧 搶紅包",
+                        web_app={"url": f"{settings.MINIAPP_URL}/claim/{packet_uuid}"}
+                    )
+                ]]
             
             await bot.send_message(
                 chat_id=chat_id,
@@ -2235,9 +2270,33 @@ async def confirm_and_send_packet(query, db_user, context):
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(claim_keyboard)
             )
-            logger.info(f"Red packet message sent to group {chat_id}")
+            logger.info(f"Red packet message sent to group {chat_id} (bot_in_group={bot_in_group})")
         except Exception as e:
             logger.error(f"Failed to send red packet message to group {chat_id}: {e}")
+            # 如果機器人不在群組中，提示用戶分享鏈接
+            if not bot_in_group:
+                share_link = f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
+                # 使用輔助函數格式化信息
+                packet_info = format_packet_info(currency, packet_type, amount, count, bomb_number, message)
+                text = f"""
+✅ *紅包創建成功！*
+
+{packet_info}
+
+⚠️ *機器人不在群組中，無法自動發送紅包消息*
+
+*分享鏈接：*
+`{share_link}`
+
+💡 *如何分享：*
+1. 複製上面的鏈接
+2. 在群組中發送鏈接
+3. 點擊鏈接即可直接打開 MiniApp 搶紅包"""
+                await query.edit_message_text(
+                    text,
+                    parse_mode="Markdown"
+                )
+                return
             # 群組發送失敗不影響紅包創建成功
         
         # 使用輔助函數格式化信息

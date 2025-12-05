@@ -155,59 +155,34 @@ async def create_red_packet(
     await db.commit()
     await db.refresh(packet)
     
-    # 嘗試發送消息到群組
+    # ⚠️ 注意：不再在 API 路由中發送紅包消息
+    # 改由 Bot 處理器統一發送，避免重複發送
+    # 如果機器人不在群組中，返回 share_link 供前端使用
+    
+    # 檢查機器人是否在群組中（僅用於返回 share_link）
     message_sent = False
     share_link = None
-    
     if request.chat_id:
         try:
-            # 構建紅包消息
-            currency_symbol = "USDT" if request.currency == CurrencyType.USDT else request.currency.value.upper()
-            packet_type_text = "手氣最佳" if request.packet_type == RedPacketType.RANDOM else "紅包炸彈"
-            
-            text = f"""
-🧧 *{sender.first_name or '用戶'} 發了一個紅包*
-
-💰 {float(request.total_amount):.2f} {currency_symbol} | 👥 {request.total_count} 份
-🎮 {packet_type_text}
-"""
-            
-            # 如果是紅包炸彈，顯示炸彈數字和規則
-            if request.packet_type == RedPacketType.EQUAL and request.bomb_number is not None:
-                thunder_type = "單雷" if request.total_count == 10 else "雙雷"
-                text += f"💣 炸彈數字: {request.bomb_number} | {thunder_type}\n"
-            
-            text += f"📝 {request.message}\n\n點擊下方按鈕搶紅包！"
-            
-            keyboard = [[InlineKeyboardButton("🧧 搶紅包", callback_data=f"claim:{packet.uuid}")]]
-            
-            # 嘗試發送消息到群組
-            sent_message = await bot.send_message(
-                chat_id=request.chat_id,
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            
-            # 保存消息 ID
-            packet.message_id = sent_message.message_id
-            await db.commit()
-            message_sent = True
-            logger.info(f"Red packet message sent to chat {request.chat_id}, message_id: {sent_message.message_id}")
-            
+            bot_info = await bot.get_me()
+            bot_member = await bot.get_chat_member(request.chat_id, bot_info.id)
+            bot_status = bot_member.status
+            if bot_status not in ['left', 'kicked']:
+                # 機器人在群組中，Bot 處理器會發送消息
+                message_sent = True
+            else:
+                # 機器人不在群組中，返回分享鏈接
+                share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
         except TelegramError as e:
-            # 如果機器人不在群組中，生成分享鏈接
             error_msg = str(e).lower()
             if "chat not found" in error_msg or "not enough rights" in error_msg or "forbidden" in error_msg:
-                logger.warning(f"Bot not in group {request.chat_id} or no permission: {str(e)}")
-                # 生成分享鏈接（MiniApp 鏈接，包含紅包 UUID）
-                share_link = f"{settings.MINIAPP_URL}/packets/{packet.uuid}"
-            else:
-                logger.error(f"Failed to send red packet message: {str(e)}")
+                # 機器人不在群組中，返回分享鏈接
+                share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
         except Exception as e:
-            logger.error(f"Unexpected error sending red packet message: {str(e)}")
+            logger.warning(f"Error checking bot membership: {e}")
+            # 無法確定，假設機器人在群組中
     
-    # 返回響應（包含消息發送狀態）
+    # 返回響應
     response = RedPacketResponse(
         id=packet.id,
         uuid=packet.uuid,
@@ -220,8 +195,8 @@ async def create_red_packet(
         message=packet.message,
         status=packet.status.value,
         created_at=packet.created_at,
-        message_sent=message_sent,
-        share_link=share_link
+        message_sent=message_sent,  # 機器人在群組中時為 True
+        share_link=share_link  # 機器人不在群組中時返回分享鏈接
     )
     
     return response

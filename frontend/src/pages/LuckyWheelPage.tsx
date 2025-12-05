@@ -7,8 +7,8 @@ import { useNavigate } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
 import TelegramStar from '../components/TelegramStar'
 
-// @ts-ignore - 動態導入 confetti
-import confetti from 'canvas-confetti'
+// confetti 將在組件掛載時動態導入
+type ConfettiFunction = (options?: any) => Promise<null> | null
 
 interface Prize {
   id: number
@@ -136,7 +136,20 @@ export default function LuckyWheelPage() {
   const progressTimerRef = useRef<number | null>(null)
   const animationRef = useRef<number | null>(null)
   const coinRef = useRef<HTMLDivElement>(null)
+  const confettiRef = useRef<ConfettiFunction | null>(null)
   const HOLD_DURATION = 2000
+
+  // 動態導入 confetti，避免在 Telegram WebView 中崩潰
+  useEffect(() => {
+    import('canvas-confetti')
+      .then((module) => {
+        confettiRef.current = module.default
+        console.log('[LuckyWheel] confetti loaded successfully')
+      })
+      .catch((err) => {
+        console.warn('[LuckyWheel] Failed to load confetti:', err)
+      })
+  }, [])
 
   // 持续旋转动画
   useEffect(() => {
@@ -231,15 +244,15 @@ export default function LuckyWheelPage() {
       progressTimerRef.current = null
     }
 
-    // 爆炸彩纸效果
+    // 爆炸彩纸效果（安全處理，避免在 Telegram WebView 中崩潰）
     const end = Date.now() + 2500
     const colors = ['#22c55e', '#fbbf24', '#f472b6', '#8b5cf6', '#10b981', '#3b82f6', '#ec4899', '#06b6d4', '#eab308']
     
     const frame = () => {
       // 从中心向四周爆炸
-      if (confetti) {
+      if (confettiRef.current) {
         try {
-          confetti({
+          confettiRef.current({
             particleCount: 12,
             angle: Math.random() * 360,
             spread: 80,
@@ -251,7 +264,7 @@ export default function LuckyWheelPage() {
             drift: (Math.random() - 0.5) * 2,
           })
         } catch (e) {
-          console.warn('Confetti error:', e)
+          console.warn('[LuckyWheel] Confetti error:', e)
         }
       }
       

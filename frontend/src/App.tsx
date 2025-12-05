@@ -6,6 +6,7 @@ import Loading from './components/Loading'
 import AlertModal from './components/AlertModal'
 import ConfirmModal from './components/ConfirmModal'
 import ErrorBoundary from './components/ErrorBoundary'
+import DebugPanel from './components/DebugPanel'
 import { setAlertCallback, setConfirmCallback } from './utils/telegram'
 import { notificationManager } from './utils/notification'
 
@@ -163,6 +164,9 @@ export default function App() {
         cancelText={confirmState.cancelText}
         type="warning"
       />
+
+      {/* 調試面板 - 在 URL 後加 #debug=1 啟用 */}
+      <DebugPanel />
     </div>
   )
 }
