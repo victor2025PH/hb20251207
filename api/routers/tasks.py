@@ -175,7 +175,18 @@ async def get_or_create_task_packet(
         admin_result = await db.execute(select(User).limit(1))
         admin_user = admin_result.scalar_one_or_none()
         if not admin_user:
-            raise HTTPException(status_code=500, detail="No user found to create task packet")
+            # 如果連用戶都沒有，創建一個系統用戶
+            logger.warning("No user found, creating system user for task packets")
+            from shared.database.models import User as UserModel
+            admin_user = UserModel(
+                tg_id=0,  # 系統用戶
+                username="system",
+                first_name="System",
+                is_admin=True
+            )
+            db.add(admin_user)
+            await db.commit()
+            await db.refresh(admin_user)
     
     packet = RedPacket(
         uuid=str(uuid.uuid4()),
@@ -299,75 +310,98 @@ async def get_task_status(
     
     # 每日任務
     for task_type, task_config in DAILY_TASKS.items():
-        # 檢查任務完成進度
-        progress = await check_user_task_progress(db, user, task_type, task_config)
-        
-        # 檢查是否已領取
-        completion = await check_task_completion(db, user.id, task_type)
-        
-        # 獲取或創建任務紅包
         try:
-            packet = await get_or_create_task_packet(db, task_type, task_config)
-        except Exception as e:
-            logger.error(f"Failed to get/create task packet for {task_type}: {e}")
-            continue
+            # 檢查任務完成進度
+            progress = await check_user_task_progress(db, user, task_type, task_config)
+            
+            # 檢查是否已領取
+            completion = await check_task_completion(db, user.id, task_type)
+            
+            # 獲取或創建任務紅包（如果失敗，仍然顯示任務，只是不能領取）
+            packet = None
+            try:
+                packet = await get_or_create_task_packet(db, task_type, task_config)
+            except Exception as e:
+                logger.warning(f"Failed to get/create task packet for {task_type}: {e}")
+                # 即使創建任務紅包失敗，也顯示任務狀態
+            
+            # 判斷是否可以領取（需要任務完成且有任務紅包）
+            can_claim = progress["completed"] and completion is not None and completion.claimed_at is None and packet is not None
         
-        tasks.append(TaskStatus(
-            task_type=task_type,
-            task_name=task_config["task_name"],
-            task_description=task_config["task_description"],
-            completed=progress["completed"],
-            can_claim=progress["completed"] and completion is not None and completion.claimed_at is None,
-            progress=progress,
-            reward_amount=float(task_config["reward_amount"]),
-            reward_currency=task_config["reward_currency"].value,
-            red_packet_id=packet.uuid if packet else None,
-            completed_at=completion.completed_at if completion else None,
-            claimed_at=completion.claimed_at if completion else None,
-        ))
+            tasks.append(TaskStatus(
+                task_type=task_type,
+                task_name=task_config["task_name"],
+                task_description=task_config["task_description"],
+                completed=progress["completed"],
+                can_claim=can_claim,
+                progress=progress,
+                reward_amount=float(task_config["reward_amount"]),
+                reward_currency=task_config["reward_currency"].value,
+                red_packet_id=packet.uuid if packet else None,
+                completed_at=completion.completed_at if completion else None,
+                claimed_at=completion.claimed_at if completion else None,
+            ))
+        except Exception as e:
+            logger.error(f"Error processing task {task_type}: {e}")
+            # 即使處理失敗，也繼續處理下一個任務
+            continue
     
     # 成就任務
     for task_type, task_config in ACHIEVEMENT_TASKS.items():
-        progress = await check_user_task_progress(db, user, task_type, task_config)
-        completion = await check_task_completion(db, user.id, task_type)
-        
-        # 成就任務只創建一次
-        if progress["completed"] and completion is None:
-            # 自動創建完成記錄（但未領取）
-            try:
-                packet = await get_or_create_task_packet(db, task_type, task_config)
-                completion = TaskCompletion(
-                    user_id=user.id,
-                    red_packet_id=packet.id,
-                    task_type=task_type,
-                    completed_at=datetime.utcnow(),
-                )
-                db.add(completion)
-                await db.commit()
-                await db.refresh(completion)
-            except Exception as e:
-                logger.error(f"Failed to create achievement completion for {task_type}: {e}")
-                continue
-        
-        if completion:
-            packet_result = await db.execute(
-                select(RedPacket).where(RedPacket.id == completion.red_packet_id)
-            )
-            packet = packet_result.scalar_one_or_none()
+        try:
+            progress = await check_user_task_progress(db, user, task_type, task_config)
+            completion = await check_task_completion(db, user.id, task_type)
+            
+            # 成就任務只創建一次
+            if progress["completed"] and completion is None:
+                # 自動創建完成記錄（但未領取）
+                try:
+                    packet = await get_or_create_task_packet(db, task_type, task_config)
+                    completion = TaskCompletion(
+                        user_id=user.id,
+                        red_packet_id=packet.id,
+                        task_type=task_type,
+                        completed_at=datetime.utcnow(),
+                    )
+                    db.add(completion)
+                    await db.commit()
+                    await db.refresh(completion)
+                except Exception as e:
+                    logger.warning(f"Failed to create achievement completion for {task_type}: {e}")
+                    # 即使創建失敗，也顯示任務狀態
+                    completion = None
+            
+            # 獲取任務紅包
+            packet = None
+            if completion:
+                try:
+                    packet_result = await db.execute(
+                        select(RedPacket).where(RedPacket.id == completion.red_packet_id)
+                    )
+                    packet = packet_result.scalar_one_or_none()
+                except Exception as e:
+                    logger.warning(f"Failed to get packet for completion {completion.id}: {e}")
+            
+            # 判斷是否可以領取
+            can_claim = progress["completed"] and completion is not None and completion.claimed_at is None and packet is not None
             
             tasks.append(TaskStatus(
                 task_type=task_type,
                 task_name=task_config["task_name"],
                 task_description=task_config["task_description"],
                 completed=progress["completed"],
-                can_claim=progress["completed"] and completion.claimed_at is None,
+                can_claim=can_claim,
                 progress=progress,
                 reward_amount=float(task_config["reward_amount"]),
                 reward_currency=task_config["reward_currency"].value,
                 red_packet_id=packet.uuid if packet else None,
-                completed_at=completion.completed_at,
-                claimed_at=completion.claimed_at,
+                completed_at=completion.completed_at if completion else None,
+                claimed_at=completion.claimed_at if completion else None,
             ))
+        except Exception as e:
+            logger.error(f"Error processing achievement task {task_type}: {e}")
+            # 即使處理失敗，也繼續處理下一個任務
+            continue
     
     return tasks
 

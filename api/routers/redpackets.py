@@ -170,12 +170,22 @@ async def create_red_packet(
     await db.commit()
     await db.refresh(packet)
     
-    # 融合任務系統：標記發紅包任務完成
+    # 融合任務系統：標記發紅包任務完成（使用新的數據庫會話）
     try:
         from api.routers.tasks import mark_task_complete_internal
+        from shared.database.connection import get_db_session
+        # 創建新的數據庫會話來標記任務完成
+        async def mark_send_task():
+            try:
+                async for new_db in get_db_session():
+                    await mark_task_complete_internal("send_packet", sender_tg_id, new_db)
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to mark send_packet task complete: {e}")
+        
         # 異步調用任務完成標記（不阻塞創建響應）
         import asyncio
-        asyncio.create_task(mark_task_complete_internal("send_packet", sender_tg_id, db))
+        asyncio.create_task(mark_send_task())
     except Exception as e:
         logger.warning(f"Failed to mark send_packet task complete: {e}")
     
