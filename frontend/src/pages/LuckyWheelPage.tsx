@@ -6,6 +6,8 @@ import { useSound } from '../hooks/useSound'
 import { useNavigate } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
 import TelegramStar from '../components/TelegramStar'
+
+// @ts-ignore - 動態導入 confetti
 import confetti from 'canvas-confetti'
 
 interface Prize {
@@ -235,17 +237,23 @@ export default function LuckyWheelPage() {
     
     const frame = () => {
       // 从中心向四周爆炸
-      confetti({
-        particleCount: 12,
-        angle: Math.random() * 360,
-        spread: 80,
-        origin: { x: 0.5, y: 0.45 },
-        colors: colors,
-        zIndex: 1000,
-        gravity: 0.6,
-        scalar: 1.2,
-        drift: (Math.random() - 0.5) * 2,
-      })
+      if (confetti) {
+        try {
+          confetti({
+            particleCount: 12,
+            angle: Math.random() * 360,
+            spread: 80,
+            origin: { x: 0.5, y: 0.45 },
+            colors: colors,
+            zIndex: 1000,
+            gravity: 0.6,
+            scalar: 1.2,
+            drift: (Math.random() - 0.5) * 2,
+          })
+        } catch (e) {
+          console.warn('Confetti error:', e)
+        }
+      }
       
       if (Date.now() < end) {
         requestAnimationFrame(frame)
