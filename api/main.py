@@ -123,6 +123,7 @@ app.include_router(redpackets.router, prefix="/api/v1/redpackets", tags=["紅包
 app.include_router(wallet.router, prefix="/api/wallet", tags=["錢包"])
 app.include_router(exchange.router, prefix="/api", tags=["兌換"])
 app.include_router(checkin.router, prefix="/api/checkin", tags=["簽到"])
+app.include_router(checkin.router, prefix="/api/v1/checkin", tags=["簽到-v1"])  # 兼容 miniapp 的 /v1/checkin 路径
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["任務"])
 app.include_router(share.router, prefix="/api/v1/share", tags=["分享"])
 app.include_router(chats.router, prefix="/api/v1/chats", tags=["群組"])

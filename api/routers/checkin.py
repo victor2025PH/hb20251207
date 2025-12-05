@@ -42,11 +42,20 @@ class CheckinStatus(BaseModel):
     next_reward: int
 
 
+@router.post("", response_model=CheckinResponse)
 @router.post("/{tg_id}", response_model=CheckinResponse)
 async def do_checkin(
-    tg_id: int,
-    db: AsyncSession = Depends(get_db_session)
+    tg_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db_session),
+    header_tg_id: Optional[int] = Depends(get_tg_id_from_header)
 ):
+    """執行簽到"""
+    # 優先使用header中的tg_id，如果沒有則使用路徑參數
+    if tg_id is None:
+        tg_id = header_tg_id
+    
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
     """執行簽到"""
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
@@ -120,12 +129,21 @@ async def do_checkin(
     )
 
 
+@router.get("/status", response_model=CheckinStatus)
 @router.get("/status/{tg_id}", response_model=CheckinStatus)
 async def get_checkin_status(
-    tg_id: int,
-    db: AsyncSession = Depends(get_db_session)
+    tg_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db_session),
+    header_tg_id: Optional[int] = Depends(get_tg_id_from_header)
 ):
     """獲取簽到狀態"""
+    # 優先使用header中的tg_id，如果沒有則使用路徑參數
+    if tg_id is None:
+        tg_id = header_tg_id
+    
+    if tg_id is None:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
