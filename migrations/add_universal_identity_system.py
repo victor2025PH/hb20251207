@@ -136,20 +136,39 @@ def upgrade():
         """))
         
         # 5. 迁移现有Telegram用户到user_identities
-        conn.execute(text("""
-            INSERT INTO user_identities (user_id, provider, provider_user_id, is_primary, verified_at)
-            SELECT id, 'telegram', tg_id::text, TRUE, created_at
-            FROM users
-            WHERE tg_id IS NOT NULL
-            ON CONFLICT (provider, provider_user_id) DO NOTHING;
-        """))
+        if is_sqlite_db:
+            # SQLite: 使用CAST或直接字符串转换
+            conn.execute(text("""
+                INSERT OR IGNORE INTO user_identities (user_id, provider, provider_user_id, is_primary, verified_at)
+                SELECT id, 'telegram', CAST(tg_id AS TEXT), 1, created_at
+                FROM users
+                WHERE tg_id IS NOT NULL;
+            """))
+        else:
+            # PostgreSQL: 使用::text和ON CONFLICT
+            conn.execute(text("""
+                INSERT INTO user_identities (user_id, provider, provider_user_id, is_primary, verified_at)
+                SELECT id, 'telegram', tg_id::text, TRUE, created_at
+                FROM users
+                WHERE tg_id IS NOT NULL
+                ON CONFLICT (provider, provider_user_id) DO NOTHING;
+            """))
         
         # 6. 生成referral_code（如果还没有）
-        conn.execute(text("""
-            UPDATE users
-            SET referral_code = 'REF' || LPAD(id::text, 8, '0')
-            WHERE referral_code IS NULL;
-        """))
+        if is_sqlite_db:
+            # SQLite: 使用printf格式化
+            conn.execute(text("""
+                UPDATE users
+                SET referral_code = 'REF' || printf('%08d', id)
+                WHERE referral_code IS NULL;
+            """))
+        else:
+            # PostgreSQL: 使用LPAD
+            conn.execute(text("""
+                UPDATE users
+                SET referral_code = 'REF' || LPAD(id::text, 8, '0')
+                WHERE referral_code IS NULL;
+            """))
         
         conn.commit()
         print("✅ Universal Identity System migration completed")

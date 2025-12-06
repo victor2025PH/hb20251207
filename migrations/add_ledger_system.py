@@ -80,22 +80,36 @@ def upgrade():
         """))
         
         # 4. 初始化user_balances（从现有users表迁移余额）
-        conn.execute(text("""
-            INSERT INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
-            SELECT 
-                id,
-                COALESCE(balance_usdt, 0),
-                COALESCE(balance_ton, 0),
-                COALESCE(balance_stars, 0),
-                COALESCE(balance_points, 0)
-            FROM users
-            ON CONFLICT (user_id) DO UPDATE
-            SET 
-                usdt_balance = EXCLUDED.usdt_balance,
-                ton_balance = EXCLUDED.ton_balance,
-                stars_balance = EXCLUDED.stars_balance,
-                points_balance = EXCLUDED.points_balance;
-        """))
+        if is_sqlite_db:
+            # SQLite: 使用INSERT OR REPLACE或先删除再插入
+            conn.execute(text("""
+                INSERT OR REPLACE INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
+                SELECT 
+                    id,
+                    COALESCE(balance_usdt, 0),
+                    COALESCE(balance_ton, 0),
+                    COALESCE(balance_stars, 0),
+                    COALESCE(balance_points, 0)
+                FROM users;
+            """))
+        else:
+            # PostgreSQL: 使用ON CONFLICT
+            conn.execute(text("""
+                INSERT INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
+                SELECT 
+                    id,
+                    COALESCE(balance_usdt, 0),
+                    COALESCE(balance_ton, 0),
+                    COALESCE(balance_stars, 0),
+                    COALESCE(balance_points, 0)
+                FROM users
+                ON CONFLICT (user_id) DO UPDATE
+                SET 
+                    usdt_balance = EXCLUDED.usdt_balance,
+                    ton_balance = EXCLUDED.ton_balance,
+                    stars_balance = EXCLUDED.stars_balance,
+                    points_balance = EXCLUDED.points_balance;
+            """))
         
         conn.commit()
         print("✅ Ledger System migration completed")
@@ -103,8 +117,11 @@ def upgrade():
 def downgrade():
     """回滚迁移"""
     with sync_engine.connect() as conn:
-        conn.execute(text("DROP TABLE IF EXISTS ledger_entries CASCADE;"))
-        conn.execute(text("DROP TABLE IF EXISTS user_balances CASCADE;"))
+        is_sqlite_db = is_sqlite()
+        cascade = "" if is_sqlite_db else " CASCADE"
+        
+        conn.execute(text(f"DROP TABLE IF EXISTS ledger_entries{cascade};"))
+        conn.execute(text(f"DROP TABLE IF EXISTS user_balances{cascade};"))
         conn.commit()
         print("✅ Rollback completed")
 
