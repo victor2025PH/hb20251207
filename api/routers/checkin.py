@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
+from loguru import logger
 
 from shared.database.connection import get_db_session
 from shared.database.models import User, CheckinRecord
+from api.utils.telegram_auth import get_tg_id_from_header
 
 router = APIRouter()
 
@@ -56,7 +58,7 @@ async def do_checkin(
     
     if tg_id is None:
         raise HTTPException(status_code=401, detail="Telegram user ID is required")
-    """執行簽到"""
+    
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
     
