@@ -115,9 +115,13 @@ async def create_red_packet(
     if not sender:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # 檢查餘額
-    balance_field = f"balance_{request.currency.value}"
-    current_balance = getattr(sender, balance_field, 0) or Decimal(0)
+    # 使用LedgerService檢查餘額
+    from api.services.ledger_service import LedgerService
+    current_balance = await LedgerService.get_balance(
+        db=db,
+        user_id=sender.id,
+        currency=request.currency.value.upper()
+    )
     
     if current_balance < Decimal(str(request.total_amount)):
         raise HTTPException(status_code=400, detail="Insufficient balance")
