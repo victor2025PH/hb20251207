@@ -464,7 +464,7 @@ async def claim_red_packet(
             amount=float(amount),
             currency=packet.currency.value,
             transaction_type="receive",
-            balance_after=float(new_balance)
+            balance_after=float(await LedgerService.get_balance(db, claimer.id, packet.currency.value.upper()))
         )
     except Exception as e:
         logger.error(f"Failed to send message notification: {e}")
