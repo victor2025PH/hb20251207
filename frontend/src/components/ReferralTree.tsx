@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, TrendingUp, Award, ChevronRight, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getReferralStats, getReferralTree } from '../utils/api';
+import { getReferralStats, getReferralTree, type ReferralStats, type ReferralTreeNode } from '../utils/api';
 import { useTranslation } from '../providers/I18nProvider';
 
 
