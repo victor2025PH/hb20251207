@@ -171,9 +171,10 @@ class LedgerService:
         # 尝试从Redis获取
         try:
             r = get_redis_client()
-            cached = r.get(cache_key)
-            if cached:
-                return Decimal(cached)
+            if r:
+                cached = r.get(cache_key)
+                if cached:
+                    return Decimal(cached)
         except Exception as e:
             logger.warning(f"Redis cache miss: {e}")
         
