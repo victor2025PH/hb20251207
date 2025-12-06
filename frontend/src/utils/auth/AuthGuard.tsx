@@ -52,12 +52,18 @@ export function AuthGuard({
   }
 
   // 未认证 - 显示登录界面
-  if (platformInfo.isTelegram) {
+  // 检查是否真的在 Telegram 环境中（有 WebApp 对象且有 initData）
+  const isRealTelegram = platformInfo.isTelegram && 
+    typeof window !== 'undefined' && 
+    (window as any).Telegram?.WebApp?.initData;
+  
+  if (isRealTelegram) {
     // Telegram环境但未认证，可能是initData问题
     return (
       <div style={{ 
         padding: '2rem', 
-        textAlign: 'center' 
+        textAlign: 'center',
+        color: 'white'
       }}>
         <h2>认证失败</h2>
         <p>无法获取Telegram认证信息，请确保在Telegram中打开此应用。</p>
@@ -66,7 +72,7 @@ export function AuthGuard({
     );
   }
 
-  // Web环境 - 显示登录界面
+  // Web环境或其他环境 - 显示登录界面
   return (
     <WebLoginScreen 
       onLoginSuccess={() => {
