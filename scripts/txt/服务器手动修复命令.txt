@@ -1,0 +1,26 @@
+# 在服务器上手动执行以下命令来修复配置
+
+# 1. 检查当前启用的配置
+sudo ls -la /etc/nginx/sites-enabled/ | grep mini
+
+# 2. 禁用 SSL 配置（如果存在）
+sudo rm -f /etc/nginx/sites-enabled/mini.usdt2026.cc-ssl.conf
+
+# 3. 确保只启用 HTTP 配置
+sudo ln -sf /etc/nginx/sites-available/mini.usdt2026.cc.conf /etc/nginx/sites-enabled/mini.usdt2026.cc.conf
+
+# 4. 验证配置
+sudo nginx -t
+
+# 5. 重新加载 Nginx
+sudo systemctl reload nginx
+
+# 6. 检查实际使用的配置
+sudo nginx -T | grep -A 10 "server_name mini.usdt2026.cc"
+
+# 7. 测试访问（应该返回 200，没有重定向）
+curl -I http://mini.usdt2026.cc
+
+# 8. 检查返回的 HTML 标题
+curl -s http://mini.usdt2026.cc | grep -i "<title>"
+

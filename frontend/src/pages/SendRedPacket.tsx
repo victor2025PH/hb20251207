@@ -13,6 +13,7 @@ export default function SendRedPacket() {
   const queryClient = useQueryClient()
 
   const [selectedChat, setSelectedChat] = useState<ChatInfo | null>(null)
+  const [sendToPublic, setSendToPublic] = useState(false)  // 是否发送到公开页面
   const [showChatModal, setShowChatModal] = useState(false)
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
@@ -172,6 +173,7 @@ export default function SendRedPacket() {
           
           // 如果搜索結果已經顯示了狀態，直接選擇（不需要再次調用 API）
           setSelectedChat(chat)
+          setSendToPublic(false)  // 選擇群組時，取消公開頁面選項
           // 立即保存到歷史記錄
           saveChatToHistory(chat)
           setShowChatModal(false)
@@ -216,6 +218,7 @@ export default function SendRedPacket() {
       
       // 選擇成功
       setSelectedChat(chat)
+      setSendToPublic(false)  // 選擇群組時，取消公開頁面選項
       // 立即保存到歷史記錄
       saveChatToHistory(chat)
       setShowChatModal(false)
@@ -320,8 +323,8 @@ export default function SendRedPacket() {
       queryClient.invalidateQueries({ queryKey: ['balance'] })
       queryClient.invalidateQueries({ queryKey: ['redpackets'] })
       
-      // 保存群組到歷史記錄
-      if (selectedChat) {
+      // 保存群組到歷史記錄（僅私密紅包）
+      if (selectedChat && !sendToPublic) {
         saveChatToHistory(selectedChat)
       }
       
@@ -351,8 +354,9 @@ export default function SendRedPacket() {
   })
 
   const handleSubmit = () => {
-    if (!selectedChat) {
-      showAlert(t('select_group'), 'warning')
+    // 必须选择群组/用户，或者选择发送到公开页面
+    if (!selectedChat && !sendToPublic) {
+      showAlert(t('select_group') + ' 或選擇發送到公開頁面', 'warning')
       return
     }
     if (!amount || parseFloat(amount) <= 0) {
@@ -379,13 +383,15 @@ export default function SendRedPacket() {
 
     haptic('medium')
     sendMutation.mutate({
-      chat_id: selectedChat.id,
+      // 如果发送到公开页面，chat_id 为 null；否则使用选中的群组/用户 ID
+      chat_id: sendToPublic ? null : (selectedChat?.id ?? null),
       amount: parseFloat(amount),
       currency,
       quantity: parseInt(quantity),
       type: packetType,
       message: message || t('best_wishes'),
       bomb_number: packetType === 'fixed' && bombNumber !== null && bombNumber !== undefined ? bombNumber : undefined,
+      chat_title: sendToPublic ? undefined : selectedChat?.title,
     })
   }
 
@@ -402,22 +408,59 @@ export default function SendRedPacket() {
 
       {/* 表單 - 可滾動區域 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {/* 選擇群組 */}
+        {/* 選擇群組或公開頁面 */}
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium flex items-center gap-2">
             <Users size={16} className="text-gray-400" />
-            {t('select_group')}
+            {t('select_group')} / 發送位置
           </label>
-          <button
-            type="button"
-            onClick={() => setShowChatModal(true)}
-            className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl border border-white/5"
-          >
-            <span className={selectedChat ? 'text-white' : 'text-gray-500'}>
-              {selectedChat?.title || t('click_select_group')}
-            </span>
-            <ChevronDown size={18} className="text-gray-400" />
-          </button>
+          
+          {/* 發送到公開頁面選項 */}
+          <div className="mb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSendToPublic(!sendToPublic)
+                if (!sendToPublic) {
+                  setSelectedChat(null)  // 選擇公開頁面時，清除群組選擇
+                }
+              }}
+              className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                sendToPublic
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-400'
+                  : 'bg-brand-darker border-white/5 text-gray-400'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Gift size={18} />
+                <span className="font-medium">發送到公開頁面</span>
+              </div>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                sendToPublic ? 'border-orange-500 bg-orange-500' : 'border-gray-500'
+              }`}>
+                {sendToPublic && <div className="w-3 h-3 rounded-full bg-white" />}
+              </div>
+            </button>
+            {sendToPublic && (
+              <p className="text-xs text-gray-400 mt-1 px-4">
+                公開紅包會顯示在紅包頁面，所有用戶都可以領取
+              </p>
+            )}
+          </div>
+          
+          {/* 選擇群組/用戶 */}
+          {!sendToPublic && (
+            <button
+              type="button"
+              onClick={() => setShowChatModal(true)}
+              className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl border border-white/5"
+            >
+              <span className={selectedChat ? 'text-white' : 'text-gray-500'}>
+                {selectedChat?.title || t('click_select_group')}
+              </span>
+              <ChevronDown size={18} className="text-gray-400" />
+            </button>
+          )}
         </div>
 
         {/* 幣種選擇 */}
@@ -684,6 +727,7 @@ export default function SendRedPacket() {
                                   const found = updatedChat.find((c: ChatInfo) => c.id === chat.id) || updatedChat[0]
                                   saveChatToHistory(found)
                                   setSelectedChat(found)
+                                  setSendToPublic(false)  // 選擇群組時，取消公開頁面選項
                                   setShowChatModal(false)
                                   setSearchQuery('')
                                   showAlert('群組信息已更新', 'success')

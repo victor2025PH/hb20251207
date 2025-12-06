@@ -1,0 +1,36 @@
+# 在服务器上手动执行以下命令来修复 SSL 证书
+
+# 1. 检查证书是否存在
+sudo test -f /etc/letsencrypt/live/mini.usdt2026.cc/fullchain.pem && echo "证书存在" || echo "证书不存在"
+
+# 2. 如果证书不存在，申请证书
+sudo certbot certonly --nginx -d mini.usdt2026.cc --non-interactive --agree-tos --email admin@usdt2026.cc
+
+# 3. 上传 SSL 配置文件（从本地）
+# 在本地执行：scp deploy/nginx/mini.usdt2026.cc-ssl.conf ubuntu@165.154.254.99:/tmp/
+
+# 4. 复制 SSL 配置
+sudo cp /tmp/mini.usdt2026.cc-ssl.conf /etc/nginx/sites-available/mini.usdt2026.cc-ssl.conf
+
+# 5. 启用 SSL 配置
+sudo ln -sf /etc/nginx/sites-available/mini.usdt2026.cc-ssl.conf /etc/nginx/sites-enabled/mini.usdt2026.cc-ssl.conf
+
+# 6. 验证配置
+sudo nginx -t
+
+# 7. 重新加载 Nginx
+sudo systemctl reload nginx
+
+# 8. 测试 HTTPS 访问
+curl -k -I https://mini.usdt2026.cc
+
+# 9. 检查证书信息
+echo | openssl s_client -connect mini.usdt2026.cc:443 -servername mini.usdt2026.cc 2>/dev/null | openssl x509 -noout -subject -dates
+
+# 10. 更新 Bot 配置为 HTTPS
+sed -i 's|^MINIAPP_URL=.*|MINIAPP_URL=https://mini.usdt2026.cc|' /opt/luckyred/.env
+grep MINIAPP_URL /opt/luckyred/.env
+
+# 11. 重启 Bot 服务
+sudo systemctl restart luckyred-bot
+

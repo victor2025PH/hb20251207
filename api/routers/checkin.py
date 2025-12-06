@@ -89,8 +89,21 @@ async def do_checkin(
     # 更新用戶
     user.last_checkin = datetime.utcnow()
     user.checkin_streak = new_streak
-    user.balance_points = (user.balance_points or 0) + reward
     user.xp = (user.xp or 0) + reward
+    
+    # 使用LedgerService記錄簽到獎勵
+    from api.services.ledger_service import LedgerService
+    from decimal import Decimal
+    await LedgerService.create_entry(
+        db=db,
+        user_id=user.id,
+        amount=Decimal(str(reward)),
+        currency='POINTS',
+        entry_type='CHECKIN_REWARD',
+        related_type='checkin',
+        description=f"每日簽到獎勵 (連續{new_streak}天)",
+        created_by='system'
+    )
     
     # 創建簽到記錄
     record = CheckinRecord(

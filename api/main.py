@@ -116,6 +116,15 @@ async def health_check():
 
 # 註冊路由
 app.include_router(auth.router, prefix="/api/auth", tags=["認證"])
+# Web认证和Magic Link路由
+try:
+    from api.routers.auth import web as auth_web
+    from api.routers.auth import link as auth_link
+    app.include_router(auth_web.router, prefix="/api/v1/auth", tags=["Web認證"])
+    app.include_router(auth_link.router, prefix="/api/v1/auth", tags=["賬戶鏈接"])
+except ImportError as e:
+    logger.warning(f"Web auth routes not available: {e}")
+
 app.include_router(users.router, prefix="/api/users", tags=["用戶"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["用戶-v1"])  # 兼容 miniapp 的 /v1/users 路径
 app.include_router(redpackets.router, prefix="/api/redpackets", tags=["紅包"])

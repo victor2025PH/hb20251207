@@ -27,10 +27,20 @@ hbgm001/
 ├── shared/                 # 共享代碼
 │   ├── database/
 │   └── config/
-├── deploy/                 # 部署腳本
+├── deploy/                 # 部署配置
 │   ├── nginx/
 │   ├── systemd/
 │   └── scripts/
+├── scripts/                # 腳本文件（按類型分類）
+│   ├── bat/               # Windows 批處理腳本
+│   ├── ps1/               # PowerShell 腳本
+│   ├── sh/                # Shell 腳本（服務器用）
+│   ├── py/                # Python 腳本
+│   ├── txt/               # 文本文件（手動命令等）
+│   └── README.md          # 腳本說明
+├── docs/                   # 文檔文件
+│   ├── archive/           # 歸檔文檔（歷史文檔）
+│   └── README.md           # 文檔說明
 ├── .env.example
 ├── requirements.txt
 ├── docker-compose.yml

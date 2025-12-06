@@ -60,6 +60,89 @@ api.interceptors.response.use(
 
 export default api
 
+// ============ Web认证相关 API ============
+
+export interface GoogleAuthRequest {
+  id_token: string
+  email?: string
+  given_name?: string
+  family_name?: string
+  picture?: string
+}
+
+export interface WalletAuthRequest {
+  address: string
+  network?: string
+  signature?: string
+  message?: string
+}
+
+export interface MagicLinkVerifyRequest {
+  token: string
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+  user: {
+    id: number
+    uuid?: string
+    tg_id?: number
+    username?: string
+    first_name?: string
+    last_name?: string
+    wallet_address?: string
+    wallet_network?: string
+    primary_platform?: string
+  }
+}
+
+// Google OAuth登录
+export async function googleAuth(request: GoogleAuthRequest): Promise<{ data: AuthResponse }> {
+  return api.post('/v1/auth/web/google', request)
+}
+
+// Wallet连接登录
+export async function walletAuth(request: WalletAuthRequest): Promise<{ data: AuthResponse }> {
+  return api.post('/v1/auth/web/wallet', request)
+}
+
+// 验证Magic Link
+export async function verifyMagicLink(token: string): Promise<{ data: AuthResponse }> {
+  return api.post('/v1/auth/link/magic-link/verify', { token })
+}
+
+// 生成Magic Link（需要Telegram认证）
+export async function generateMagicLink(
+  linkType: string = 'magic_login',
+  expiresInHours: number = 24
+): Promise<{ data: { token: string; link_url: string; expires_at: string } }> {
+  return api.post('/v1/auth/link/magic-link/generate', {
+    link_type: linkType,
+    expires_in_hours: expiresInHours
+  })
+}
+
+// 获取当前用户（支持JWT Token）
+export async function getCurrentUser(): Promise<{ data: any }> {
+  // 检查是否有JWT Token
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    // 使用JWT Token认证
+    const response = await axios.get(`${API_BASE}/v1/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    return { data: response.data }
+  }
+  // 回退到Telegram认证
+  return api.get('/v1/users/me')
+}
+
+// 导出api对象供useAuth使用
+export { api }
+
 // ============ 用戶相關 API ============
 
 export interface UserProfile {

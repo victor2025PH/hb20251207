@@ -136,8 +136,22 @@ async def create_red_packet(
                 detail="Bomb red packet count must be 5 (雙雷) or 10 (單雷)"
             )
     
-    # 扣除餘額
-    setattr(sender, balance_field, current_balance - Decimal(str(request.total_amount)))
+    # 使用LedgerService扣除餘額（創建賬本條目）
+    from api.services.ledger_service import LedgerService
+    try:
+        await LedgerService.create_entry(
+            db=db,
+            user_id=sender.id,
+            amount=-Decimal(str(request.total_amount)),  # 負數表示扣除
+            currency=request.currency.value.upper(),
+            entry_type='REDPACKET_SEND',
+            related_type='red_packet',
+            description=f"發送紅包: {request.total_amount} {request.currency.value}",
+            created_by='user'
+        )
+    except ValueError as e:
+        # 餘額不足
+        raise HTTPException(status_code=400, detail=str(e))
     
     # 判斷紅包可見性和來源類型
     if request.chat_id is None:
