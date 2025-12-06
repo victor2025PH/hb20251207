@@ -10,8 +10,7 @@ from loguru import logger
 
 from shared.database.connection import get_db_session
 from api.services.identity_service import IdentityService
-from api.utils.auth_utils import create_access_token, TokenResponse
-from api.routers.auth import UserResponse
+from api.utils.auth_utils import create_access_token, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/web", tags=["Web Auth"])
 

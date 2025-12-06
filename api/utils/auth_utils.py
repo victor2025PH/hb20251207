@@ -3,6 +3,7 @@
 用于避免循环导入
 """
 from datetime import datetime, timedelta
+from typing import Optional
 from jose import jwt
 from shared.config.settings import get_settings
 from pydantic import BaseModel
@@ -26,4 +27,21 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class UserResponse(BaseModel):
+    """用戶響應"""
+    id: int
+    tg_id: int
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    level: int
+    balance_usdt: float
+    balance_ton: float
+    balance_stars: int
+    balance_points: int
+    
+    class Config:
+        from_attributes = True
 

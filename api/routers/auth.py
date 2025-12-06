@@ -16,7 +16,7 @@ from shared.config.settings import get_settings
 from shared.database.connection import get_db_session
 from shared.database.models import User
 from sqlalchemy import select
-from api.utils.auth_utils import create_access_token, TokenResponse
+from api.utils.auth_utils import create_access_token, TokenResponse, UserResponse
 
 router = APIRouter()
 settings = get_settings()
@@ -36,22 +36,7 @@ class TelegramAuthData(BaseModel):
     hash: str
 
 
-class UserResponse(BaseModel):
-    """用戶響應"""
-    id: int
-    tg_id: int
-    username: Optional[str]
-    first_name: Optional[str]
-    last_name: Optional[str]
-    level: int
-    balance_usdt: float
-    balance_ton: float
-    balance_stars: int
-    balance_points: int
-    
-    class Config:
-        from_attributes = True
-
+# UserResponse 已移至 api.utils.auth_utils 以避免循环导入
 
 def verify_telegram_auth(data: dict, bot_token: str) -> bool:
     """驗證 Telegram 登錄數據"""
