@@ -18,6 +18,7 @@ export function AuthGuard({
   requireAuth = true,
   fallback 
 }: AuthGuardProps) {
+  // 所有 hooks 必须在组件顶部，在任何条件返回之前
   const { user, loading, isAuthenticated, platform } = useAuth();
   const [platformInfo, setPlatformInfo] = useState(() => {
     try {
@@ -36,6 +37,19 @@ export function AuthGuard({
     }
   });
 
+  // 检查是否真的在 Telegram 环境中（需要同时有 WebApp 对象和 initData）
+  const hasTelegramWebApp = typeof window !== 'undefined' && 
+    (window as any).Telegram?.WebApp;
+  
+  // 检查是否有 initData（这是判断是否在真正的 Telegram 客户端中的关键）
+  const hasInitData = hasTelegramWebApp && (
+    (window as any).Telegram?.WebApp?.initData ||
+    (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+  );
+  
+  // 如果在 Telegram 中但 initData 为空，等待一段时间后如果还是失败，显示登录选项
+  const [telegramInitTimeout, setTelegramInitTimeout] = useState(false);
+
   useEffect(() => {
     try {
       setPlatformInfo(detectPlatform());
@@ -44,6 +58,22 @@ export function AuthGuard({
       console.error('Platform update error:', e);
     }
   }, []);
+
+  useEffect(() => {
+    // 如果不在 Telegram 环境中，立即允许登录
+    if (!hasTelegramWebApp) {
+      setTelegramInitTimeout(true);
+      return;
+    }
+    
+    // 如果在 Telegram WebApp 中但 initData 为空，等待 1.5 秒后显示登录选项
+    if (hasTelegramWebApp && !hasInitData && !isAuthenticated) {
+      const timer = setTimeout(() => {
+        setTelegramInitTimeout(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasTelegramWebApp, hasInitData, isAuthenticated]);
 
   // 加载中
   if (loading) {
@@ -71,34 +101,6 @@ export function AuthGuard({
   }
 
   // 未认证 - 显示登录界面
-  // 检查是否真的在 Telegram 环境中（需要同时有 WebApp 对象和 initData）
-  const hasTelegramWebApp = typeof window !== 'undefined' && 
-    (window as any).Telegram?.WebApp;
-  
-  // 检查是否有 initData（这是判断是否在真正的 Telegram 客户端中的关键）
-  const hasInitData = hasTelegramWebApp && (
-    (window as any).Telegram?.WebApp?.initData ||
-    (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  );
-  
-  // 如果在 Telegram 中但 initData 为空，等待一段时间后如果还是失败，显示登录选项
-  const [telegramInitTimeout, setTelegramInitTimeout] = React.useState(false);
-  
-  React.useEffect(() => {
-    // 如果不在 Telegram 环境中，立即允许登录
-    if (!hasTelegramWebApp) {
-      setTelegramInitTimeout(true);
-      return;
-    }
-    
-    // 如果在 Telegram WebApp 中但 initData 为空，等待 1.5 秒后显示登录选项
-    if (hasTelegramWebApp && !hasInitData && !isAuthenticated) {
-      const timer = setTimeout(() => {
-        setTelegramInitTimeout(true);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [hasTelegramWebApp, hasInitData, isAuthenticated]);
   
   // 如果不在 Telegram 环境中，或者等待超时，直接显示登录选项
   if (!hasTelegramWebApp || (hasTelegramWebApp && !hasInitData && telegramInitTimeout)) {
