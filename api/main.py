@@ -15,7 +15,7 @@ from loguru import logger
 
 from shared.config.settings import get_settings
 from shared.database.connection import init_db
-from api.routers import auth, users, redpackets, wallet, checkin, chats, messages, exchange, tasks, share
+from api.routers import auth, users, redpackets, wallet, checkin, chats, messages, exchange, tasks, share, feedback
 from api.routers import admin_telegram, admin_reports, admin_auth, admin_dashboard, admin_users, admin_redpackets, admin_transactions, admin_checkin, admin_invite
 
 # 安全中心路由
