@@ -19,12 +19,30 @@ export function AuthGuard({
   fallback 
 }: AuthGuardProps) {
   const { user, loading, isAuthenticated, platform } = useAuth();
-  const [platformInfo, setPlatformInfo] = useState(detectPlatform());
-  const [platformRules, setPlatformRules] = useState(getPlatformRules());
+  const [platformInfo, setPlatformInfo] = useState(() => {
+    try {
+      return detectPlatform();
+    } catch (e) {
+      console.error('Platform detection error:', e);
+      return { platform: 'web' as const, isTelegram: false, isWeb: true, isMobile: false, isIOS: false, isAndroid: false, userAgent: '' };
+    }
+  });
+  const [platformRules, setPlatformRules] = useState(() => {
+    try {
+      return getPlatformRules();
+    } catch (e) {
+      console.error('Platform rules error:', e);
+      return { hideFinancialFeatures: false, showDeposit: true, showWithdraw: true, showExchange: true, showStars: true, showGame: true, platform: 'web' as const, isTelegram: false, isWeb: true, isMobile: false, isIOS: false, isAndroid: false, userAgent: '' };
+    }
+  });
 
   useEffect(() => {
-    setPlatformInfo(detectPlatform());
-    setPlatformRules(getPlatformRules());
+    try {
+      setPlatformInfo(detectPlatform());
+      setPlatformRules(getPlatformRules());
+    } catch (e) {
+      console.error('Platform update error:', e);
+    }
   }, []);
 
   // 加载中
@@ -34,7 +52,8 @@ export function AuthGuard({
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        minHeight: '100vh' 
+        minHeight: '100vh',
+        color: 'white'
       }}>
         <div>加载中...</div>
       </div>
@@ -93,7 +112,7 @@ export function AuthGuard({
     );
   }
   
-  // Telegram环境但initData为空，等待初始化（最多2秒）
+  // Telegram环境但initData为空，等待初始化（最多1.5秒）
   if (hasTelegramWebApp && !hasInitData && !telegramInitTimeout) {
     return (
       <div style={{ 
@@ -152,7 +171,7 @@ export function AuthGuard({
     );
   }
 
-  // 默认情况：显示登录界面（包含多种登录选项）
+  // 默认情况：显示登录界面（确保总是返回有效的 React 元素）
   return (
     <WebLoginScreen 
       onLoginSuccess={() => {
