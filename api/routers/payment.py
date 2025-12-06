@@ -112,6 +112,23 @@ async def process_fiat_payment(
         
         logger.info(f"✅ 法币充值成功: user_id={user.id}, {request.amount} {request.fiat_currency} -> {virtual_usdt} USDT")
         
+        # 处理推荐奖励（Tier 1 & Tier 2）
+        try:
+            from api.services.referral_service import ReferralService
+            await ReferralService.process_referral_reward(
+                db=db,
+                user_id=user.id,
+                amount=virtual_usdt,
+                currency='USDT',
+                reward_type='deposit',
+                metadata={
+                    'transaction_id': transaction_id,
+                    'provider': request.provider
+                }
+            )
+        except Exception as e:
+            logger.warning(f"处理推荐奖励失败: {e}")
+        
         return PaymentResponse(
             success=True,
             transaction_id=transaction_id,
