@@ -152,6 +152,13 @@ try:
 except ImportError as e:
     logger.warning(f"Payment webhook routes not available: {e}")
 
+# Deep Link路由
+try:
+    from api.routers import deep_link
+    app.include_router(deep_link.router, prefix="/api/v1", tags=["Deep Link"])
+except ImportError as e:
+    logger.warning(f"Deep link routes not available: {e}")
+
 # 管理后台路由
 app.include_router(admin_auth.router, tags=["管理后台-认证"])
 app.include_router(admin_dashboard.router, tags=["管理后台-仪表盘"])

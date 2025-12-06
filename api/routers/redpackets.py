@@ -364,6 +364,23 @@ async def claim_red_packet(
                 description=f"領取紅包: {amount} {packet.currency.value}",
                 created_by='user'
             )
+            
+            # 处理推荐奖励（Tier 1 & Tier 2）
+            try:
+                from api.services.referral_service import ReferralService
+                await ReferralService.process_referral_reward(
+                    db=db,
+                    user_id=claimer.id,
+                    amount=amount,
+                    currency=packet.currency.value.upper(),
+                    reward_type='redpacket',
+                    metadata={
+                        'packet_id': packet.id,
+                        'packet_uuid': packet.uuid
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"处理推荐奖励失败: {e}")
         
         return ClaimResult(
             success=True,
