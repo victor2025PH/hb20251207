@@ -865,7 +865,7 @@ class AccountLink(Base):
     used_at = Column(DateTime, nullable=True)  # 使用時間
     
     # 元數據
-    metadata = Column(JSON, nullable=True)  # 存儲額外信息（IP地址、User Agent等）
+    link_metadata = Column(JSON, nullable=True)  # 存儲額外信息（IP地址、User Agent等）
     
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
