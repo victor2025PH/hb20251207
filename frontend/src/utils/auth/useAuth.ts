@@ -47,17 +47,24 @@ export function useAuth() {
       if (isInTelegram()) {
         await initTelegram();
         const tgUser = getTelegramUser();
+        const initData = getInitData();
         
-        if (tgUser) {
-          // 通过Telegram initData获取用户信息
-          const response = await getCurrentUser();
-          setAuthState({
-            user: response.data,
-            loading: false,
-            isAuthenticated: true,
-            platform: 'telegram'
-          });
-          return;
+        // 如果有 initData 或 tgUser，尝试认证
+        if (initData || tgUser) {
+          try {
+            // 通过Telegram initData获取用户信息
+            const response = await getCurrentUser();
+            setAuthState({
+              user: response.data,
+              loading: false,
+              isAuthenticated: true,
+              platform: 'telegram'
+            });
+            return;
+          } catch (error) {
+            // 认证失败，继续到其他登录方式
+            console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);
+          }
         }
       }
       
