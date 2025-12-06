@@ -53,7 +53,6 @@ export function AuthGuard({
 
   // 未认证 - 显示登录界面
   // 检查是否真的在 Telegram 环境中
-  // 注意：即使 initData 为空，如果检测到 Telegram WebApp 对象，也应该尝试认证
   const isRealTelegram = platformInfo.isTelegram && 
     typeof window !== 'undefined' && 
     (window as any).Telegram?.WebApp;
@@ -64,55 +63,80 @@ export function AuthGuard({
     (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   );
   
-  if (isRealTelegram && !hasInitData) {
-    // Telegram环境但initData为空，可能是配置问题
-    // 给用户一些时间让 Telegram 初始化，或者显示提示
+  // 如果在 Telegram 中但 initData 为空，等待一段时间后如果还是失败，显示登录选项
+  const [telegramInitTimeout, setTelegramInitTimeout] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (isRealTelegram && !hasInitData && !isAuthenticated) {
+      // 等待 3 秒，如果还是没有 initData，允许使用其他登录方式
+      const timer = setTimeout(() => {
+        setTelegramInitTimeout(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isRealTelegram, hasInitData, isAuthenticated]);
+  
+  if (isRealTelegram && !hasInitData && !telegramInitTimeout) {
+    // Telegram环境但initData为空，等待初始化
     return (
       <div style={{ 
         padding: '2rem', 
         textAlign: 'center',
-        color: 'white'
+        color: 'white',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
         <h2>正在初始化...</h2>
         <p>正在获取Telegram认证信息，请稍候...</p>
-        <p style={{ fontSize: '0.9rem', color: '#999', marginTop: '1rem' }}>
-          如果长时间停留在此页面，请确保在Telegram中打开此应用。
-        </p>
-        {fallback || null}
+        <div style={{ 
+          marginTop: '2rem',
+          padding: '1rem',
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          borderRadius: '8px',
+          fontSize: '0.9rem'
+        }}>
+          <p>如果长时间停留在此页面，您也可以使用其他登录方式。</p>
+        </div>
       </div>
     );
   }
   
   if (isRealTelegram && hasInitData && !isAuthenticated) {
     // Telegram环境有initData但认证失败，可能是API问题
+    // 但仍然允许使用其他登录方式
     return (
       <div style={{ 
         padding: '2rem', 
         textAlign: 'center',
-        color: 'white'
+        color: 'white',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
-        <h2>认证失败</h2>
-        <p>无法验证Telegram认证信息，请稍后重试。</p>
-        <button 
-          onClick={() => window.location.reload()}
-          style={{
-            marginTop: '1rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.25rem',
-            cursor: 'pointer'
-          }}
-        >
-          刷新页面
-        </button>
-        {fallback || null}
+        <h2>Telegram认证失败</h2>
+        <p>无法验证Telegram认证信息。</p>
+        <p style={{ fontSize: '0.9rem', marginTop: '1rem' }}>
+          您可以使用其他登录方式继续。
+        </p>
+        <div style={{ marginTop: '2rem', width: '100%', maxWidth: '450px' }}>
+          <WebLoginScreen 
+            onLoginSuccess={() => {
+              window.location.reload();
+            }}
+          />
+        </div>
       </div>
     );
   }
 
-  // Web环境或其他环境 - 显示登录界面
+  // Web环境或其他环境 - 显示登录界面（包含多种登录选项）
   return (
     <WebLoginScreen 
       onLoginSuccess={() => {
