@@ -26,39 +26,62 @@ def upgrade():
         is_sqlite_db = is_sqlite()
         
         # 1. 添加新字段到users表（兼容SQLite和PostgreSQL）
+        # SQLite限制：不能直接在ADD COLUMN时添加UNIQUE约束
         columns_to_add = [
-            ('uuid', 'TEXT' if is_sqlite_db else 'UUID', 'UNIQUE', None),
-            ('wallet_address', 'VARCHAR(255)', None, None),
-            ('wallet_network', 'VARCHAR(50)', None, None),
-            ('referrer_id', 'INTEGER', None, 'REFERENCES users(id)'),
-            ('referral_code', 'VARCHAR(20)', 'UNIQUE', None),
-            ('total_referrals', 'INTEGER', None, "DEFAULT 0"),
-            ('tier1_commission', 'NUMERIC(5, 2)' if is_sqlite_db else 'DECIMAL(5, 2)', None, "DEFAULT 0.10"),
-            ('tier2_commission', 'NUMERIC(5, 2)' if is_sqlite_db else 'DECIMAL(5, 2)', None, "DEFAULT 0.05"),
-            ('primary_platform', 'VARCHAR(20)', None, None),
-            ('last_active_at', 'DATETIME' if is_sqlite_db else 'TIMESTAMP', None, None),
-            ('kyc_status', 'VARCHAR(20)', None, "DEFAULT 'pending'"),
-            ('kyc_verified_at', 'DATETIME' if is_sqlite_db else 'TIMESTAMP', None, None),
+            ('uuid', 'TEXT' if is_sqlite_db else 'UUID', None, None, True),  # 需要UNIQUE索引
+            ('wallet_address', 'VARCHAR(255)', None, None, False),
+            ('wallet_network', 'VARCHAR(50)', None, None, False),
+            ('referrer_id', 'INTEGER', 'REFERENCES users(id)', None, False),
+            ('referral_code', 'VARCHAR(20)', None, None, True),  # 需要UNIQUE索引
+            ('total_referrals', 'INTEGER', None, "DEFAULT 0", False),
+            ('tier1_commission', 'NUMERIC(5, 2)' if is_sqlite_db else 'DECIMAL(5, 2)', None, "DEFAULT 0.10", False),
+            ('tier2_commission', 'NUMERIC(5, 2)' if is_sqlite_db else 'DECIMAL(5, 2)', None, "DEFAULT 0.05", False),
+            ('primary_platform', 'VARCHAR(20)', None, None, False),
+            ('last_active_at', 'DATETIME' if is_sqlite_db else 'TIMESTAMP', None, None, False),
+            ('kyc_status', 'VARCHAR(20)', None, "DEFAULT 'pending'", False),
+            ('kyc_verified_at', 'DATETIME' if is_sqlite_db else 'TIMESTAMP', None, None, False),
         ]
         
-        for col_name, col_type, col_constraint, col_default in columns_to_add:
+        unique_columns = []  # 记录需要创建UNIQUE索引的列
+        
+        for col_name, col_type, col_constraint, col_default, needs_unique in columns_to_add:
             if not column_exists(conn, 'users', col_name):
                 if is_sqlite_db:
                     # SQLite不支持IF NOT EXISTS，需要手动检查
+                    # SQLite不支持在ADD COLUMN时添加UNIQUE约束
                     sql = f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"
-                    if col_constraint:
+                    if col_constraint and 'UNIQUE' not in col_constraint:
                         sql += f" {col_constraint}"
                     if col_default:
                         sql += f" {col_default}"
                     conn.execute(text(sql))
+                    
+                    # 如果需要UNIQUE，稍后创建索引
+                    if needs_unique:
+                        unique_columns.append(col_name)
                 else:
-                    # PostgreSQL支持IF NOT EXISTS
+                    # PostgreSQL支持IF NOT EXISTS和UNIQUE
                     sql = f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    if needs_unique:
+                        sql += " UNIQUE"
                     if col_constraint:
                         sql += f" {col_constraint}"
                     if col_default:
                         sql += f" {col_default}"
                     conn.execute(text(sql))
+        
+        # SQLite: 为需要UNIQUE的列创建唯一索引
+        if is_sqlite_db and unique_columns:
+            for col_name in unique_columns:
+                index_name = f"idx_users_{col_name}_unique"
+                try:
+                    conn.execute(text(f"""
+                        CREATE UNIQUE INDEX IF NOT EXISTS {index_name}
+                        ON users({col_name});
+                    """))
+                except Exception as e:
+                    # 如果索引已存在或列中有重复值，忽略错误
+                    print(f"⚠️ 创建唯一索引 {index_name} 时出错（可能已存在或数据重复）: {e}")
         
         # 为uuid生成默认值（SQLite需要）
         if is_sqlite_db:

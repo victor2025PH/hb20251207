@@ -28,13 +28,16 @@ def upgrade():
         bigint_type = "INTEGER" if is_sqlite_db else "BIGINT"
         
         # 1. 创建ledger_entries表
+        # 注意：SQLite中'type'是保留字，需要用引号括起来
+        type_column = '"type"' if is_sqlite_db else 'type'
+        
         conn.execute(text(f"""
             CREATE TABLE IF NOT EXISTS ledger_entries (
                 id {id_type},
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 amount {decimal_type} NOT NULL,
                 currency VARCHAR(10) NOT NULL,
-                type VARCHAR(50) NOT NULL,
+                {type_column} VARCHAR(50) NOT NULL,
                 related_type VARCHAR(50),
                 related_id {bigint_type},
                 balance_before {decimal_type} NOT NULL,
@@ -59,14 +62,17 @@ def upgrade():
         """))
         
         # 3. 创建索引（SQLite和PostgreSQL都支持IF NOT EXISTS）
+        # 注意：SQLite中'type'是保留字，需要用引号括起来
+        type_column = '"type"' if is_sqlite_db else 'type'
+        
         conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_ledger_user_id 
             ON ledger_entries(user_id);
         """))
         
-        conn.execute(text("""
+        conn.execute(text(f"""
             CREATE INDEX IF NOT EXISTS idx_ledger_type 
-            ON ledger_entries(type);
+            ON ledger_entries({type_column});
         """))
         
         conn.execute(text("""
