@@ -8,22 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getReferralStats, getReferralTree } from '../utils/api';
 import { useTranslation } from '../providers/I18nProvider';
 
-interface ReferralTreeNode {
-  user_id: number;
-  username: string | null;
-  referral_code: string | null;
-  referrals: ReferralTreeNode[];
-}
-
-interface ReferralStats {
-  tier1_count: number;
-  tier2_count: number;
-  total_referrals: number;
-  total_reward: string;
-  reward_count: number;
-  tier1_reward: string;
-  tier2_reward: string;
-}
 
 export default function ReferralTree() {
   const { t } = useTranslation();
