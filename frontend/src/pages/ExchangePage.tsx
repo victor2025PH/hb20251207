@@ -6,11 +6,15 @@ import { useSound } from '../hooks/useSound'
 import PageTransition from '../components/PageTransition'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBalance, getUserProfile, exchangeCurrency, getExchangeRate } from '../utils/api'
+import { getPlatformRules } from '../utils/platform'
 
 export default function ExchangePage() {
   // Hooks 必須在頂層調用（不能在條件語句或 try-catch 中）
   const translationHook = useTranslation()
   const soundHook = useSound()
+  
+  // 获取平台规则（用于合规UI）
+  const platformRules = getPlatformRules()
   
   // 安全的默認值處理
   const t = translationHook?.t || ((key: string) => key)
@@ -219,6 +223,25 @@ export default function ExchangePage() {
     USDT: { icon: Wallet, color: 'text-green-400', bg: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30' },
     TON: { icon: TrendingUp, color: 'text-blue-400', bg: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30' },
     ENERGY: { icon: Zap, color: 'text-yellow-400', bg: 'from-yellow-500/20 to-orange-500/20', border: 'border-yellow-500/30' },
+  }
+
+  // 如果平台规则要求隐藏金融功能，显示提示信息
+  if (platformRules.hideFinancialFeatures || !platformRules.showExchange) {
+    return (
+      <PageTransition>
+        <div className="h-full flex flex-col items-center justify-center p-4 gap-4">
+          <div className="bg-[#1C1C1E] border border-white/5 rounded-3xl p-8 text-center max-w-md">
+            <Sparkles size={48} className="text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">
+              {safeT('feature_not_available', '功能不可用')}
+            </h2>
+            <p className="text-gray-400 text-sm">
+              {safeT('exchange_not_available_on_platform', '此平台不支持幣種兌換功能')}
+            </p>
+          </div>
+        </div>
+      </PageTransition>
+    )
   }
 
   return (

@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Info, Wallet } from 'lucide-react'
+import { X, Info, Wallet, Sparkles } from 'lucide-react'
 import { useTranslation } from '../providers/I18nProvider'
 import TelegramStar from '../components/TelegramStar'
 import { createWithdrawOrder } from '../utils/api'
 import { haptic, showAlert } from '../utils/telegram'
+import { getPlatformRules } from '../utils/platform'
+import PageTransition from '../components/PageTransition'
 
 export default function Withdraw() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  
+  // 获取平台规则（用于合规UI）
+  const platformRules = getPlatformRules()
 
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('USDT')
@@ -56,6 +61,34 @@ export default function Withdraw() {
     }
     haptic('medium')
     withdrawMutation.mutate()
+  }
+
+  // 如果平台规则要求隐藏金融功能，显示提示信息
+  if (platformRules.hideFinancialFeatures || !platformRules.showWithdraw) {
+    return (
+      <PageTransition>
+        <div className="h-full flex flex-col bg-brand-dark">
+          <div className="flex items-center justify-between p-4 border-b border-white/5">
+            <button onClick={() => navigate(-1)} className="p-2">
+              <X size={24} />
+            </button>
+            <h1 className="text-lg font-bold">{t('withdraw')}</h1>
+            <div className="w-10" />
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+            <div className="bg-[#1C1C1E] border border-white/5 rounded-3xl p-8 text-center max-w-md">
+              <Sparkles size={48} className="text-yellow-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">
+                {t('feature_not_available', '功能不可用')}
+              </h2>
+              <p className="text-gray-400 text-sm">
+                {t('withdraw_not_available_on_platform', '此平台不支持提現功能')}
+              </p>
+            </div>
+          </div>
+        </div>
+      </PageTransition>
+    )
   }
 
   return (

@@ -97,6 +97,13 @@ app.add_middleware(
 if HAS_ANTI_SYBIL:
     app.add_middleware(AntiSybilMiddleware)
 
+# 监控中间件（记录请求日志和性能指标）
+try:
+    from api.middleware.monitoring import MonitoringMiddleware
+    app.add_middleware(MonitoringMiddleware)
+    logger.info("✅ Monitoring middleware enabled")
+except ImportError as e:
+    logger.warning(f"Monitoring middleware not available: {e}")
 
 # 全局異常處理
 @app.exception_handler(Exception)
@@ -108,10 +115,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# 健康檢查
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "app": settings.APP_NAME, "version": settings.APP_VERSION}
+# 健康檢查路由（使用新的健康检查模块）
+try:
+    from api.routers import health
+    app.include_router(health.router, tags=["健康检查"])
+except ImportError:
+    # 回退到简单的健康检查
+    @app.get("/health")
+    async def health_check():
+        return {"status": "ok", "app": settings.APP_NAME, "version": settings.APP_VERSION}
 
 
 # 註冊路由
