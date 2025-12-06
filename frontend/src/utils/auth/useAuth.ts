@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { detectPlatform, isInTelegram } from '../platform';
-import { initTelegram, getTelegramUser } from '../telegram';
+import { initTelegram, getTelegramUser, getInitData } from '../telegram';
 import { getCurrentUser, googleAuth, walletAuth, verifyMagicLink } from '../api';
 
 export interface User {
