@@ -79,10 +79,10 @@ export default function Withdraw() {
             <div className="bg-[#1C1C1E] border border-white/5 rounded-3xl p-8 text-center max-w-md">
               <Sparkles size={48} className="text-yellow-400 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-white mb-2">
-                {t('feature_not_available', '功能不可用')}
+                {t('feature_not_available') || '功能不可用'}
               </h2>
               <p className="text-gray-400 text-sm">
-                {t('withdraw_not_available_on_platform', '此平台不支持提現功能')}
+                {t('withdraw_not_available_on_platform') || '此平台不支持提現功能'}
               </p>
             </div>
           </div>
