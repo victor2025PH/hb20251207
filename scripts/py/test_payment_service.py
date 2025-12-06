@@ -83,6 +83,11 @@ async def test_payment_service():
     print("=" * 60)
 
 
+async def main():
+    """主函数"""
+    await test_payment_service()
+
+
 if __name__ == "__main__":
     asyncio.run(main())
 
