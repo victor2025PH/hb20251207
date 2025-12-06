@@ -66,16 +66,18 @@ export function AuthGuard({
   const [telegramInitTimeout, setTelegramInitTimeout] = React.useState(false);
   
   React.useEffect(() => {
-    // 只有在 Telegram WebApp 存在但 initData 为空时才等待
+    // 如果不在 Telegram 环境中，立即允许登录
+    if (!hasTelegramWebApp) {
+      setTelegramInitTimeout(true);
+      return;
+    }
+    
+    // 如果在 Telegram WebApp 中但 initData 为空，等待 1.5 秒后显示登录选项
     if (hasTelegramWebApp && !hasInitData && !isAuthenticated) {
-      // 等待 2 秒，如果还是没有 initData，允许使用其他登录方式
       const timer = setTimeout(() => {
         setTelegramInitTimeout(true);
-      }, 2000);
+      }, 1500);
       return () => clearTimeout(timer);
-    } else if (!hasTelegramWebApp) {
-      // 如果不在 Telegram 环境中，立即允许登录
-      setTelegramInitTimeout(true);
     }
   }, [hasTelegramWebApp, hasInitData, isAuthenticated]);
   
