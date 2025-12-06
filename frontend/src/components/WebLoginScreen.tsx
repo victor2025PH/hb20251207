@@ -3,7 +3,7 @@
  * 支持多种登录方式：Google、Telegram、Facebook、WhatsApp、Wallet、Magic Link
  */
 import React, { useState } from 'react';
-import { Google, MessageCircle, Facebook, MessageSquare, Wallet, Key } from 'lucide-react';
+import { Globe, MessageCircle, Facebook, MessageSquare, Wallet, Key } from 'lucide-react';
 import { googleAuth, walletAuth, verifyMagicLink, getCurrentUser } from '../utils/api';
 import { useAuth } from '../utils/auth/useAuth';
 import { getInitData, getTelegramUser } from '../utils/telegram';
@@ -163,7 +163,7 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
             disabled={!!loading}
             className="login-option-button google-button"
           >
-            <Google size={20} />
+            <Globe size={20} />
             <span>{loading === 'google' ? '登录中...' : '使用Google登录'}</span>
           </button>
 
