@@ -52,13 +52,12 @@ export function AuthGuard({
   }
 
   // 未认证 - 显示登录界面
-  // 检查是否真的在 Telegram 环境中
-  const isRealTelegram = platformInfo.isTelegram && 
-    typeof window !== 'undefined' && 
+  // 检查是否真的在 Telegram 环境中（需要同时有 WebApp 对象和 initData）
+  const hasTelegramWebApp = typeof window !== 'undefined' && 
     (window as any).Telegram?.WebApp;
   
-  // 检查是否有 initData 或 initDataUnsafe
-  const hasInitData = isRealTelegram && (
+  // 检查是否有 initData（这是判断是否在真正的 Telegram 客户端中的关键）
+  const hasInitData = hasTelegramWebApp && (
     (window as any).Telegram?.WebApp?.initData ||
     (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   );
@@ -67,17 +66,33 @@ export function AuthGuard({
   const [telegramInitTimeout, setTelegramInitTimeout] = React.useState(false);
   
   React.useEffect(() => {
-    if (isRealTelegram && !hasInitData && !isAuthenticated) {
-      // 等待 3 秒，如果还是没有 initData，允许使用其他登录方式
+    // 只有在 Telegram WebApp 存在但 initData 为空时才等待
+    if (hasTelegramWebApp && !hasInitData && !isAuthenticated) {
+      // 等待 2 秒，如果还是没有 initData，允许使用其他登录方式
       const timer = setTimeout(() => {
         setTelegramInitTimeout(true);
-      }, 3000);
+      }, 2000);
       return () => clearTimeout(timer);
+    } else if (!hasTelegramWebApp) {
+      // 如果不在 Telegram 环境中，立即允许登录
+      setTelegramInitTimeout(true);
     }
-  }, [isRealTelegram, hasInitData, isAuthenticated]);
+  }, [hasTelegramWebApp, hasInitData, isAuthenticated]);
   
-  if (isRealTelegram && !hasInitData && !telegramInitTimeout) {
-    // Telegram环境但initData为空，等待初始化
+  // 如果不在 Telegram 环境中，或者等待超时，直接显示登录选项
+  if (!hasTelegramWebApp || (hasTelegramWebApp && !hasInitData && telegramInitTimeout)) {
+    return (
+      <WebLoginScreen 
+        onLoginSuccess={() => {
+          // 登录成功后会通过useAuth自动更新状态
+          window.location.reload();
+        }}
+      />
+    );
+  }
+  
+  // Telegram环境但initData为空，等待初始化（最多2秒）
+  if (hasTelegramWebApp && !hasInitData && !telegramInitTimeout) {
     return (
       <div style={{ 
         padding: '2rem', 
@@ -105,9 +120,8 @@ export function AuthGuard({
     );
   }
   
-  if (isRealTelegram && hasInitData && !isAuthenticated) {
-    // Telegram环境有initData但认证失败，可能是API问题
-    // 但仍然允许使用其他登录方式
+  // Telegram环境有initData但认证失败，显示登录选项
+  if (hasTelegramWebApp && hasInitData && !isAuthenticated) {
     return (
       <div style={{ 
         padding: '2rem', 
@@ -136,7 +150,7 @@ export function AuthGuard({
     );
   }
 
-  // Web环境或其他环境 - 显示登录界面（包含多种登录选项）
+  // 默认情况：显示登录界面（包含多种登录选项）
   return (
     <WebLoginScreen 
       onLoginSuccess={() => {
