@@ -91,16 +91,47 @@ def upgrade():
                         print(f"⚠️ Could not add column {col_name}: {e}")
         
         # 2. 创建user_balances表（余额快照）
-        conn.execute(text(f"""
-            CREATE TABLE IF NOT EXISTS user_balances (
-                user_id INTEGER PRIMARY KEY REFERENCES users(id),
-                usdt_balance {decimal_type} DEFAULT 0,
-                ton_balance {decimal_type} DEFAULT 0,
-                stars_balance {decimal_type} DEFAULT 0,
-                points_balance {decimal_type} DEFAULT 0,
-                updated_at {timestamp_type} {default_now}
-            );
-        """))
+        inspector = inspect(sync_engine)
+        balances_table_exists = 'user_balances' in inspector.get_table_names()
+        
+        if not balances_table_exists:
+            # 创建新表
+            conn.execute(text(f"""
+                CREATE TABLE user_balances (
+                    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+                    usdt_balance {decimal_type} DEFAULT 0,
+                    ton_balance {decimal_type} DEFAULT 0,
+                    stars_balance {decimal_type} DEFAULT 0,
+                    points_balance {decimal_type} DEFAULT 0,
+                    updated_at {timestamp_type} {default_now}
+                );
+            """))
+            conn.commit()
+            print("✅ Created user_balances table")
+        else:
+            # 表已存在，检查并添加缺失的列
+            columns = [col['name'] for col in inspector.get_columns('user_balances')]
+            print(f"📋 Existing user_balances columns: {columns}")
+            
+            required_columns = {
+                'usdt_balance': decimal_type,
+                'ton_balance': decimal_type,
+                'stars_balance': decimal_type,
+                'points_balance': decimal_type,
+                'updated_at': timestamp_type
+            }
+            
+            for col_name, col_type in required_columns.items():
+                if col_name not in columns:
+                    print(f"➕ Adding missing column to user_balances: {col_name}")
+                    try:
+                        if col_name == 'updated_at':
+                            conn.execute(text(f"ALTER TABLE user_balances ADD COLUMN {col_name} {col_type} {default_now};"))
+                        else:
+                            conn.execute(text(f"ALTER TABLE user_balances ADD COLUMN {col_name} {col_type} DEFAULT 0;"))
+                        conn.commit()
+                    except Exception as e:
+                        print(f"⚠️ Could not add column {col_name} to user_balances: {e}")
         
         # 3. 创建索引（SQLite和PostgreSQL都支持IF NOT EXISTS）
         # 注意：SQLite中'type'是保留字，需要用引号括起来
@@ -152,36 +183,53 @@ def upgrade():
             print(f"⚠️ Could not create idx_ledger_created_at: {e}")
         
         # 4. 初始化user_balances（从现有users表迁移余额）
-        if is_sqlite_db:
-            # SQLite: 使用INSERT OR REPLACE或先删除再插入
-            conn.execute(text("""
-                INSERT OR REPLACE INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
-                SELECT 
-                    id,
-                    COALESCE(balance_usdt, 0),
-                    COALESCE(balance_ton, 0),
-                    COALESCE(balance_stars, 0),
-                    COALESCE(balance_points, 0)
-                FROM users;
-            """))
-        else:
-            # PostgreSQL: 使用ON CONFLICT
-            conn.execute(text("""
-                INSERT INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
-                SELECT 
-                    id,
-                    COALESCE(balance_usdt, 0),
-                    COALESCE(balance_ton, 0),
-                    COALESCE(balance_stars, 0),
-                    COALESCE(balance_points, 0)
-                FROM users
-                ON CONFLICT (user_id) DO UPDATE
-                SET 
-                    usdt_balance = EXCLUDED.usdt_balance,
-                    ton_balance = EXCLUDED.ton_balance,
-                    stars_balance = EXCLUDED.stars_balance,
-                    points_balance = EXCLUDED.points_balance;
-            """))
+        # 先检查列是否存在
+        inspector = inspect(sync_engine)
+        if 'user_balances' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('user_balances')]
+            required_cols = ['usdt_balance', 'ton_balance', 'stars_balance', 'points_balance']
+            
+            if all(col in columns for col in required_cols):
+                # 检查users表是否有这些列
+                users_columns = [col['name'] for col in inspector.get_columns('users')]
+                users_balance_cols = ['balance_usdt', 'balance_ton', 'balance_stars', 'balance_points']
+                
+                if all(col in users_columns for col in users_balance_cols):
+                    if is_sqlite_db:
+                        # SQLite: 使用INSERT OR REPLACE
+                        conn.execute(text("""
+                            INSERT OR REPLACE INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
+                            SELECT 
+                                id,
+                                COALESCE(balance_usdt, 0),
+                                COALESCE(balance_ton, 0),
+                                COALESCE(balance_stars, 0),
+                                COALESCE(balance_points, 0)
+                            FROM users;
+                        """))
+                    else:
+                        # PostgreSQL: 使用ON CONFLICT
+                        conn.execute(text("""
+                            INSERT INTO user_balances (user_id, usdt_balance, ton_balance, stars_balance, points_balance)
+                            SELECT 
+                                id,
+                                COALESCE(balance_usdt, 0),
+                                COALESCE(balance_ton, 0),
+                                COALESCE(balance_stars, 0),
+                                COALESCE(balance_points, 0)
+                            FROM users
+                            ON CONFLICT (user_id) DO UPDATE
+                            SET 
+                                usdt_balance = EXCLUDED.usdt_balance,
+                                ton_balance = EXCLUDED.ton_balance,
+                                stars_balance = EXCLUDED.stars_balance,
+                                points_balance = EXCLUDED.points_balance;
+                        """))
+                    print("✅ Initialized user_balances from users table")
+                else:
+                    print("⚠️ Users table missing balance columns, skipping balance migration")
+            else:
+                print(f"⚠️ user_balances table missing required columns, skipping balance migration")
         
         conn.commit()
         print("✅ Ledger System migration completed")
