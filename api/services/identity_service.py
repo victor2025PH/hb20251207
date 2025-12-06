@@ -86,11 +86,15 @@ class IdentityService:
                 user.language_code = provider_data.get('language_code', 'zh-TW')
         elif provider == 'google':
             if provider_data:
+                # Google用户不需要tg_id，可以为None
+                user.tg_id = None  # 明确设置为None
                 user.username = provider_data.get('email', '').split('@')[0]
                 user.first_name = provider_data.get('given_name')
                 user.last_name = provider_data.get('family_name')
         elif provider == 'wallet':
             if provider_data:
+                # Wallet用户不需要tg_id，可以为None
+                user.tg_id = None  # 明确设置为None
                 user.wallet_address = provider_user_id
                 user.wallet_network = provider_data.get('network', 'TON')
         

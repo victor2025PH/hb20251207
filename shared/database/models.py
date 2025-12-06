@@ -83,7 +83,7 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tg_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    tg_id = Column(BigInteger, unique=True, nullable=True, index=True)  # 允许为None，支持非Telegram用户
     username = Column(String(64), nullable=True, index=True)
     first_name = Column(String(64), nullable=True)
     last_name = Column(String(64), nullable=True)

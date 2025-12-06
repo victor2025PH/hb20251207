@@ -260,10 +260,82 @@ async def claim_red_packet(
     claimer_tg_id: Optional[int] = Depends(get_tg_id_from_header),
     db: AsyncSession = Depends(get_db_session)
 ):
-    """領取紅包"""
+    """領取紅包（支持Redis高并发）"""
     
     if claimer_tg_id is None:
         raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
+    # 查找領取者
+    result = await db.execute(select(User).where(User.tg_id == claimer_tg_id))
+    claimer = result.scalar_one_or_none()
+    
+    if not claimer:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 尝试使用Redis高并发抢红包
+    from api.services.redis_claim_service import RedisClaimService
+    claim_id = str(uuid.uuid4())
+    
+    success, error_code, amount, packet_status = await RedisClaimService.claim_packet(
+        packet_uuid=packet_uuid,
+        user_id=claimer.id,
+        claim_id=claim_id
+    )
+    
+    if success and amount:
+        # Redis抢红包成功，异步同步到数据库
+        # 这里先查找红包以获取完整信息
+        result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
+        packet = result.scalar_one_or_none()
+        
+        if not packet:
+            raise HTTPException(status_code=404, detail="Red packet not found")
+        
+        # 创建领取记录
+        claim = RedPacketClaim(
+            red_packet_id=packet.id,
+            user_id=claimer.id,
+            amount=amount,
+            is_bomb=False,  # 红包炸弹逻辑在Redis中处理
+            penalty_amount=None,
+        )
+        db.add(claim)
+        
+        # 更新红包状态
+        packet.claimed_amount += amount
+        packet.claimed_count = packet_status['claimed_count']
+        if packet_status['status'] == 'COMPLETED':
+            packet.status = RedPacketStatus.COMPLETED
+            packet.completed_at = datetime.utcnow()
+        
+        await db.commit()
+        
+        # 使用LedgerService更新余额
+        from api.services.ledger_service import LedgerService
+        await LedgerService.create_entry(
+            db=db,
+            user_id=claimer.id,
+            amount=amount,
+            currency=packet.currency.value.upper(),
+            entry_type='REDPACKET_CLAIM',
+            related_type='red_packet',
+            related_id=packet.id,
+            description=f"領取紅包: {amount} {packet.currency.value}",
+            created_by='user'
+        )
+        
+        return ClaimResult(
+            success=True,
+            amount=float(amount),
+            is_luckiest=False,  # 需要等红包领完后才能确定
+            message=f"恭喜領取 {amount} {packet.currency.value}！"
+        )
+    
+    # Redis不可用或失败，回退到数据库模式
+    if error_code == "REDIS_NOT_AVAILABLE":
+        logger.warning("Redis不可用，使用数据库模式抢红包")
+    else:
+        logger.warning(f"Redis抢红包失败: {error_code}，回退到数据库模式")
     
     # 查找紅包
     result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
@@ -279,13 +351,6 @@ async def claim_red_packet(
         packet.status = RedPacketStatus.EXPIRED
         await db.commit()
         raise HTTPException(status_code=400, detail="Red packet expired")
-    
-    # 查找領取者
-    result = await db.execute(select(User).where(User.tg_id == claimer_tg_id))
-    claimer = result.scalar_one_or_none()
-    
-    if not claimer:
-        raise HTTPException(status_code=404, detail="User not found")
     
     # 檢查是否已領取
     result = await db.execute(
