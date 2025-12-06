@@ -118,6 +118,26 @@ class User(Base):
     last_interaction_mode = Column(String(20), default="keyboard")  # 上次使用的模式
     seamless_switch_enabled = Column(Boolean, default=True)  # 是否启用无缝切换
     
+    # Universal Identity System 字段
+    uuid = Column(String(36), unique=True, nullable=True, index=True)  # UUID for cross-platform identity
+    wallet_address = Column(String(255), nullable=True)  # 鏈上錢包地址
+    wallet_network = Column(String(50), nullable=True)  # 錢包網絡 (TON, ETH, BSC)
+    
+    # 推薦系統（升級版）
+    referrer_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 推薦人ID（升級為支持多級）
+    referral_code = Column(String(20), unique=True, nullable=True, index=True)  # 推薦碼
+    total_referrals = Column(Integer, default=0)  # 總推薦數
+    tier1_commission = Column(Numeric(5, 2), default=Decimal('0.10'))  # 一級佣金率（10%）
+    tier2_commission = Column(Numeric(5, 2), default=Decimal('0.05'))  # 二級佣金率（5%）
+    
+    # 平台標識
+    primary_platform = Column(String(20), nullable=True)  # 主要使用平台 (telegram, web, mobile)
+    last_active_at = Column(DateTime, nullable=True)  # 最後活躍時間
+    
+    # 合規
+    kyc_status = Column(String(20), default='pending')  # KYC狀態 (pending, verified, rejected)
+    kyc_verified_at = Column(DateTime, nullable=True)  # KYC驗證時間
+    
     # 時間戳
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -128,9 +148,14 @@ class User(Base):
     messages = relationship("Message", back_populates="user")
     notification_settings = relationship("UserNotificationSettings", back_populates="user", uselist=False)
     task_completions = relationship("TaskCompletion", back_populates="user", cascade="all, delete-orphan")
+    identities = relationship("UserIdentity", back_populates="user", cascade="all, delete-orphan")  # 多平台身份
+    account_links = relationship("AccountLink", back_populates="user", cascade="all, delete-orphan")  # 賬戶鏈接
+    referrer = relationship("User", remote_side=[id], foreign_keys=[referrer_id])  # 推薦人關係
     
     __table_args__ = (
         Index("ix_users_invite_code", "invite_code"),
+        Index("ix_users_referral_code", "referral_code"),
+        Index("ix_users_uuid", "uuid"),
     )
 
 
@@ -787,21 +812,100 @@ class SybilAlert(Base):
     )
 
 
-class UserBalance(Base):
+# ==================== Universal Identity System ====================
+
+class UserIdentity(Base):
     """
-    用戶餘額表 - 快取層
-    按資金來源分類的餘額匯總
+    用戶身份關聯表 - Universal Identity System
+    支持多平台身份認證（Telegram, Google, Wallet等）
     """
-    __tablename__ = "user_balances"
+    __tablename__ = "user_identities"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    # 身份提供者信息
+    provider = Column(String(50), nullable=False)  # 'telegram', 'google', 'wallet', 'email'
+    provider_user_id = Column(String(255), nullable=False)  # Telegram ID, Google ID, Wallet Address等
+    provider_data = Column(JSON, nullable=True)  # 存儲provider特定的數據
+    
+    # 狀態
+    is_primary = Column(Boolean, default=False)  # 是否為主要身份
+    verified_at = Column(DateTime, nullable=True)  # 驗證時間
+    
+    # 時間戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 關聯
+    user = relationship("User", back_populates="identities")
+    
+    __table_args__ = (
+        Index("ix_user_identities_user_id", "user_id"),
+        Index("ix_user_identities_provider", "provider", "provider_user_id"),
+        # 唯一約束：同一provider的同一用戶ID只能有一個身份
+    )
+
+
+class AccountLink(Base):
+    """
+    賬戶鏈接表 - Magic Link系統
+    用於跨平台賬戶鏈接和無密碼登錄
+    """
+    __tablename__ = "account_links"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    currency = Column(Enum(CurrencyType), nullable=False)
     
-    # 總餘額
-    total_balance = Column(Numeric(20, 8), default=0)
+    # 鏈接信息
+    link_token = Column(String(64), unique=True, nullable=False, index=True)  # Magic Link Token
+    link_type = Column(String(20), nullable=False)  # 'magic_login', 'wallet_link', 'cross_platform'
     
-    # 按來源分類的餘額
+    # 狀態
+    expires_at = Column(DateTime, nullable=False)  # 過期時間
+    used_at = Column(DateTime, nullable=True)  # 使用時間
+    
+    # 元數據
+    metadata = Column(JSON, nullable=True)  # 存儲額外信息（IP地址、User Agent等）
+    
+    # 時間戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 關聯
+    user = relationship("User", back_populates="account_links")
+    
+    __table_args__ = (
+        Index("ix_account_links_token", "link_token"),
+        Index("ix_account_links_expires", "expires_at"),
+    )
+
+
+class UserBalance(Base):
+    """
+    用戶餘額表 - 快取層（新版本，兼容舊版本）
+    支持多幣種餘額，用於快速查詢
+    """
+    __tablename__ = "user_balances"
+    
+    # 主鍵：user_id（一個用戶一條記錄，包含所有幣種餘額）
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    
+    # 各幣種餘額（新字段）
+    usdt_balance = Column(Numeric(20, 8), default=0)
+    ton_balance = Column(Numeric(20, 8), default=0)
+    stars_balance = Column(Numeric(20, 8), default=0)
+    points_balance = Column(Numeric(20, 8), default=0)
+    
+    # 時間戳
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 兼容舊字段（如果存在）
+    id = Column(Integer, nullable=True, autoincrement=True)  # 保留以兼容
+    currency = Column(Enum(CurrencyType), nullable=True)  # 保留以兼容
+    
+    # 總餘額（保留舊字段）
+    total_balance = Column(Numeric(20, 8), nullable=True)
+    
+    # 按來源分類的餘額（保留舊字段）
     balance_real_crypto = Column(Numeric(20, 8), default=0)  # 真實加密貨幣
     balance_stars_credit = Column(Numeric(20, 8), default=0)  # Stars 兌換
     balance_bonus = Column(Numeric(20, 8), default=0)  # 獎勵
