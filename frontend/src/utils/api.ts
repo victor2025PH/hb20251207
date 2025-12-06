@@ -678,6 +678,30 @@ export const INVITE_MILESTONES: InviteMilestone[] = [
   { target: 5, reward: 5, achieved: false },
   { target: 10, reward: 15, achieved: false },
   { target: 25, reward: 50, achieved: false },
+
+// ============ 用户反馈 API ============
+
+export interface FeedbackRequest {
+  type: 'bug' | 'feature' | 'suggestion' | 'other'
+  title: string
+  content: string
+  contact?: string
+  screenshot_url?: string
+}
+
+export interface FeedbackResponse {
+  success: boolean
+  feedback_id: number
+  message: string
+}
+
+export async function submitFeedback(request: FeedbackRequest): Promise<FeedbackResponse> {
+  return api.post('/v1/feedback/submit', request)
+}
+
+export async function getFeedbackTypes(): Promise<{ types: Array<{ value: string; label: string }> }> {
+  return api.get('/v1/feedback/types')
+}
   { target: 50, reward: 150, achieved: false },
   { target: 100, reward: 500, achieved: false },
 ]

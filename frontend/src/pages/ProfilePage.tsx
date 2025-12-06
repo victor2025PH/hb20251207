@@ -1,14 +1,17 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut } from 'lucide-react'
+import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../providers/I18nProvider'
 import { getUserProfile, getBalance } from '../utils/api'
 import { getTelegramUser } from '../utils/telegram'
+import FeedbackModal from '../components/FeedbackModal'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const tgUser = getTelegramUser()
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -81,8 +84,18 @@ export default function ProfilePage() {
           title={t('user_agreement')}
           onClick={() => {}}
         />
+        <MenuItem
+          icon={MessageSquare}
+          title={t('submit_feedback') || '提交反馈'}
+          onClick={() => setShowFeedbackModal(true)}
+        />
       </div>
 
+      {/* 反馈弹窗 */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+      />
     </div>
   )
 }
