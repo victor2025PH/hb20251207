@@ -356,29 +356,64 @@ async def claim_red_packet(
         packet.status = RedPacketStatus.COMPLETED
         packet.completed_at = datetime.utcnow()
     
-    # 更新用戶餘額
-    balance_field = f"balance_{packet.currency.value}"
-    current_balance = getattr(claimer, balance_field, 0) or Decimal(0)
-    # 先加上領取金額
-    new_balance = current_balance + amount
-    # 如果踩雷，扣除賠付金額
+    # 使用LedgerService更新餘額（創建賬本條目）
+    from api.services.ledger_service import LedgerService
+    
+    # 計算實際獲得金額（考慮紅包炸彈懲罰）
+    actual_amount = amount
+    penalty_amount = Decimal(0)
+    
+    # 紅包炸彈懲罰邏輯
     if is_bomb:
-        new_balance = new_balance - penalty_amount
+        penalty_amount = amount * 2  # 觸發炸彈，扣除雙倍金額
+        
         # 檢查餘額是否足夠賠付
-        if new_balance < 0:
+        current_balance = await LedgerService.get_balance(
+            db=db,
+            user_id=claimer.id,
+            currency=packet.currency.value.upper()
+        )
+        
+        # 先加上領取金額，再扣除罰金
+        balance_after_claim = current_balance + amount
+        if balance_after_claim < penalty_amount:
             # 如果餘額不足，只扣除現有餘額（不能為負）
-            actual_penalty = current_balance + amount
-            new_balance = Decimal(0)
+            actual_penalty = balance_after_claim
             penalty_amount = actual_penalty
             claim.penalty_amount = penalty_amount
-        # 將賠付金額轉給發送者
+            actual_amount = -actual_penalty  # 負數表示扣除
+        else:
+            actual_amount = amount - penalty_amount  # 領取金額減去罰金
+        
+        # 將罰金轉給發送者
         sender_result = await db.execute(select(User).where(User.id == packet.sender_id))
         sender = sender_result.scalar_one_or_none()
-        if sender:
-            sender_balance = getattr(sender, balance_field, 0) or Decimal(0)
-            setattr(sender, balance_field, sender_balance + penalty_amount)
+        if sender and penalty_amount > 0:
+            await LedgerService.create_entry(
+                db=db,
+                user_id=sender.id,
+                amount=penalty_amount,
+                currency=packet.currency.value.upper(),
+                entry_type='REDPACKET_BOMB_PENALTY',
+                related_type='red_packet',
+                related_id=packet.id,
+                description=f"紅包炸彈罰金: {penalty_amount} {packet.currency.value}",
+                created_by='system'
+            )
     
-    setattr(claimer, balance_field, new_balance)
+    # 創建領取記錄的賬本條目
+    await LedgerService.create_entry(
+        db=db,
+        user_id=claimer.id,
+        amount=actual_amount,
+        currency=packet.currency.value.upper(),
+        entry_type='REDPACKET_CLAIM',
+        related_type='red_packet',
+        related_id=packet.id,
+        description=f"領取紅包: {amount} {packet.currency.value}" + 
+                    (f" (觸發炸彈，扣除 {penalty_amount})" if penalty_amount > 0 else ""),
+        created_by='user'
+    )
     
     # 先提交以便查詢包含當前的 claim
     await db.commit()
