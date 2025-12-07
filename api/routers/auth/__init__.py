@@ -19,6 +19,7 @@ _project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 # 直接导入 auth.py 模块（使用绝对导入，避免包导入）
+_auth_module = None
 try:
     # 使用 importlib 直接加载 auth.py 文件
     import importlib.util
@@ -33,6 +34,7 @@ try:
         sys.modules['api.routers.auth_file'] = _auth_module
         spec.loader.exec_module(_auth_module)
         router = _auth_module.router
+        get_current_user_from_token = _auth_module.get_current_user_from_token
     else:
         raise ImportError(f"auth.py not found at {_auth_file}")
 except Exception as e:
@@ -45,11 +47,13 @@ except Exception as e:
         # 现在导入 auth.py 文件
         from api.routers import auth as _auth_file_module
         router = _auth_file_module.router
+        get_current_user_from_token = _auth_file_module.get_current_user_from_token
+        _auth_module = _auth_file_module
         # 恢复模块
         if _temp:
             sys.modules['api.routers.auth'] = _temp
     except Exception as e2:
-        raise ImportError(f"Cannot import router: {e}, {e2}")
+        raise ImportError(f"Cannot import from auth.py: {e}, {e2}")
 
-__all__ = ["web", "link", "router"]
+__all__ = ["web", "link", "router", "get_current_user_from_token"]
 
