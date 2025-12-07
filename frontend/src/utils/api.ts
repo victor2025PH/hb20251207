@@ -99,17 +99,26 @@ export interface AuthResponse {
 
 // Google OAuth登录
 export async function googleAuth(request: GoogleAuthRequest): Promise<{ data: AuthResponse }> {
-  return api.post('/v1/auth/web/google', request)
+  // api.interceptors.response 已经返回了 response.data
+  // 所以这里需要包装一下，保持接口一致性
+  const response = await api.post('/v1/auth/web/google', request)
+  return { data: response as AuthResponse }
 }
 
 // Wallet连接登录
 export async function walletAuth(request: WalletAuthRequest): Promise<{ data: AuthResponse }> {
-  return api.post('/v1/auth/web/wallet', request)
+  // api.interceptors.response 已经返回了 response.data
+  // 所以这里需要包装一下，保持接口一致性
+  const response = await api.post('/v1/auth/web/wallet', request)
+  return { data: response as AuthResponse }
 }
 
 // 验证Magic Link
 export async function verifyMagicLink(token: string): Promise<{ data: AuthResponse }> {
-  return api.post('/v1/auth/link/magic-link/verify', { token })
+  // api.interceptors.response 已经返回了 response.data
+  // 所以这里需要包装一下，保持接口一致性
+  const response = await api.post('/v1/auth/link/magic-link/verify', { token })
+  return { data: response as AuthResponse }
 }
 
 // 生成Magic Link（需要Telegram认证）

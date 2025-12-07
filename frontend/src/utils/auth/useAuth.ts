@@ -114,17 +114,24 @@ export function useAuth() {
         response = await walletAuth(credentials);
       }
       
+      // 注意：api.interceptors.response 已经返回了 response.data
+      // 所以 response 本身就是 { access_token, user } 对象
+      const authData = response.data || response;
+      
       // 保存Token
-      localStorage.setItem('auth_token', response.data.access_token);
+      if (!authData.access_token) {
+        throw new Error('登录响应中缺少 access_token');
+      }
+      localStorage.setItem('auth_token', authData.access_token);
       
       setAuthState({
-        user: response.data.user,
+        user: authData.user,
         loading: false,
         isAuthenticated: true,
         platform: detectPlatform().platform
       });
       
-      return response.data;
+      return authData;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -136,17 +143,23 @@ export function useAuth() {
     try {
       const response = await verifyMagicLink(token);
       
+      // 注意：api.interceptors.response 已经返回了 response.data
+      const authData = response.data || response;
+      
       // 保存Token
-      localStorage.setItem('auth_token', response.data.access_token);
+      if (!authData.access_token) {
+        throw new Error('Magic Link验证响应中缺少 access_token');
+      }
+      localStorage.setItem('auth_token', authData.access_token);
       
       setAuthState({
-        user: response.data.user,
+        user: authData.user,
         loading: false,
         isAuthenticated: true,
         platform: detectPlatform().platform
       });
       
-      return response.data;
+      return authData;
     } catch (error) {
       console.error('Magic link login error:', error);
       throw error;
