@@ -35,7 +35,10 @@ source .venv/bin/activate
 # 运行迁移脚本
 python3 ../scripts/py/migrate_add_uuid_column.py
 
-# 如果迁移脚本不存在，使用 init_db
+# 修复 tg_id 约束
+python3 ../scripts/py/fix_tg_id_constraint.py
+
+# 如果迁移脚本失败，使用 init_db
 if [ $? -ne 0 ]; then
     echo "使用 init_db() 创建/更新表..."
     python3 << 'EOF'
