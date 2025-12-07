@@ -58,7 +58,7 @@ set /p choice=请输入选择 (1 或 2):
 if "%choice%"=="1" (
     echo.
     echo [执行] 首次部署...
-    echo y | plink -ssh -pw %SERVER_PASSWORD% %SERVER_USER%@%SERVER_HOST% "cd /tmp && curl -o deploy.sh https://raw.githubusercontent.com/victor2025PH/hb20251207/main/deploy/首次部署.sh 2>nul || wget -O deploy.sh https://raw.githubusercontent.com/victor2025PH/hb20251207/main/deploy/首次部署.sh 2>nul || (echo '请手动上传部署脚本' && exit 1)" && echo y | plink -ssh -pw %SERVER_PASSWORD% %SERVER_USER%@%SERVER_HOST% "chmod +x /tmp/deploy.sh && bash /tmp/deploy.sh"
+    echo y | plink -ssh -pw %SERVER_PASSWORD% %SERVER_USER%@%SERVER_HOST% "cd /home/ubuntu && git clone https://github.com/victor2025PH/hb20251207.git hbgm001 2>nul || cd hbgm001 && git pull origin main && cd /home/ubuntu/hbgm001 && python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && sudo systemctl restart hbgm001-backend || echo '首次部署需要手动配置服务'"
 ) else if "%choice%"=="2" (
     echo.
     echo [执行] 更新部署...
