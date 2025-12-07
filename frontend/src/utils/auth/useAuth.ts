@@ -124,12 +124,25 @@ export function useAuth() {
       }
       localStorage.setItem('auth_token', authData.access_token);
       
-      setAuthState({
-        user: authData.user,
-        loading: false,
-        isAuthenticated: true,
-        platform: detectPlatform().platform
-      });
+      // 登录成功后，重新获取完整的用户信息
+      try {
+        const userResponse = await getCurrentUser();
+        setAuthState({
+          user: userResponse.data,
+          loading: false,
+          isAuthenticated: true,
+          platform: detectPlatform().platform
+        });
+      } catch (userError) {
+        // 如果获取用户信息失败，使用登录响应中的用户信息
+        console.warn('获取用户信息失败，使用登录响应中的信息:', userError);
+        setAuthState({
+          user: authData.user,
+          loading: false,
+          isAuthenticated: true,
+          platform: detectPlatform().platform
+        });
+      }
       
       return authData;
     } catch (error) {
