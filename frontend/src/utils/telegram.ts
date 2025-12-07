@@ -112,17 +112,14 @@ export function initTelegram(): Promise<void> {
         }
       }
       
-      // 如果 WebApp 已经准备好，直接调用
-      if (webApp.isReady) {
+      // 调用 ready() 方法，然后使用 setTimeout 作为后备
+      // Telegram WebApp SDK 的 ready() 方法会触发初始化
+      webApp.ready()
+      // 使用 setTimeout 作为后备，确保不会永远等待
+      // 即使 ready 事件没有触发，也会在 100ms 后执行 onReady
+      setTimeout(() => {
         onReady()
-      } else {
-        // 监听 ready 事件
-        webApp.ready()
-        // 使用 setTimeout 作为后备，确保不会永远等待
-        setTimeout(() => {
-          onReady()
-        }, 100)
-      }
+      }, 100)
     } catch (error) {
       console.error('[Telegram] Init error:', error)
       resolve()
