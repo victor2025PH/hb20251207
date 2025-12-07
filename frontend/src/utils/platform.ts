@@ -71,9 +71,23 @@ export function getPlatformRules() {
 
 /**
  * 检查是否在Telegram环境中
+ * 不仅检查 WebApp 对象是否存在，还要检查是否有有效的 initData
  */
 export function isInTelegram(): boolean {
-  return typeof window !== 'undefined' && 
-    (window as any).Telegram?.WebApp !== undefined;
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  
+  const webApp = (window as any).Telegram?.WebApp;
+  if (!webApp) {
+    return false;
+  }
+  
+  // 检查是否有有效的 initData（这是判断是否在真正的 Telegram 客户端中的关键）
+  const hasInitData = webApp.initData && webApp.initData.length > 0;
+  const hasUser = webApp.initDataUnsafe?.user;
+  
+  // 只有在有 initData 或 user 信息时才认为是真正的 Telegram 环境
+  return hasInitData || hasUser;
 }
 

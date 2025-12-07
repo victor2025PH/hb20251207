@@ -66,23 +66,20 @@ class WebSocketManager {
         // 優先使用 JWT Token 認證（Web 登錄）
         if (token) {
           wsUrl += `?token=${encodeURIComponent(token)}`
+          console.log('[WebSocket] Using JWT token for authentication.')
         }
-        // 如果沒有 JWT Token，嘗試使用 Telegram initData
-        else if (user && (window as any).Telegram?.WebApp?.initData) {
-          const initData = (window as any).Telegram.WebApp.initData
-          wsUrl += `?init_data=${encodeURIComponent(initData)}`
-        } else if (user?.id) {
-          // 本地測試：使用 localStorage 中的 tg_id 或 user.id
-          const tgId = localStorage.getItem('tg_id') || user.id.toString()
-          // 構建一個簡單的 initData 格式
-          const userData = JSON.stringify({ id: parseInt(tgId) })
-          wsUrl += `?init_data=user=${encodeURIComponent(userData)}`
-        } else {
-          // 如果沒有用戶信息，嘗試從 localStorage 獲取
-          const tgId = localStorage.getItem('tg_id')
-          if (tgId) {
-            const userData = JSON.stringify({ id: parseInt(tgId) })
-            wsUrl += `?init_data=user=${encodeURIComponent(userData)}`
+        // 如果沒有 JWT Token，嘗試使用 Telegram initData（必須是有效的 initData）
+        else {
+          const initData = getInitData()
+          if (initData && initData.length > 0) {
+            wsUrl += `?init_data=${encodeURIComponent(initData)}`
+            console.log('[WebSocket] Using Telegram initData for authentication.')
+          } else {
+            // 沒有有效的認證信息，拒絕連接
+            console.warn('[WebSocket] No valid authentication (JWT token or Telegram initData), cannot connect.')
+            this.isConnecting = false
+            reject(new Error('No valid authentication'))
+            return
           }
         }
 
