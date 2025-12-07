@@ -1,7 +1,7 @@
 /**
  * WebSocket 連接管理
  */
-import { getTelegramUser } from './telegram'
+import { getInitData } from './telegram'
 
 export type MessageData = {
   type: 'new_message' | 'ping' | 'pong'
