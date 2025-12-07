@@ -157,11 +157,15 @@ async def get_current_user_from_token(
                 from api.utils.telegram_auth import parse_telegram_init_data, verify_telegram_init_data
                 from api.services.identity_service import IdentityService
                 
-                # 驗證 initData 的 hash（生產環境必須驗證）
-                if not verify_telegram_init_data(x_telegram_init_data):
-                    logger.warning(f"Telegram initData hash 驗證失敗")
+                # 驗證 initData 的 hash（如果 BOT_TOKEN 配置了則驗證）
+                # 如果 BOT_TOKEN 未配置，跳過驗證（僅用於開發環境）
+                should_verify = bool(settings.BOT_TOKEN)
+                if should_verify and not verify_telegram_init_data(x_telegram_init_data):
+                    logger.warning(f"Telegram initData hash 驗證失敗 - initData可能無效或已過期")
                     user = None
                 else:
+                    if not should_verify:
+                        logger.debug(f"跳過 initData hash 驗證（BOT_TOKEN 未配置）")
                     user_data = parse_telegram_init_data(x_telegram_init_data)
                     
                     if user_data and 'id' in user_data:

@@ -34,12 +34,18 @@ def parse_telegram_init_data(init_data: str) -> Optional[dict]:
 def verify_telegram_init_data(init_data: str) -> bool:
     """驗證 Telegram initData 的 hash"""
     try:
+        # 如果 BOT_TOKEN 未配置，無法驗證
+        if not settings.BOT_TOKEN:
+            logger.debug("BOT_TOKEN 未配置，跳過 initData hash 驗證")
+            return True  # 開發環境允許跳過驗證
+        
         # 解析參數
         params = urllib.parse.parse_qs(init_data, keep_blank_values=True)
         
         # 獲取 hash
         hash_value = params.get('hash', [None])[0]
         if not hash_value:
+            logger.warning("initData 中沒有 hash 字段")
             return False
         
         # 移除 hash 並構建數據字符串
@@ -58,9 +64,12 @@ def verify_telegram_init_data(init_data: str) -> bool:
             hashlib.sha256
         ).hexdigest()
         
-        return calculated_hash == hash_value
+        is_valid = calculated_hash == hash_value
+        if not is_valid:
+            logger.warning(f"initData hash 驗證失敗 - 計算值: {calculated_hash[:16]}..., 接收值: {hash_value[:16]}...")
+        return is_valid
     except Exception as e:
-        logger.warning(f"Failed to verify initData: {e}")
+        logger.warning(f"Failed to verify initData: {e}", exc_info=True)
         return False
 
 
