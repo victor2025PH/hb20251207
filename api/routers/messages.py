@@ -114,49 +114,75 @@ manager = ConnectionManager()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket 連接端點"""
+    """WebSocket 連接端點（支持 JWT Token 和 Telegram initData）"""
     await websocket.accept()
     
-    # 從查詢參數獲取 token 或 initData
+    # 從查詢參數或請求頭獲取認證信息
     query_params = dict(websocket.query_params)
-    tg_id = None
+    user_id = None
     
-    # 嘗試從 initData 獲取 tg_id
-    if "init_data" in query_params:
-        init_data_str = query_params["init_data"]
-        # 如果是本地測試格式 user={"id":123}
-        if init_data_str.startswith("user="):
-            try:
-                import json
-                user_json = init_data_str.replace("user=", "")
-                user_data = json.loads(user_json)
+    # 優先嘗試 JWT Token 認證（Web 登錄）
+    token = query_params.get("token") or websocket.headers.get("Authorization", "").replace("Bearer ", "")
+    if token:
+        try:
+            from jose import jwt, JWTError
+            from shared.config.settings import get_settings
+            settings = get_settings()
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            user_id_str = payload.get("sub")
+            if user_id_str:
+                user_id = int(user_id_str)
+                logger.info(f"[WebSocket] Authenticated via JWT: user_id={user_id}")
+        except (JWTError, ValueError, TypeError) as e:
+            logger.warning(f"[WebSocket] JWT validation failed: {e}")
+            token = None
+    
+    # 如果沒有 JWT Token，嘗試使用 Telegram initData
+    if not user_id:
+        tg_id = None
+        init_data_str = query_params.get("init_data") or websocket.headers.get("X-Telegram-Init-Data")
+        
+        if init_data_str:
+            # 如果是本地測試格式 user={"id":123}
+            if init_data_str.startswith("user="):
+                try:
+                    import json
+                    user_json = init_data_str.replace("user=", "")
+                    user_data = json.loads(user_json)
+                    if user_data and 'id' in user_data:
+                        tg_id = int(user_data['id'])
+                except:
+                    pass
+            else:
+                # 標準 Telegram initData 格式
+                from api.utils.telegram_auth import parse_telegram_init_data
+                user_data = parse_telegram_init_data(init_data_str)
                 if user_data and 'id' in user_data:
                     tg_id = int(user_data['id'])
-            except:
-                pass
-        else:
-            # 標準 Telegram initData 格式
-            from api.utils.telegram_auth import parse_telegram_init_data
-            user_data = parse_telegram_init_data(init_data_str)
-            if user_data and 'id' in user_data:
-                tg_id = int(user_data['id'])
+        
+        if tg_id:
+            # 獲取用戶（需要創建新的數據庫會話）
+            from shared.database.connection import AsyncSessionLocal
+            from api.services.identity_service import IdentityService
+            db = AsyncSessionLocal()
+            try:
+                # 查找或創建用戶
+                user = await IdentityService.get_or_create_user_by_identity(
+                    db=db,
+                    provider='telegram',
+                    provider_user_id=str(tg_id),
+                    provider_data={'id': tg_id}
+                )
+                user_id = user.id
+                logger.info(f"[WebSocket] Authenticated via Telegram: tg_id={tg_id}, user_id={user_id}")
+            except Exception as e:
+                logger.error(f"[WebSocket] Failed to get/create user: {e}")
+            finally:
+                await db.close()
     
-    if not tg_id:
+    if not user_id:
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
-    # 獲取用戶（需要創建新的數據庫會話）
-    from shared.database.connection import AsyncSessionLocal
-    db = AsyncSessionLocal()
-    try:
-        result = await db.execute(select(User).where(User.tg_id == tg_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            await websocket.close(code=1008, reason="User not found")
-            return
-        user_id = user.id
-    finally:
-        await db.close()
     
     await manager.connect(websocket, user_id)
     try:

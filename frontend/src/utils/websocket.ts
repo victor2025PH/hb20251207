@@ -52,7 +52,8 @@ class WebSocketManager {
       this.isConnecting = true
 
       try {
-        // 獲取 initData
+        // 優先使用 JWT Token（Web 登錄）
+        const token = localStorage.getItem('auth_token')
         const user = getTelegramUser()
         let wsUrl = 'ws://localhost:8080/api/v1/messages/ws'
         
@@ -62,8 +63,12 @@ class WebSocketManager {
           wsUrl = `${protocol}//${window.location.host}/api/v1/messages/ws`
         }
 
-        // 添加 initData 到查詢參數
-        if (user && (window as any).Telegram?.WebApp?.initData) {
+        // 優先使用 JWT Token 認證（Web 登錄）
+        if (token) {
+          wsUrl += `?token=${encodeURIComponent(token)}`
+        }
+        // 如果沒有 JWT Token，嘗試使用 Telegram initData
+        else if (user && (window as any).Telegram?.WebApp?.initData) {
           const initData = (window as any).Telegram.WebApp.initData
           wsUrl += `?init_data=${encodeURIComponent(initData)}`
         } else if (user?.id) {
