@@ -213,15 +213,29 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket, user_id)
     try:
         while True:
-            # 接收心跳消息
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text("pong")
+            # 接收心跳消息或其他消息
+            try:
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_text("pong")
+                    logger.debug(f"[WebSocket] Heartbeat received from user {user_id}")
+                else:
+                    logger.debug(f"[WebSocket] Received message from user {user_id}: {data}")
+            except WebSocketDisconnect:
+                # 正常断开连接
+                logger.info(f"[WebSocket] User {user_id} disconnected normally")
+                break
+            except Exception as e:
+                logger.error(f"[WebSocket] Error receiving message from user {user_id}: {e}", exc_info=True)
+                # 继续循环，尝试接收下一条消息
+                continue
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        logger.info(f"[WebSocket] User {user_id} disconnected")
     except Exception as e:
-        logger.error(f"WebSocket error for user {user_id}: {e}")
+        logger.error(f"[WebSocket] Fatal error for user {user_id}: {e}", exc_info=True)
+    finally:
         manager.disconnect(user_id)
+        logger.info(f"[WebSocket] Cleaned up connection for user {user_id}")
 
 
 @router.get("/", response_model=MessageListResponse)
