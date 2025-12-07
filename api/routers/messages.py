@@ -205,18 +205,11 @@ async def get_messages(
     status: Optional[MessageStatus] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取消息列表"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """獲取消息列表（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 構建查詢
     query = select(Message).where(
