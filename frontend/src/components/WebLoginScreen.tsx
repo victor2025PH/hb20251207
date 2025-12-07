@@ -262,16 +262,29 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
           justify-content: center;
           align-items: center;
           min-height: 100vh;
-          padding: 2rem;
+          padding: 1rem;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          box-sizing: border-box;
         }
         .login-container {
           background: white;
-          padding: 2rem;
+          padding: 1.5rem;
           border-radius: 16px;
           box-shadow: 0 10px 40px rgba(0,0,0,0.1);
           max-width: 450px;
           width: 100%;
+          box-sizing: border-box;
+          overflow-y: auto;
+          max-height: 90vh;
+        }
+        @media (max-width: 480px) {
+          .login-container {
+            padding: 1rem;
+            border-radius: 12px;
+          }
+          .login-options {
+            grid-template-columns: 1fr !important;
+          }
         }
         .login-container h2 {
           margin: 0 0 0.5rem 0;

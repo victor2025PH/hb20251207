@@ -56,16 +56,25 @@ async def google_auth(
             'id_token': request.id_token
         }
         
-        # 使用email作为provider_user_id
-        provider_user_id = request.email or request.id_token[:20]
+        # 使用email作为provider_user_id，如果没有email则使用id_token的hash
+        if not request.email:
+            import hashlib
+            provider_user_id = hashlib.sha256(request.id_token.encode()).hexdigest()[:32]
+            logger.warning(f"Google auth without email, using token hash: {provider_user_id[:8]}...")
+        else:
+            provider_user_id = request.email
         
         # 获取或创建用户
-        user = await IdentityService.get_or_create_user_by_identity(
-            db=db,
-            provider='google',
-            provider_user_id=provider_user_id,
-            provider_data=provider_data
-        )
+        try:
+            user = await IdentityService.get_or_create_user_by_identity(
+                db=db,
+                provider='google',
+                provider_user_id=provider_user_id,
+                provider_data=provider_data
+            )
+        except Exception as e:
+            logger.error(f"IdentityService error: {e}")
+            raise
         
         # 生成Token
         token = create_access_token(user.id)

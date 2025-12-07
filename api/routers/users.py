@@ -2,10 +2,12 @@
 Lucky Red - 用戶路由
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from pydantic import BaseModel
 from typing import Optional, List
+from loguru import logger
 
 from shared.database.connection import get_db_session
 from shared.database.models import User
@@ -75,17 +77,39 @@ async def get_user_balance(
 @router.get("/me", response_model=UserProfile)
 async def get_my_profile(
     db: AsyncSession = Depends(get_db_session),
-    tg_id: Optional[int] = Depends(get_tg_id_from_header)
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    """獲取當前用戶資料（從 initData 中獲取 tg_id）"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    """獲取當前用戶資料（支持 Telegram initData 或 JWT Token）"""
+    from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+    from jose import jwt, JWTError
+    from shared.config.settings import get_settings
     
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
+    settings = get_settings()
+    user = None
+    
+    # 优先使用 JWT Token（Web 登录）
+    if credentials:
+        try:
+            token = credentials.credentials
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+            user_id = int(payload.get("sub"))
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+        except (JWTError, ValueError, TypeError) as e:
+            logger.warning(f"JWT validation failed: {e}")
+    
+    # 如果没有 JWT Token，尝试使用 Telegram initData
+    if not user and tg_id:
+        result = await db.execute(select(User).where(User.tg_id == tg_id))
+        user = result.scalar_one_or_none()
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     return user
 
@@ -93,11 +117,38 @@ async def get_my_profile(
 @router.get("/me/balance", response_model=UserBalance)
 async def get_my_balance(
     db: AsyncSession = Depends(get_db_session),
-    tg_id: Optional[int] = Depends(get_tg_id_from_header)
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    """獲取當前用戶餘額（從 initData 中獲取 tg_id）"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    """獲取當前用戶餘額（支持 Telegram initData 或 JWT Token）"""
+    from jose import jwt, JWTError
+    from shared.config.settings import get_settings
+    
+    settings = get_settings()
+    user = None
+    
+    # 优先使用 JWT Token（Web 登录）
+    if credentials:
+        try:
+            token = credentials.credentials
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+            user_id = int(payload.get("sub"))
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+        except (JWTError, ValueError, TypeError) as e:
+            logger.warning(f"JWT validation failed: {e}")
+    
+    # 如果没有 JWT Token，尝试使用 Telegram initData
+    if not user and tg_id:
+        result = await db.execute(select(User).where(User.tg_id == tg_id))
+        user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     result = await db.execute(select(User).where(User.tg_id == tg_id))
     user = result.scalar_one_or_none()
