@@ -389,18 +389,11 @@ async def delete_message(
 async def reply_message(
     message_id: int,
     request: ReplyRequest,
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """回復消息"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """回復消息（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 獲取原消息
     result = await db.execute(
