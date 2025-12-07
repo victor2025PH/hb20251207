@@ -27,13 +27,19 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
-      if (import.meta.env.DEV) {
-        console.log('[API Request]', config.url, 'with Telegram initData (primary) and JWT token (fallback)')
-      }
+      console.log('[API Request]', config.url, 'with Telegram initData (primary) and JWT token (fallback)', {
+        method: config.method,
+        headers: {
+          'X-Telegram-Init-Data': initData.substring(0, 50) + '...',
+          'Authorization': 'Bearer ***'
+        }
+      })
     } else {
-      if (import.meta.env.DEV) {
-        console.log('[API Request]', config.url, 'with Telegram auth:', initData.substring(0, 50) + '...')
-      }
+      console.log('[API Request]', config.url, 'with Telegram auth:', {
+        method: config.method,
+        initDataLength: initData.length,
+        initDataPreview: initData.substring(0, 50) + '...'
+      })
     }
     return config
   }
@@ -42,27 +48,28 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`
-    if (import.meta.env.DEV) {
-      console.log('[API Request]', config.url, 'with JWT token')
-    }
+    console.log('[API Request]', config.url, 'with JWT token', {
+      method: config.method
+    })
     return config
   }
   
   // 既沒有 JWT Token 也沒有有效的 Telegram initData
   // 對於需要認證的端點，這會導致 401，但我們在響應攔截器中處理
-  if (import.meta.env.DEV) {
-    console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing')
-  }
+  console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing', {
+    method: config.method
+  })
   return config
 })
 
 // 響應攔截器 - 統一錯誤處理
 api.interceptors.response.use(
   (response) => {
-    // 記錄成功的響應（僅在開發環境）
-    if (import.meta.env.DEV) {
-      console.log('[API Success]', response.config.url, response.data)
-    }
+    // 記錄成功的響應
+    console.log('[API Success]', response.config.url, {
+      status: response.status,
+      data: response.data
+    })
     return response.data
   },
   (error: any) => {
