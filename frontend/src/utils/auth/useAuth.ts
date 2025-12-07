@@ -45,14 +45,27 @@ export function useAuth() {
       
       // Telegram环境：自动登录
       if (isInTelegram()) {
-        await initTelegram();
-        const tgUser = getTelegramUser();
-        const initData = getInitData();
+        // 初始化 Telegram WebApp
+        initTelegram();
         
-        // 只有在有 initData 时才尝试 Telegram 认证
-        // initData 是必需的，因为后端需要它来验证用户身份
+        // 等待 Telegram WebApp 准备就绪（最多等待 2 秒）
+        let initData = getInitData();
+        let attempts = 0;
+        const maxAttempts = 20; // 2秒，每次100ms
+        
+        while ((!initData || initData.length === 0) && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          initData = getInitData();
+          attempts++;
+        }
+        
         if (initData && initData.length > 0) {
           try {
+            console.log('[Auth] 尝试使用 Telegram initData 认证...', {
+              initDataLength: initData.length,
+              hasUser: !!getTelegramUser()
+            });
+            
             // 通过Telegram initData获取用户信息
             const response = await getCurrentUser();
             setAuthState({
@@ -61,16 +74,27 @@ export function useAuth() {
               isAuthenticated: true,
               platform: 'telegram'
             });
-            console.log('[Auth] Telegram 自动登录成功');
+            console.log('[Auth] Telegram 自动登录成功', response.data);
             return;
-          } catch (error) {
-            // 认证失败，记录错误但继续到其他登录方式
-            console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);
+          } catch (error: any) {
+            // 认证失败，记录详细错误
+            console.error('[Auth] Telegram认证失败:', error);
+            console.error('[Auth] 错误详情:', {
+              message: error?.message,
+              response: error?.response?.data,
+              status: error?.response?.status,
+              initDataLength: initData.length,
+              hasUser: !!getTelegramUser()
+            });
             // 不设置 loading=false，让下面的逻辑处理
           }
         } else {
           // 在 Telegram 环境中但没有 initData，记录警告
-          console.warn('[Auth] Telegram 环境中 initData 为空，无法自动登录');
+          console.warn('[Auth] Telegram 环境中 initData 为空，无法自动登录', {
+            hasWebApp: !!window.Telegram?.WebApp,
+            platform: window.Telegram?.WebApp?.platform,
+            version: window.Telegram?.WebApp?.version
+          });
         }
       }
       

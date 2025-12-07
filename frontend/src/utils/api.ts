@@ -142,21 +142,11 @@ export async function generateMagicLink(
   })
 }
 
-// 获取当前用户（支持JWT Token）
+// 获取当前用户（支持JWT Token 和 Telegram initData）
 // Auth API endpoints
 export async function getCurrentUser(): Promise<{ data: any }> {
-  // 检查是否有JWT Token
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    // 使用JWT Token认证
-    const response = await axios.get(`${API_BASE}/v1/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-    return { data: response.data }
-  }
-  // 回退到Telegram认证
+  // 始终使用 api 实例，让拦截器自动处理认证
+  // 拦截器会优先使用 JWT Token，如果没有则使用 Telegram initData
   return api.get('/v1/users/me')
 }
 
