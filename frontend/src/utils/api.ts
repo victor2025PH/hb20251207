@@ -22,20 +22,22 @@ api.interceptors.request.use((config) => {
     if (import.meta.env.DEV) {
       console.log('[API Request]', config.url, 'with JWT token')
     }
+    return config
   }
   
   // 如果有 Telegram initData，也添加（Telegram MiniApp）
   const initData = getInitData()
-  if (initData) {
+  if (initData && initData.length > 0) {
     config.headers['X-Telegram-Init-Data'] = initData
     // 開發環境下記錄認證信息（僅記錄前50個字符，避免洩露完整數據）
     if (import.meta.env.DEV) {
       console.log('[API Request]', config.url, 'with Telegram auth:', initData.substring(0, 50) + '...')
     }
-  } else if (!token) {
-    // 既沒有 JWT Token 也沒有 Telegram initData
+  } else {
+    // 既沒有 JWT Token 也沒有有效的 Telegram initData
+    // 對於需要認證的端點，這會導致 401，但我們在響應攔截器中處理
     if (import.meta.env.DEV) {
-      console.warn('[API Request]', config.url, 'without any auth - both token and initData are empty')
+      console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing')
     }
   }
   return config
@@ -51,6 +53,24 @@ api.interceptors.response.use(
     return response.data
   },
   (error: any) => {
+    // 如果是 401 错误且没有认证信息，静默处理（不显示错误）
+    // 这通常发生在未登录时尝试访问需要认证的 API
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem('auth_token')
+      const initData = getInitData()
+      if (!token && (!initData || initData.length === 0)) {
+        // 没有认证信息，这是正常的，静默处理
+        if (import.meta.env.DEV) {
+          console.debug('[API] 401 Unauthorized - 未提供认证信息（这是正常的）')
+        }
+        // 返回一个特殊的错误对象，让调用者知道这是未认证的情况
+        const silentError = new Error('Unauthorized')
+        ;(silentError as any).isUnauthorized = true
+        ;(silentError as any).response = error.response
+        return Promise.reject(silentError)
+      }
+    }
+    
     let message = '請求失敗'
     if (error.response?.data?.detail) {
       message = typeof error.response.data.detail === 'string' 

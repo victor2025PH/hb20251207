@@ -92,24 +92,24 @@ export function useAuth() {
             console.log('[Auth] Telegram 自动登录成功', response.data);
             return;
           } catch (error: any) {
-            // 认证失败，记录详细错误
-            console.error('[Auth] Telegram认证失败:', error);
-            console.error('[Auth] 错误详情:', {
-              message: error?.message,
-              response: error?.response?.data,
-              status: error?.response?.status,
-              initDataLength: initData.length,
-              hasUser: !!getTelegramUser()
-            });
-            // 不设置 loading=false，让下面的逻辑处理
+            // 认证失败，检查是否是未认证错误（静默处理）
+            if (error?.isUnauthorized || error?.response?.status === 401) {
+              // 这是未认证的情况，静默处理，不记录错误
+              console.debug('[Auth] Telegram认证失败 - initData可能无效或已过期，将尝试其他登录方式');
+            } else {
+              // 其他错误，记录警告
+              console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);
+            }
+            // 继续到下面的逻辑，不设置 loading=false
           }
         } else {
-          // 在 Telegram 环境中但没有 initData，记录警告
+          // 在 Telegram 环境中但没有 initData，记录警告但不尝试认证
           console.warn('[Auth] Telegram 环境中 initData 为空，无法自动登录', {
             hasWebApp: !!window.Telegram?.WebApp,
             platform: window.Telegram?.WebApp?.platform,
             version: window.Telegram?.WebApp?.version
           });
+          // 不尝试调用 getCurrentUser()，直接继续到下面的逻辑
         }
       }
       
