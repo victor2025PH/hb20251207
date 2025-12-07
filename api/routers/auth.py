@@ -233,26 +233,26 @@ async def get_current_user_from_token(
         # 默認策略：同時支持兩種認證方式，優先 JWT Token
         # 優先嘗試 JWT Token 認證
         if credentials:
-        try:
-            token = credentials.credentials
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-            user_id_str = payload.get("sub")
-            if user_id_str is None:
-                raise credentials_exception
-            user_id: int = int(user_id_str)
-            result = await db.execute(select(User).where(User.id == user_id))
-            user = result.scalar_one_or_none()
-        except (JWTError, ValueError, TypeError) as e:
-            logger.warning(f"JWT 驗證失敗: {str(e)}")
-            # 不立即拋出異常，允許回退到 Telegram 認證
-            user = None
-
-    # 如果沒有 JWT Token 或 JWT 認證失敗，嘗試使用 Telegram initData
-    if not user and x_telegram_init_data:
+            try:
+                token = credentials.credentials
+                payload = jwt.decode(
+                    token,
+                    settings.JWT_SECRET,
+                    algorithms=[settings.JWT_ALGORITHM]
+                )
+                user_id_str = payload.get("sub")
+                if user_id_str:
+                    user_id: int = int(user_id_str)
+                    result = await db.execute(select(User).where(User.id == user_id))
+                    user = result.scalar_one_or_none()
+                    if user:
+                        logger.info(f"JWT 用戶認證成功: user_id={user_id}")
+            except (JWTError, ValueError, TypeError) as e:
+                logger.warning(f"JWT 驗證失敗: {str(e)}")
+                user = None
+        
+        # 如果沒有 JWT Token 或 JWT 認證失敗，嘗試使用 Telegram initData
+        if not user and should_allow_telegram_auth(request) and x_telegram_init_data:
         try:
             from api.utils.telegram_auth import parse_telegram_init_data
             from api.services.identity_service import IdentityService
