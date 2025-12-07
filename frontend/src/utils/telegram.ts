@@ -55,32 +55,79 @@ declare global {
 
 /**
  * 初始化 Telegram WebApp
+ * 返回一个 Promise，在 WebApp 完全准备好后解析
  */
-export function initTelegram(): void {
-  const webApp = window.Telegram?.WebApp
-  if (!webApp) {
-    console.log('[Telegram] Not in Telegram environment')
-    return
-  }
-
-  try {
-    webApp.ready()
-    webApp.expand()
-    webApp.enableClosingConfirmation()
-    console.log('[Telegram] WebApp initialized', {
-      version: webApp.version,
-      platform: webApp.platform,
-      user: webApp.initDataUnsafe.user,
-      hasInitData: !!webApp.initData,
-      initDataLength: webApp.initData?.length || 0,
-    })
-    // 如果 initData 为空，记录警告
-    if (!webApp.initData) {
-      console.warn('[Telegram] initData is empty - API requests will fail authentication')
+export function initTelegram(): Promise<void> {
+  return new Promise((resolve) => {
+    const webApp = window.Telegram?.WebApp
+    if (!webApp) {
+      console.log('[Telegram] Not in Telegram environment')
+      resolve()
+      return
     }
-  } catch (error) {
-    console.error('[Telegram] Init error:', error)
-  }
+
+    try {
+      // 监听 ready 事件，确保 WebApp 完全初始化
+      const onReady = () => {
+        try {
+          webApp.expand()
+          // 注意：enableClosingConfirmation 在某些版本不支持
+          try {
+            webApp.enableClosingConfirmation()
+          } catch (e) {
+            // 忽略不支持的错误
+          }
+          
+          const initData = webApp.initData || ''
+          const user = webApp.initDataUnsafe?.user
+          
+          console.log('[Telegram] WebApp initialized', {
+            version: webApp.version,
+            platform: webApp.platform,
+            user: user ? {
+              id: user.id,
+              username: user.username,
+              first_name: user.first_name
+            } : null,
+            hasInitData: !!initData,
+            initDataLength: initData.length,
+            initDataPreview: initData ? initData.substring(0, 50) + '...' : 'empty'
+          })
+          
+          // 如果 initData 为空，记录警告
+          if (!initData || initData.length === 0) {
+            console.warn('[Telegram] initData is empty - API requests will fail authentication')
+            console.warn('[Telegram] 这可能是因为：')
+            console.warn('[Telegram] 1. 不是在真正的 Telegram MiniApp 中打开')
+            console.warn('[Telegram] 2. 或者 Telegram WebApp SDK 还没有完全加载')
+            console.warn('[Telegram] 3. 或者需要等待更长时间')
+          } else {
+            console.log('[Telegram] initData 已准备就绪，可以用于认证')
+          }
+          
+          resolve()
+        } catch (error) {
+          console.error('[Telegram] Init error:', error)
+          resolve()
+        }
+      }
+      
+      // 如果 WebApp 已经准备好，直接调用
+      if (webApp.isReady) {
+        onReady()
+      } else {
+        // 监听 ready 事件
+        webApp.ready()
+        // 使用 setTimeout 作为后备，确保不会永远等待
+        setTimeout(() => {
+          onReady()
+        }, 100)
+      }
+    } catch (error) {
+      console.error('[Telegram] Init error:', error)
+      resolve()
+    }
+  })
 }
 
 /**

@@ -7,8 +7,8 @@ import './index.css'
 import { initTelegram } from './utils/telegram'
 import { I18nProvider } from './providers/I18nProvider'
 
-// 初始化 Telegram WebApp
-initTelegram()
+// 初始化 Telegram WebApp（异步，但不阻塞应用启动）
+initTelegram().catch(console.error)
 
 const queryClient = new QueryClient({
   defaultOptions: {

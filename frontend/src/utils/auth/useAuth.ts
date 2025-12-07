@@ -45,18 +45,33 @@ export function useAuth() {
       
       // Telegram环境：自动登录
       if (isInTelegram()) {
-        // 初始化 Telegram WebApp
-        initTelegram();
+        // 初始化 Telegram WebApp（等待完全准备好）
+        await initTelegram();
         
-        // 等待 Telegram WebApp 准备就绪（最多等待 2 秒）
+        // 再次等待 initData 准备就绪（最多等待 3 秒）
+        // 有些情况下，initData 可能在 ready 事件之后才可用
         let initData = getInitData();
         let attempts = 0;
-        const maxAttempts = 20; // 2秒，每次100ms
+        const maxAttempts = 30; // 3秒，每次100ms
+        
+        console.log('[Auth] 等待 initData 准备就绪...', {
+          initialInitDataLength: initData.length,
+          hasWebApp: !!window.Telegram?.WebApp,
+          platform: window.Telegram?.WebApp?.platform
+        });
         
         while ((!initData || initData.length === 0) && attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 100));
           initData = getInitData();
           attempts++;
+          
+          if (attempts % 10 === 0) {
+            console.log(`[Auth] 等待 initData... (${attempts}/${maxAttempts})`, {
+              hasWebApp: !!window.Telegram?.WebApp,
+              initDataLength: initData.length,
+              hasUser: !!getTelegramUser()
+            });
+          }
         }
         
         if (initData && initData.length > 0) {
