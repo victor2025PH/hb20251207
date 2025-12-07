@@ -21,8 +21,8 @@ from api.utils.auth_utils import create_access_token, TokenResponse, UserRespons
 router = APIRouter()
 settings = get_settings()
 
-# HTTP Bearer 認證
-security = HTTPBearer()
+# HTTP Bearer 認證（auto_error=False 允許可選認證，以便回退到 Telegram initData）
+security = HTTPBearer(auto_error=False)
 
 
 class TelegramAuthData(BaseModel):
