@@ -15,8 +15,9 @@ from datetime import datetime
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# API基础URL
-API_BASE = "http://localhost:8080/api/v1"
+# API基础URL（可以从环境变量读取）
+import os
+API_BASE = os.getenv("API_BASE_URL", "http://localhost:8080/api/v1")
 TIMEOUT = 30.0
 
 
