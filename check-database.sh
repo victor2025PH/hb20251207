@@ -50,7 +50,12 @@ columns = [col['name'] for col in inspector.get_columns('users')]
 print(f"   列数: {len(columns)}")
 
 # 检查必需的列
-required_columns = ['id', 'uuid', 'wallet_address', 'wallet_network', 'primary_platform']
+required_columns = [
+    'id', 'uuid', 'wallet_address', 'wallet_network', 
+    'primary_platform', 'referrer_id', 'referral_code',
+    'total_referrals', 'tier1_commission', 'tier2_commission',
+    'last_active_at', 'kyc_status', 'kyc_verified_at'
+]
 missing_columns = [col for col in required_columns if col not in columns]
 
 if missing_columns:
