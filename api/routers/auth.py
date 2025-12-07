@@ -1,7 +1,7 @@
 """
 Lucky Red - 認證路由
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -128,43 +128,79 @@ async def telegram_auth(
 
 
 async def get_current_user_from_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
     db: AsyncSession = Depends(get_db_session)
 ) -> User:
-    """從 JWT Token 獲取當前用戶"""
+    """從 JWT Token 或 Telegram initData 獲取當前用戶"""
+    user = None
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    try:
-        token = credentials.credentials
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-        user_id_str = payload.get("sub")
-        if user_id_str is None:
-            raise credentials_exception
-        user_id: int = int(user_id_str)
-    except (JWTError, ValueError, TypeError) as e:
-        logger.warning(f"JWT 驗證失敗: {str(e)}")
+
+    # 優先嘗試 JWT Token 認證
+    if credentials:
+        try:
+            token = credentials.credentials
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+            user_id_str = payload.get("sub")
+            if user_id_str is None:
+                raise credentials_exception
+            user_id: int = int(user_id_str)
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+        except (JWTError, ValueError, TypeError) as e:
+            logger.warning(f"JWT 驗證失敗: {str(e)}")
+            # 不立即拋出異常，允許回退到 Telegram 認證
+            user = None
+
+    # 如果沒有 JWT Token 或 JWT 認證失敗，嘗試使用 Telegram initData
+    if not user and x_telegram_init_data:
+        try:
+            from api.utils.telegram_auth import parse_telegram_init_data
+            from api.services.identity_service import IdentityService
+            
+            user_data = parse_telegram_init_data(x_telegram_init_data)
+            
+            if user_data and 'id' in user_data:
+                tg_id = int(user_data['id'])
+                
+                # 查找或創建用戶
+                user = await IdentityService.get_or_create_user_by_identity(
+                    db=db,
+                    provider='telegram',
+                    provider_user_id=str(tg_id),
+                    provider_data={
+                        'id': tg_id,
+                        'username': user_data.get('username'),
+                        'first_name': user_data.get('first_name'),
+                        'last_name': user_data.get('last_name'),
+                        'language_code': user_data.get('language_code', 'zh-TW'),
+                    }
+                )
+                # 如果是新创建的用户，可能需要刷新以获取所有字段
+                await db.refresh(user)
+                logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+
+        except Exception as e:
+            logger.warning(f"Telegram initData 認證失敗: {e}", exc_info=True)
+            user = None
+
+    if not user:
         raise credentials_exception
-    
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if user is None:
-        raise credentials_exception
-    
+
     if user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is banned"
         )
-    
+
     return user
 
 

@@ -12,6 +12,7 @@ from loguru import logger
 from shared.database.connection import get_db_session
 from shared.database.models import User
 from api.utils.telegram_auth import get_tg_id_from_header
+from api.routers.auth import get_current_user_from_token
 
 router = APIRouter()
 
@@ -77,90 +78,32 @@ async def get_user_balance(
 @router.get("/me", response_model=UserProfile)
 async def get_my_profile(
     db: AsyncSession = Depends(get_db_session),
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取當前用戶資料（支持 Telegram initData 或 JWT Token）"""
-    from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-    from jose import jwt, JWTError
-    from shared.config.settings import get_settings
-    
-    settings = get_settings()
-    user = None
-    
-    # 优先使用 JWT Token（Web 登录）
-    if credentials:
-        try:
-            token = credentials.credentials
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-            user_id = int(payload.get("sub"))
-            result = await db.execute(select(User).where(User.id == user_id))
-            user = result.scalar_one_or_none()
-        except (JWTError, ValueError, TypeError) as e:
-            logger.warning(f"JWT validation failed: {e}")
-    
-    # 如果没有 JWT Token，尝试使用 Telegram initData
-    if not user and tg_id:
-        result = await db.execute(select(User).where(User.tg_id == tg_id))
-        user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    return user
+    """獲取當前用戶資料（從 JWT Token 或 Telegram initData 中獲取）"""
+    return UserProfile(
+        id=current_user.id,
+        tg_id=current_user.tg_id,
+        username=current_user.username,
+        first_name=current_user.first_name,
+        level=current_user.level,
+        xp=current_user.xp,
+        invite_code=current_user.invite_code,
+        invite_count=current_user.invite_count,
+    )
 
 
 @router.get("/me/balance", response_model=UserBalance)
 async def get_my_balance(
     db: AsyncSession = Depends(get_db_session),
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取當前用戶餘額（支持 Telegram initData 或 JWT Token）"""
-    from jose import jwt, JWTError
-    from shared.config.settings import get_settings
-    
-    settings = get_settings()
-    user = None
-    
-    # 优先使用 JWT Token（Web 登录）
-    if credentials:
-        try:
-            token = credentials.credentials
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=[settings.JWT_ALGORITHM]
-            )
-            user_id = int(payload.get("sub"))
-            result = await db.execute(select(User).where(User.id == user_id))
-            user = result.scalar_one_or_none()
-        except (JWTError, ValueError, TypeError) as e:
-            logger.warning(f"JWT validation failed: {e}")
-    
-    # 如果没有 JWT Token，尝试使用 Telegram initData
-    if not user and tg_id:
-        result = await db.execute(select(User).where(User.tg_id == tg_id))
-        user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+    """獲取當前用戶餘額（從 JWT Token 或 Telegram initData 中獲取）"""
     return UserBalance(
-        usdt=float(user.balance_usdt or 0),
-        ton=float(user.balance_ton or 0),
-        stars=user.balance_stars or 0,
-        points=user.balance_points or 0,
+        usdt=float(current_user.balance_usdt or 0),
+        ton=float(current_user.balance_ton or 0),
+        stars=current_user.balance_stars or 0,
+        points=current_user.balance_points or 0,
     )
 
 
