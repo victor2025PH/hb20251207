@@ -81,16 +81,23 @@ async def get_my_profile(
     current_user: User = Depends(get_current_user_from_token)
 ):
     """獲取當前用戶資料（從 JWT Token 或 Telegram initData 中獲取）"""
-    return UserProfile(
-        id=current_user.id,
-        tg_id=current_user.tg_id,
-        username=current_user.username,
-        first_name=current_user.first_name,
-        level=current_user.level,
-        xp=current_user.xp,
-        invite_code=current_user.invite_code,
-        invite_count=current_user.invite_count,
-    )
+    try:
+        return UserProfile(
+            id=current_user.id,
+            tg_id=current_user.tg_id,  # 可能为 None（非 Telegram 用户）
+            username=current_user.username,
+            first_name=current_user.first_name,
+            level=current_user.level or 1,
+            xp=current_user.xp or 0,
+            invite_code=current_user.invite_code,
+            invite_count=current_user.invite_count or 0,
+        )
+    except Exception as e:
+        logger.error(f"获取用户资料失败: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get user profile: {str(e)}"
+        )
 
 
 @router.get("/me/balance", response_model=UserBalance)
