@@ -655,8 +655,10 @@ async def list_red_packets(
     # 过滤状态
     query = query.where(RedPacket.status == status)
     
-    # 过滤过期红包
-    query = query.where(RedPacket.expires_at > datetime.utcnow())
+    # 过滤过期红包（只过滤有过期时间的红包）
+    query = query.where(
+        (RedPacket.expires_at.is_(None)) | (RedPacket.expires_at > datetime.utcnow())
+    )
     
     # 如果指定了 chat_id，則只返回該群組的公開紅包（通常不會用到）
     if chat_id:
