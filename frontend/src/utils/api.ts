@@ -13,8 +13,18 @@ const api = axios.create({
   },
 })
 
-// 請求攔截器 - 添加 Telegram 認證
+// 請求攔截器 - 添加認證信息（JWT Token 和 Telegram initData）
 api.interceptors.request.use((config) => {
+  // 優先添加 JWT Token（Web 登錄）
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`
+    if (import.meta.env.DEV) {
+      console.log('[API Request]', config.url, 'with JWT token')
+    }
+  }
+  
+  // 如果有 Telegram initData，也添加（Telegram MiniApp）
   const initData = getInitData()
   if (initData) {
     config.headers['X-Telegram-Init-Data'] = initData
@@ -22,10 +32,10 @@ api.interceptors.request.use((config) => {
     if (import.meta.env.DEV) {
       console.log('[API Request]', config.url, 'with Telegram auth:', initData.substring(0, 50) + '...')
     }
-  } else {
-    // 警告：沒有 Telegram initData
+  } else if (!token) {
+    // 既沒有 JWT Token 也沒有 Telegram initData
     if (import.meta.env.DEV) {
-      console.warn('[API Request]', config.url, 'without Telegram auth - initData is empty')
+      console.warn('[API Request]', config.url, 'without any auth - both token and initData are empty')
     }
   }
   return config
