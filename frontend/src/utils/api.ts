@@ -15,7 +15,30 @@ const api = axios.create({
 
 // 請求攔截器 - 添加認證信息（JWT Token 和 Telegram initData）
 api.interceptors.request.use((config) => {
-  // 優先添加 JWT Token（Web 登錄）
+  // 檢查是否在 Telegram 環境中
+  const initData = getInitData()
+  const isInTelegramEnv = initData && initData.length > 0
+  
+  // 在 Telegram 環境中，優先使用 initData（即使有 JWT token）
+  // 因為 Telegram MiniApp 應該使用 Telegram 認證
+  if (isInTelegramEnv) {
+    config.headers['X-Telegram-Init-Data'] = initData
+    // 如果同時有 JWT token，也添加（作為備用）
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
+      if (import.meta.env.DEV) {
+        console.log('[API Request]', config.url, 'with Telegram initData (primary) and JWT token (fallback)')
+      }
+    } else {
+      if (import.meta.env.DEV) {
+        console.log('[API Request]', config.url, 'with Telegram auth:', initData.substring(0, 50) + '...')
+      }
+    }
+    return config
+  }
+  
+  // 非 Telegram 環境：使用 JWT Token（Web 登錄）
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`
@@ -25,20 +48,10 @@ api.interceptors.request.use((config) => {
     return config
   }
   
-  // 如果有 Telegram initData，也添加（Telegram MiniApp）
-  const initData = getInitData()
-  if (initData && initData.length > 0) {
-    config.headers['X-Telegram-Init-Data'] = initData
-    // 開發環境下記錄認證信息（僅記錄前50個字符，避免洩露完整數據）
-    if (import.meta.env.DEV) {
-      console.log('[API Request]', config.url, 'with Telegram auth:', initData.substring(0, 50) + '...')
-    }
-  } else {
-    // 既沒有 JWT Token 也沒有有效的 Telegram initData
-    // 對於需要認證的端點，這會導致 401，但我們在響應攔截器中處理
-    if (import.meta.env.DEV) {
-      console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing')
-    }
+  // 既沒有 JWT Token 也沒有有效的 Telegram initData
+  // 對於需要認證的端點，這會導致 401，但我們在響應攔截器中處理
+  if (import.meta.env.DEV) {
+    console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing')
   }
   return config
 })

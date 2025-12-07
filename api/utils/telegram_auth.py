@@ -17,17 +17,28 @@ settings = get_settings()
 def parse_telegram_init_data(init_data: str) -> Optional[dict]:
     """解析 Telegram initData 字符串"""
     try:
+        logger.debug(f"[Telegram Auth] 解析 initData，長度: {len(init_data)}")
+        
         # initData 格式: key1=value1&key2=value2&hash=...
         params = urllib.parse.parse_qs(init_data, keep_blank_values=True)
+        logger.debug(f"[Telegram Auth] 解析後的參數鍵: {list(params.keys())}")
         
         # 解析 user 字段（如果存在）
         user_str = params.get('user', [None])[0]
         if user_str:
-            user_data = json.loads(user_str)
-            return user_data
-        return None
+            try:
+                user_data = json.loads(user_str)
+                logger.debug(f"[Telegram Auth] 成功解析用戶數據: {user_data}")
+                return user_data
+            except json.JSONDecodeError as e:
+                logger.error(f"[Telegram Auth] 解析 user JSON 失敗: {e}, user_str: {user_str[:100]}...")
+                return None
+        else:
+            logger.warning(f"[Telegram Auth] initData 中沒有 'user' 字段")
+            logger.debug(f"[Telegram Auth] 可用的參數: {list(params.keys())}")
+            return None
     except Exception as e:
-        logger.warning(f"Failed to parse initData: {e}")
+        logger.error(f"[Telegram Auth] 解析 initData 失敗: {e}", exc_info=True)
         return None
 
 

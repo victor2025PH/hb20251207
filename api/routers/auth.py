@@ -152,24 +152,34 @@ async def get_current_user_from_token(
     # 根據策略選擇認證順序
     if strategy == "telegram_first":
         # MiniApp 環境：優先使用 Telegram 認證
+        logger.info(f"[Auth] Telegram-first strategy - has initData: {bool(x_telegram_init_data)}, initData length: {len(x_telegram_init_data) if x_telegram_init_data else 0}")
+        
         if should_allow_telegram_auth(request) and x_telegram_init_data:
             try:
                 from api.utils.telegram_auth import parse_telegram_init_data, verify_telegram_init_data
                 from api.services.identity_service import IdentityService
                 
+                logger.debug(f"[Auth] 開始處理 Telegram initData，長度: {len(x_telegram_init_data)}")
+                
                 # 驗證 initData 的 hash（如果 BOT_TOKEN 配置了則驗證）
                 # 如果 BOT_TOKEN 未配置，跳過驗證（僅用於開發環境）
                 should_verify = bool(settings.BOT_TOKEN)
+                logger.debug(f"[Auth] BOT_TOKEN 配置狀態: {should_verify}, BOT_TOKEN 長度: {len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0}")
+                
                 if should_verify and not verify_telegram_init_data(x_telegram_init_data):
-                    logger.warning(f"Telegram initData hash 驗證失敗 - initData可能無效或已過期")
+                    logger.warning(f"[Auth] Telegram initData hash 驗證失敗 - initData可能無效或已過期")
+                    logger.warning(f"[Auth] initData 預覽: {x_telegram_init_data[:100]}...")
                     user = None
                 else:
                     if not should_verify:
-                        logger.debug(f"跳過 initData hash 驗證（BOT_TOKEN 未配置）")
+                        logger.debug(f"[Auth] 跳過 initData hash 驗證（BOT_TOKEN 未配置）")
+                    
                     user_data = parse_telegram_init_data(x_telegram_init_data)
+                    logger.debug(f"[Auth] 解析後的用戶數據: {user_data}")
                     
                     if user_data and 'id' in user_data:
                         tg_id = int(user_data['id'])
+                        logger.info(f"[Auth] 從 initData 中提取到 tg_id: {tg_id}")
                         
                         try:
                             user = await IdentityService.get_or_create_user_by_identity(
@@ -187,18 +197,20 @@ async def get_current_user_from_token(
                             try:
                                 await db.refresh(user)
                             except Exception as refresh_error:
-                                logger.warning(f"刷新用户数据失败（不影响使用）: {refresh_error}")
+                                logger.warning(f"[Auth] 刷新用户数据失败（不影响使用）: {refresh_error}")
                             
-                            logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+                            logger.info(f"[Auth] Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}, username={user.username}")
                         except Exception as identity_error:
-                            logger.error(f"IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
+                            logger.error(f"[Auth] IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
                             user = None
                     else:
-                        logger.warning(f"Telegram initData 中沒有用戶信息")
+                        logger.warning(f"[Auth] Telegram initData 中沒有用戶信息 - user_data: {user_data}")
                         user = None
             except Exception as e:
-                logger.error(f"Telegram initData 認證失敗: {e}", exc_info=True)
+                logger.error(f"[Auth] Telegram initData 認證失敗: {e}", exc_info=True)
                 user = None
+        else:
+            logger.warning(f"[Auth] Telegram 認證條件不滿足 - should_allow: {should_allow_telegram_auth(request)}, has_initData: {bool(x_telegram_init_data)}")
         
         # 如果 Telegram 認證失敗，嘗試 JWT Token（如果允許）
         if not user and should_allow_jwt_auth(request) and credentials:
