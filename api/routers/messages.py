@@ -14,6 +14,7 @@ from shared.database.models import (
     User, Message, MessageType, MessageStatus, UserNotificationSettings
 )
 from api.utils.telegram_auth import get_tg_id_from_header
+from api.routers.auth import get_current_user_from_token
 
 router = APIRouter()
 
@@ -269,18 +270,11 @@ async def get_messages(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取未讀消息數量"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """獲取未讀消息數量（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 獲取總未讀數量
     unread_query = select(func.count()).where(
@@ -318,18 +312,11 @@ async def get_unread_count(
 @router.get("/{message_id}", response_model=MessageResponse)
 async def get_message(
     message_id: int,
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取單條消息詳情"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """獲取單條消息詳情（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 獲取消息
     result = await db.execute(
@@ -350,18 +337,11 @@ async def get_message(
 @router.put("/{message_id}/read")
 async def mark_as_read(
     message_id: int,
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """標記消息為已讀"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """標記消息為已讀（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 獲取消息
     result = await db.execute(
@@ -386,18 +366,11 @@ async def mark_as_read(
 @router.delete("/{message_id}")
 async def delete_message(
     message_id: int,
-    tg_id: Optional[int] = Depends(get_tg_id_from_header),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_from_token)
 ):
-    """刪除消息"""
-    if not tg_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    # 獲取用戶
-    result = await db.execute(select(User).where(User.tg_id == tg_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """刪除消息（支持 JWT Token 和 Telegram initData）"""
+    user = current_user
     
     # 獲取消息
     result = await db.execute(
