@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { detectPlatform, isInTelegram } from '../platform';
 import { initTelegram, getTelegramUser, getInitData } from '../telegram';
-import { getCurrentUser, googleAuth, walletAuth, verifyMagicLink } from '../api';
+import { getCurrentUser, googleAuth, walletAuth, verifyMagicLink, type AuthResponse } from '../api';
 
 export interface User {
   id: number;
@@ -152,17 +152,14 @@ export function useAuth() {
   // 登录（Web环境）
   const login = useCallback(async (provider: 'google' | 'wallet', credentials: any) => {
     try {
-      let response;
+      let authData: AuthResponse;
       if (provider === 'google') {
-        response = await googleAuth(credentials);
+        authData = await googleAuth(credentials);
       } else {
-        response = await walletAuth(credentials);
+        authData = await walletAuth(credentials);
       }
       
-      // 注意：api.interceptors.response 已经返回了 response.data
-      // 所以 response 本身就是 { access_token, user } 对象
-      const authData = response.data || response;
-      
+      // authData 已经是 AuthResponse 类型，包含 access_token 和 user
       // 保存Token
       if (!authData.access_token) {
         throw new Error('登录响应中缺少 access_token');
@@ -199,11 +196,9 @@ export function useAuth() {
   // Magic Link登录
   const loginWithMagicLink = useCallback(async (token: string) => {
     try {
-      const response = await verifyMagicLink(token);
+      const authData = await verifyMagicLink(token);
       
-      // 注意：api.interceptors.response 已经返回了 response.data
-      const authData = response.data || response;
-      
+      // authData 已经是 AuthResponse 类型，包含 access_token 和 user
       // 保存Token
       if (!authData.access_token) {
         throw new Error('Magic Link验证响应中缺少 access_token');

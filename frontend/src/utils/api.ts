@@ -108,27 +108,27 @@ export interface AuthResponse {
 }
 
 // Google OAuth登录
-export async function googleAuth(request: GoogleAuthRequest): Promise<{ data: AuthResponse }> {
+export async function googleAuth(request: GoogleAuthRequest): Promise<AuthResponse> {
   // api.interceptors.response 已经返回了 response.data
   // 所以 response 本身就是 AuthResponse 类型（不是 AxiosResponse）
-  const response = await api.post('/v1/auth/web/google', request) as unknown as AuthResponse
-  return { data: response }
+  const response = await api.post<AuthResponse>('/v1/auth/web/google', request)
+  return response as unknown as AuthResponse
 }
 
 // Wallet连接登录
-export async function walletAuth(request: WalletAuthRequest): Promise<{ data: AuthResponse }> {
+export async function walletAuth(request: WalletAuthRequest): Promise<AuthResponse> {
   // api.interceptors.response 已经返回了 response.data
   // 所以 response 本身就是 AuthResponse 类型（不是 AxiosResponse）
-  const response = await api.post('/v1/auth/web/wallet', request) as unknown as AuthResponse
-  return { data: response }
+  const response = await api.post<AuthResponse>('/v1/auth/web/wallet', request)
+  return response as unknown as AuthResponse
 }
 
 // 验证Magic Link
-export async function verifyMagicLink(token: string): Promise<{ data: AuthResponse }> {
+export async function verifyMagicLink(token: string): Promise<AuthResponse> {
   // api.interceptors.response 已经返回了 response.data
   // 所以 response 本身就是 AuthResponse 类型（不是 AxiosResponse）
-  const response = await api.post('/v1/auth/link/magic-link/verify', { token }) as unknown as AuthResponse
-  return { data: response }
+  const response = await api.post<AuthResponse>('/v1/auth/link/magic-link/verify', { token })
+  return response as unknown as AuthResponse
 }
 
 // 生成Magic Link（需要Telegram认证）
