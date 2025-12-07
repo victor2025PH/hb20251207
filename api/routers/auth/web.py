@@ -73,8 +73,13 @@ async def google_auth(
                 provider_data=provider_data
             )
         except Exception as e:
-            logger.error(f"IdentityService error: {e}")
-            raise
+            logger.error(f"IdentityService error: {e}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"User creation failed: {str(e)}"
+            )
         
         # 生成Token
         token = create_access_token(user.id)
@@ -92,11 +97,16 @@ async def google_auth(
                 "primary_platform": user.primary_platform,
             }
         )
+    except HTTPException:
+        # 重新抛出 HTTPException
+        raise
     except Exception as e:
-        logger.error(f"Google auth failed: {e}")
+        logger.error(f"Google auth failed: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google authentication failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google authentication failed: {str(e)}"
         )
 
 
