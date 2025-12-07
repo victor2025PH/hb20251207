@@ -34,12 +34,13 @@ hbgm001/
 ├── scripts/                # 腳本文件（按類型分類）
 │   ├── bat/               # Windows 批處理腳本
 │   ├── ps1/               # PowerShell 腳本
-│   ├── sh/                # Shell 腳本（服務器用）
+│   ├── sh/                # Shell 腳本（服務器用，必須使用英文文件名）
 │   ├── py/                # Python 腳本
 │   ├── txt/               # 文本文件（手動命令等）
 │   └── README.md          # 腳本說明
 ├── docs/                   # 文檔文件
 │   ├── archive/           # 歸檔文檔（歷史文檔）
+│   ├── 开发规范.md        # 開發規範（重要：服務器腳本必須使用英文文件名）
 │   └── README.md           # 文檔說明
 ├── .env.example
 ├── requirements.txt
@@ -96,6 +97,21 @@ python api/main.py      # API 服務
 python bot/main.py      # Bot 服務
 cd frontend && npm run dev  # 前端
 ```
+
+## 📋 開發規範
+
+**重要規則：所有在服務器上運行的腳本文件，文件名必須使用英文，禁止使用中文。**
+
+### 原因
+- 編碼兼容性：避免 Linux 服務器上的編碼問題
+- Git 兼容性：避免 Git 處理中文文件名時的編碼問題
+- 跨平台兼容性：確保在不同系統上都能正常工作
+
+### 命名規範
+- ✅ **正確**：`deploy.sh`, `build-frontend.sh`, `restart-services.sh`
+- ❌ **錯誤**：`服務器部署命令.sh`, `部署腳本.sh`
+
+詳細規範請參考：[開發規範文檔](./docs/开发规范.md)
 
 ## 📄 License
 
