@@ -49,8 +49,9 @@ export function useAuth() {
         const tgUser = getTelegramUser();
         const initData = getInitData();
         
-        // 如果有 initData 或 tgUser，尝试认证
-        if (initData || tgUser) {
+        // 只有在有 initData 时才尝试 Telegram 认证
+        // initData 是必需的，因为后端需要它来验证用户身份
+        if (initData && initData.length > 0) {
           try {
             // 通过Telegram initData获取用户信息
             const response = await getCurrentUser();
@@ -60,11 +61,16 @@ export function useAuth() {
               isAuthenticated: true,
               platform: 'telegram'
             });
+            console.log('[Auth] Telegram 自动登录成功');
             return;
           } catch (error) {
-            // 认证失败，继续到其他登录方式
+            // 认证失败，记录错误但继续到其他登录方式
             console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);
+            // 不设置 loading=false，让下面的逻辑处理
           }
+        } else {
+          // 在 Telegram 环境中但没有 initData，记录警告
+          console.warn('[Auth] Telegram 环境中 initData 为空，无法自动登录');
         }
       }
       
