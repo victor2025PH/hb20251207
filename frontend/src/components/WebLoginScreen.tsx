@@ -50,12 +50,19 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
       const initData = getInitData();
       const tgUser = getTelegramUser();
       
-      if (initData && tgUser) {
-        // 如果有 initData，直接使用
-        const response = await getCurrentUser();
-        onLoginSuccess?.();
+      if (initData && initData.length > 0 && tgUser) {
+        // 如果有有效的 initData，尝试获取用户信息
+        // 这应该由 AuthGuard 自动处理，但这里提供一个手动触发的方式
+        try {
+          const response = await getCurrentUser();
+          // 如果成功，说明已经通过 Telegram 认证
+          onLoginSuccess?.();
+        } catch (err: any) {
+          // 如果失败，说明 initData 无效或已过期
+          setError('Telegram认证失败，请刷新页面重试或使用其他登录方式');
+        }
       } else {
-        // 如果没有，提示用户
+        // 如果没有 initData，提示用户
         setError('请在Telegram中打开此应用，或使用其他登录方式');
       }
     } catch (err: any) {
