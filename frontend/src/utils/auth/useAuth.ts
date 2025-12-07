@@ -125,8 +125,13 @@ export function useAuth() {
             platform: platformInfo.platform
           });
           return;
-        } catch (error) {
-          // Token无效，清除
+        } catch (error: any) {
+          // Token无效或已过期，清除
+          if (error?.isUnauthorized || error?.response?.status === 401) {
+            console.debug('[Auth] JWT Token无效或已过期，清除token');
+          } else {
+            console.warn('[Auth] 获取用户信息失败:', error);
+          }
           localStorage.removeItem('auth_token');
         }
       }
