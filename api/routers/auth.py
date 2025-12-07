@@ -172,24 +172,34 @@ async def get_current_user_from_token(
                 tg_id = int(user_data['id'])
                 
                 # 查找或創建用戶
-                user = await IdentityService.get_or_create_user_by_identity(
-                    db=db,
-                    provider='telegram',
-                    provider_user_id=str(tg_id),
-                    provider_data={
-                        'id': tg_id,
-                        'username': user_data.get('username'),
-                        'first_name': user_data.get('first_name'),
-                        'last_name': user_data.get('last_name'),
-                        'language_code': user_data.get('language_code', 'zh-TW'),
-                    }
-                )
-                # 如果是新创建的用户，可能需要刷新以获取所有字段
-                await db.refresh(user)
-                logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+                try:
+                    user = await IdentityService.get_or_create_user_by_identity(
+                        db=db,
+                        provider='telegram',
+                        provider_user_id=str(tg_id),
+                        provider_data={
+                            'id': tg_id,
+                            'username': user_data.get('username'),
+                            'first_name': user_data.get('first_name'),
+                            'last_name': user_data.get('last_name'),
+                            'language_code': user_data.get('language_code', 'zh-TW'),
+                        }
+                    )
+                    # 如果是新创建的用户，可能需要刷新以获取所有字段
+                    try:
+                        await db.refresh(user)
+                    except Exception as refresh_error:
+                        # 刷新失败不影响使用，记录警告即可
+                        logger.warning(f"刷新用户数据失败（不影响使用）: {refresh_error}")
+                    
+                    logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+                except Exception as identity_error:
+                    logger.error(f"IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
+                    # 不抛出异常，允许回退到其他认证方式
+                    user = None
 
         except Exception as e:
-            logger.warning(f"Telegram initData 認證失敗: {e}", exc_info=True)
+            logger.error(f"Telegram initData 認證失敗: {e}", exc_info=True)
             user = None
 
     if not user:

@@ -20,7 +20,7 @@ router = APIRouter()
 class UserProfile(BaseModel):
     """用戶資料"""
     id: int
-    tg_id: int
+    tg_id: Optional[int]  # 允许为 None（非 Telegram 用户）
     username: Optional[str]
     first_name: Optional[str]
     level: int
