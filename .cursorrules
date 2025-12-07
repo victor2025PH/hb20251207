@@ -81,6 +81,97 @@ main "$@"
 - [ ] 脚本包含错误处理（`set -e`）
 - [ ] 脚本已添加执行权限说明（`chmod +x`）
 
+## 命令执行规范
+
+### 命令格式要求
+**所有提供给用户的命令必须包含完整信息：**
+
+1. **明确执行位置**：
+   - 必须明确说明是在**本地**还是**服务器**执行
+   - 如果是服务器，必须说明是哪个服务器（例如：`ubuntu@10-11-156-159`）
+   - 如果是本地，说明是 Windows PowerShell 还是其他环境
+
+2. **包含拉取代码步骤**：
+   - 所有需要最新代码的命令，必须包含 `git pull origin master` 步骤
+   - 除非明确说明代码已经在最新状态
+
+3. **优先使用一键化指令**：
+   - 优先提供一键执行的脚本或命令
+   - 使用 `&&` 或脚本文件组合多个步骤
+   - 示例：
+     ```bash
+     cd /opt/luckyred && git pull origin master && python3 scripts/py/test_all_login_methods.py
+     ```
+
+4. **提供备用方案**：
+   - 当一键化指令可能出错时，提供分步执行的备用方案
+   - 备用方案应该逐步说明，便于排查问题
+   - 示例：
+     ```bash
+     # 如果一键化指令失败，使用以下分步执行：
+     # 步骤 1: 进入项目目录
+     cd /opt/luckyred
+     # 步骤 2: 拉取最新代码
+     git pull origin master
+     # 步骤 3: 运行测试
+     python3 scripts/py/test_all_login_methods.py
+     ```
+
+### 命令格式模板
+
+#### 服务器执行（一键化）
+```bash
+# 在服务器 ubuntu@10-11-156-159 上执行：
+cd /opt/luckyred && git pull origin master && [执行命令]
+```
+
+#### 服务器执行（分步，备用方案）
+```bash
+# 在服务器 ubuntu@10-11-156-159 上执行：
+# 步骤 1: 进入项目目录
+cd /opt/luckyred
+# 步骤 2: 拉取最新代码
+git pull origin master
+# 步骤 3: [执行具体命令]
+[执行命令]
+```
+
+#### 本地执行（Windows PowerShell）
+```powershell
+# 在本地 Windows PowerShell 中执行：
+cd C:\hbgm001
+git pull origin master
+[执行命令]
+```
+
+### 示例
+
+#### ✅ 正确示例
+```bash
+# 在服务器 ubuntu@10-11-156-159 上执行：
+cd /opt/luckyred && git pull origin master && python3 scripts/py/test_all_login_methods.py
+
+# 如果上述命令失败，使用分步执行：
+# 步骤 1: 进入项目目录
+cd /opt/luckyred
+# 步骤 2: 拉取最新代码
+git pull origin master
+# 步骤 3: 运行测试脚本
+python3 scripts/py/test_all_login_methods.py
+```
+
+#### ❌ 错误示例
+```bash
+# 缺少执行位置说明
+python3 scripts/py/test_all_login_methods.py
+
+# 缺少拉取代码步骤
+cd /opt/luckyred && python3 scripts/py/test_all_login_methods.py
+
+# 没有备用方案
+cd /opt/luckyred && git pull origin master && python3 scripts/py/test_all_login_methods.py
+```
+
 ## 相关文档
 
 - [开发规范文档](./docs/开发规范.md)
