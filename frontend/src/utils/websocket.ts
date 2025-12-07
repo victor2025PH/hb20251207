@@ -54,7 +54,6 @@ class WebSocketManager {
       try {
         // 優先使用 JWT Token（Web 登錄）
         const token = localStorage.getItem('auth_token')
-        const user = getTelegramUser()
         let wsUrl = 'ws://localhost:8080/api/v1/messages/ws'
         
         if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
