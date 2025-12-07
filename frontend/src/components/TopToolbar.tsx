@@ -5,6 +5,7 @@ import { useTranslation } from '../providers/I18nProvider'
 import { useGlobalAudio, useSound } from '../hooks/useSound'
 import { useQuery } from '@tanstack/react-query'
 import { getUnreadCount } from '../utils/api'
+import { useAuth } from '../utils/auth/useAuth'
 import TelegramStar from './TelegramStar'
 import MessagesPanel from './MessagesPanel'
 
@@ -14,12 +15,14 @@ export default function TopToolbar() {
   const { playSound } = useSound()
   const [showLangMenu, setShowLangMenu] = useState(false)
   const [showMessagesPanel, setShowMessagesPanel] = useState(false)
+  const { isAuthenticated } = useAuth()
   
-  // 獲取未讀消息數量
+  // 獲取未讀消息數量（只在已認證時執行）
   const { data: unreadData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: getUnreadCount,
-    refetchInterval: 30000, // 每 30 秒刷新一次
+    enabled: isAuthenticated, // 只在已認證時執行
+    refetchInterval: isAuthenticated ? 30000 : false, // 只在已認證時自動刷新
   })
   
   const unreadCount = unreadData?.unread_count || 0

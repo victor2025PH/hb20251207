@@ -10,6 +10,7 @@ import DebugPanel from './components/DebugPanel'
 import { setAlertCallback, setConfirmCallback } from './utils/telegram'
 import { notificationManager } from './utils/notification'
 import { AuthGuard } from './utils/auth/AuthGuard'
+import { useAuth } from './utils/auth/useAuth'
 
 // 懒加载页面
 const WalletPage = lazy(() => import('./pages/WalletPage'))
@@ -26,6 +27,7 @@ const TasksPage = lazy(() => import('./pages/TasksPage'))
 const DebugPage = lazy(() => import('./pages/DebugPage'))
 
 export default function App() {
+  const { isAuthenticated } = useAuth()
   const [alertState, setAlertState] = useState<{
     isOpen: boolean
     message: string
@@ -50,23 +52,19 @@ export default function App() {
     message: '',
   })
 
-  // 初始化通知管理器
+  // 初始化通知管理器（只在已認證時執行）
   useEffect(() => {
-    notificationManager.init().catch(console.error)
-    
-    return () => {
+    if (isAuthenticated) {
+      notificationManager.init().catch(console.error)
+      
+      return () => {
+        notificationManager.cleanup()
+      }
+    } else {
+      // 如果未認證，確保清理之前的連接
       notificationManager.cleanup()
     }
-  }, [])
-
-  // 初始化通知管理器
-  useEffect(() => {
-    notificationManager.init().catch(console.error)
-    
-    return () => {
-      notificationManager.cleanup()
-    }
-  }, [])
+  }, [isAuthenticated])
 
   // 設置全局 Alert 回調
   useEffect(() => {
