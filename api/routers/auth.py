@@ -1,7 +1,7 @@
 """
 Lucky Red - 認證路由
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ from shared.database.connection import get_db_session
 from shared.database.models import User
 from sqlalchemy import select
 from api.utils.auth_utils import create_access_token, TokenResponse, UserResponse
+from api.utils.auth_strategy import get_auth_strategy, should_allow_telegram_auth, should_allow_jwt_auth
 
 router = APIRouter()
 settings = get_settings()
@@ -128,20 +129,110 @@ async def telegram_auth(
 
 
 async def get_current_user_from_token(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
     db: AsyncSession = Depends(get_db_session)
 ) -> User:
-    """從 JWT Token 或 Telegram initData 獲取當前用戶"""
+    """
+    從 JWT Token 或 Telegram initData 獲取當前用戶
+    根據請求來源選擇不同的認證策略
+    """
     user = None
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # 獲取認證策略
+    strategy = get_auth_strategy(request)
+    logger.debug(f"[Auth] Strategy for {request.headers.get('host', 'unknown')}: {strategy}")
 
-    # 優先嘗試 JWT Token 認證
-    if credentials:
+    # 根據策略選擇認證順序
+    if strategy == "telegram_first":
+        # MiniApp 環境：優先使用 Telegram 認證
+        if should_allow_telegram_auth(request) and x_telegram_init_data:
+            try:
+                from api.utils.telegram_auth import parse_telegram_init_data
+                from api.services.identity_service import IdentityService
+                
+                user_data = parse_telegram_init_data(x_telegram_init_data)
+                
+                if user_data and 'id' in user_data:
+                    tg_id = int(user_data['id'])
+                    
+                    try:
+                        user = await IdentityService.get_or_create_user_by_identity(
+                            db=db,
+                            provider='telegram',
+                            provider_user_id=str(tg_id),
+                            provider_data={
+                                'id': tg_id,
+                                'username': user_data.get('username'),
+                                'first_name': user_data.get('first_name'),
+                                'last_name': user_data.get('last_name'),
+                                'language_code': user_data.get('language_code', 'zh-TW'),
+                            }
+                        )
+                        try:
+                            await db.refresh(user)
+                        except Exception as refresh_error:
+                            logger.warning(f"刷新用户数据失败（不影响使用）: {refresh_error}")
+                        
+                        logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+                    except Exception as identity_error:
+                        logger.error(f"IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
+                        user = None
+            except Exception as e:
+                logger.error(f"Telegram initData 認證失敗: {e}", exc_info=True)
+                user = None
+        
+        # 如果 Telegram 認證失敗，嘗試 JWT Token（如果允許）
+        if not user and should_allow_jwt_auth(request) and credentials:
+            try:
+                token = credentials.credentials
+                payload = jwt.decode(
+                    token,
+                    settings.JWT_SECRET,
+                    algorithms=[settings.JWT_ALGORITHM]
+                )
+                user_id_str = payload.get("sub")
+                if user_id_str:
+                    user_id: int = int(user_id_str)
+                    result = await db.execute(select(User).where(User.id == user_id))
+                    user = result.scalar_one_or_none()
+                    if user:
+                        logger.info(f"JWT 用戶認證成功: user_id={user_id}")
+            except (JWTError, ValueError, TypeError) as e:
+                logger.warning(f"JWT 驗證失敗: {str(e)}")
+                user = None
+    
+    elif strategy == "jwt_only":
+        # Web 環境：只使用 JWT Token 認證
+        if credentials:
+            try:
+                token = credentials.credentials
+                payload = jwt.decode(
+                    token,
+                    settings.JWT_SECRET,
+                    algorithms=[settings.JWT_ALGORITHM]
+                )
+                user_id_str = payload.get("sub")
+                if user_id_str:
+                    user_id: int = int(user_id_str)
+                    result = await db.execute(select(User).where(User.id == user_id))
+                    user = result.scalar_one_or_none()
+                    if user:
+                        logger.info(f"JWT 用戶認證成功: user_id={user_id}")
+            except (JWTError, ValueError, TypeError) as e:
+                logger.warning(f"JWT 驗證失敗: {str(e)}")
+                user = None
+    
+    else:  # strategy == "both"
+        # 默認策略：同時支持兩種認證方式，優先 JWT Token
+        # 優先嘗試 JWT Token 認證
+        if credentials:
         try:
             token = credentials.credentials
             payload = jwt.decode(
