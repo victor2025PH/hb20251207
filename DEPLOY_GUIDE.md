@@ -1,6 +1,6 @@
 # GitHub Actions 自动部署指南
 
-本指南将帮助你设置 GitHub Actions 自动部署流程，实现代码推送到 `master` 分支时自动部署到服务器。
+本指南将帮助你设置 GitHub Actions 自动部署流程，实现代码推送到 `main` 分支时自动部署到服务器。
 
 ## 📋 目录
 
@@ -54,7 +54,9 @@ ssh-keygen -t rsa -b 4096 -C "github-actions-deploy" -f ~/.ssh/github_actions_de
 
 **重要提示：**
 - 不要设置密码（直接按 Enter）
-- 密钥文件将保存在 `~/.ssh/github_actions_deploy`（私钥）和 `~/.ssh/github_actions_deploy.pub`（公钥）
+- 密钥文件将保存在：
+  - **私钥**：`~/.ssh/github_actions_deploy`
+  - **公钥**：`~/.ssh/github_actions_deploy.pub`
 
 ### 步骤 2: 将公钥添加到 authorized_keys
 
@@ -67,9 +69,9 @@ chmod 600 ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
 ```
 
-**文件位置：**
-- 公钥文件：`~/.ssh/github_actions_deploy.pub`
-- 授权文件：`~/.ssh/authorized_keys`
+**文件位置说明：**
+- **公钥文件**：`~/.ssh/github_actions_deploy.pub`（这个文件的内容需要添加到 `authorized_keys`）
+- **授权文件**：`~/.ssh/authorized_keys`（公钥内容已添加到这里）
 
 ### 步骤 3: 配置 Systemd 服务
 
@@ -132,6 +134,7 @@ cat ~/.ssh/github_actions_deploy
 - **Name:** `SSH_PRIVATE_KEY`
 - **Value:** 私钥的完整内容（从步骤 1 复制的整个内容）
   - 包括 `-----BEGIN OPENSSH PRIVATE KEY-----` 和 `-----END OPENSSH PRIVATE KEY-----`
+  - **注意：** 这是私钥（`id_rsa`），不是公钥（`id_rsa.pub`）
 
 #### Secret 4: `SSH_PORT` (可选)
 - **Name:** `SSH_PORT`
@@ -152,7 +155,7 @@ cat ~/.ssh/github_actions_deploy
 
 ### 自动部署
 
-配置完成后，每次你推送代码到 `master` 分支时，GitHub Actions 会自动：
+配置完成后，每次你推送代码到 `main` 分支时，GitHub Actions 会自动：
 
 1. ✅ 连接到服务器
 2. ✅ 进入项目目录 `/opt/luckyred`
@@ -321,11 +324,31 @@ sudo journalctl -u luckyred-api --since "10 minutes ago"
 
 ---
 
+## 快速参考
+
+### SSH 密钥文件位置
+
+| 文件类型 | 文件路径 | 用途 |
+|---------|---------|------|
+| **私钥** | `~/.ssh/github_actions_deploy` | 添加到 GitHub Secrets 的 `SSH_PRIVATE_KEY` |
+| **公钥** | `~/.ssh/github_actions_deploy.pub` | 添加到服务器的 `~/.ssh/authorized_keys` |
+
+### GitHub Secrets 配置
+
+| Secret 名称 | 说明 | 示例值 |
+|------------|------|--------|
+| `SSH_HOST` | 服务器 IP 或域名 | `10.11.156.159` |
+| `SSH_USERNAME` | SSH 用户名 | `ubuntu` |
+| `SSH_PRIVATE_KEY` | 私钥完整内容 | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `SSH_PORT` | SSH 端口（可选） | `22` |
+
+---
+
 ## 下一步
 
 配置完成后，你可以：
 
-1. ✅ 推送代码到 `master` 分支测试自动部署
+1. ✅ 推送代码到 `main` 分支测试自动部署
 2. ✅ 在 GitHub Actions 中查看部署日志
 3. ✅ 配置通知（Slack、Email 等）接收部署状态
 4. ✅ 添加部署前测试步骤（单元测试、集成测试等）

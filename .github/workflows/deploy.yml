@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - master  # 根据你的主分支名称调整（main 或 master）
+      - main  # 主分支名称
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -39,7 +39,7 @@ jobs:
             # 拉取最新代码
             echo "📥 拉取最新代码..."
             git fetch origin
-            git reset --hard origin/master  # 根据你的主分支名称调整
+            git reset --hard origin/main
             
             # 激活虚拟环境并更新依赖
             echo "📦 更新 Python 依赖..."
