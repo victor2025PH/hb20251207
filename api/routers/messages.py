@@ -116,7 +116,12 @@ manager = ConnectionManager()
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket 連接端點（支持 JWT Token 和 Telegram initData）"""
-    await websocket.accept()
+    try:
+        await websocket.accept()
+        logger.info("[WebSocket] Connection accepted")
+    except Exception as e:
+        logger.error(f"[WebSocket] Failed to accept connection: {e}")
+        return
     
     # 從查詢參數或請求頭獲取認證信息
     query_params = dict(websocket.query_params)
@@ -128,14 +133,30 @@ async def websocket_endpoint(websocket: WebSocket):
         try:
             from jose import jwt, JWTError
             from shared.config.settings import get_settings
+            from shared.database.connection import AsyncSessionLocal
+            from sqlalchemy import select
             settings = get_settings()
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
             user_id_str = payload.get("sub")
             if user_id_str:
                 user_id = int(user_id_str)
-                logger.info(f"[WebSocket] Authenticated via JWT: user_id={user_id}")
+                # 驗證用戶是否存在
+                db = AsyncSessionLocal()
+                try:
+                    result = await db.execute(select(User).where(User.id == user_id))
+                    user = result.scalar_one_or_none()
+                    if user:
+                        logger.info(f"[WebSocket] Authenticated via JWT: user_id={user_id}")
+                    else:
+                        logger.warning(f"[WebSocket] JWT user not found: user_id={user_id}")
+                        user_id = None
+                finally:
+                    await db.close()
         except (JWTError, ValueError, TypeError) as e:
-            logger.warning(f"[WebSocket] JWT validation failed: {e}")
+            logger.warning(f"[WebSocket] JWT validation failed: {e}", exc_info=True)
+            token = None
+        except Exception as e:
+            logger.error(f"[WebSocket] Error during JWT authentication: {e}", exc_info=True)
             token = None
     
     # 如果沒有 JWT Token，嘗試使用 Telegram initData
@@ -182,7 +203,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 await db.close()
     
     if not user_id:
-        await websocket.close(code=1008, reason="Unauthorized")
+        logger.warning(f"[WebSocket] Unauthorized connection attempt. Query params: {list(query_params.keys())}, Has token: {bool(token)}")
+        try:
+            await websocket.close(code=1008, reason="Unauthorized")
+        except Exception as e:
+            logger.error(f"[WebSocket] Error closing unauthorized connection: {e}")
         return
     
     await manager.connect(websocket, user_id)
