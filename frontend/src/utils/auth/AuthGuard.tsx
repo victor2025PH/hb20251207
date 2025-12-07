@@ -41,11 +41,13 @@ export function AuthGuard({
   const hasTelegramWebApp = typeof window !== 'undefined' && 
     (window as any).Telegram?.WebApp;
   
-  // 检查是否有 initData（这是判断是否在真正的 Telegram 客户端中的关键）
-  const hasInitData = hasTelegramWebApp && (
-    (window as any).Telegram?.WebApp?.initData ||
-    (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  );
+  // 检查是否有有效的 initData（这是判断是否在真正的 Telegram 客户端中的关键）
+  // initData 必须非空且长度大于 0 才认为是有效的
+  const initData = hasTelegramWebApp ? ((window as any).Telegram?.WebApp?.initData || '') : '';
+  const hasValidInitData = initData.length > 0;
+  
+  // 检查是否有用户信息（作为辅助判断）
+  const hasUserInfo = hasTelegramWebApp && !!(window as any).Telegram?.WebApp?.initDataUnsafe?.user;
   
   // 如果在 Telegram 中但 initData 为空，等待一段时间后如果还是失败，显示登录选项
   const [telegramInitTimeout, setTelegramInitTimeout] = useState(false);
@@ -60,20 +62,21 @@ export function AuthGuard({
   }, []);
 
   useEffect(() => {
-    // 如果不在 Telegram 环境中，立即允许登录
-    if (!hasTelegramWebApp) {
+    // 如果不在 Telegram 环境中，或者 initData 为空，立即允许登录
+    if (!hasTelegramWebApp || !hasValidInitData) {
       setTelegramInitTimeout(true);
       return;
     }
     
-    // 如果在 Telegram WebApp 中但 initData 为空，等待 1.5 秒后显示登录选项
-    if (hasTelegramWebApp && !hasInitData && !isAuthenticated) {
+    // 如果在 Telegram WebApp 中且有 initData，但认证失败，等待 1 秒后显示登录选项
+    // 这给后端一些时间来处理认证
+    if (hasTelegramWebApp && hasValidInitData && !isAuthenticated) {
       const timer = setTimeout(() => {
         setTelegramInitTimeout(true);
-      }, 1500);
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [hasTelegramWebApp, hasInitData, isAuthenticated]);
+  }, [hasTelegramWebApp, hasValidInitData, isAuthenticated]);
 
   // 加载中
   if (loading) {
@@ -102,8 +105,9 @@ export function AuthGuard({
 
   // 未认证 - 显示登录界面
   
-  // 如果不在 Telegram 环境中，或者等待超时，直接显示登录选项
-  if (!hasTelegramWebApp || (hasTelegramWebApp && !hasInitData && telegramInitTimeout)) {
+  // 如果不在 Telegram 环境中，或者 initData 为空，直接显示登录选项
+  // 不显示错误信息，因为这是正常情况（普通浏览器访问）
+  if (!hasTelegramWebApp || !hasValidInitData || telegramInitTimeout) {
     return (
       <WebLoginScreen 
         onLoginSuccess={() => {
@@ -114,8 +118,9 @@ export function AuthGuard({
     );
   }
   
-  // Telegram环境但initData为空，等待初始化（最多1.5秒）
-  if (hasTelegramWebApp && !hasInitData && !telegramInitTimeout) {
+  // Telegram环境有initData但认证失败，等待一段时间后显示登录选项
+  // 给后端一些时间来处理认证，如果超时则显示登录选项
+  if (hasTelegramWebApp && hasValidInitData && !isAuthenticated && !telegramInitTimeout) {
     return (
       <div style={{ 
         padding: '2rem', 
@@ -128,8 +133,8 @@ export function AuthGuard({
         alignItems: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
       }}>
-        <h2>正在初始化...</h2>
-        <p>正在获取Telegram认证信息，请稍候...</p>
+        <h2>正在验证...</h2>
+        <p>正在验证Telegram认证信息，请稍候...</p>
         <div style={{ 
           marginTop: '2rem',
           padding: '1rem',
@@ -137,37 +142,7 @@ export function AuthGuard({
           borderRadius: '8px',
           fontSize: '0.9rem'
         }}>
-          <p>如果长时间停留在此页面，您也可以使用其他登录方式。</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Telegram环境有initData但认证失败，显示登录选项
-  if (hasTelegramWebApp && hasInitData && !isAuthenticated) {
-    return (
-      <div style={{ 
-        padding: '2rem', 
-        textAlign: 'center',
-        color: 'white',
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }}>
-        <h2>Telegram认证失败</h2>
-        <p>无法验证Telegram认证信息。</p>
-        <p style={{ fontSize: '0.9rem', marginTop: '1rem' }}>
-          您可以使用其他登录方式继续。
-        </p>
-        <div style={{ marginTop: '2rem', width: '100%', maxWidth: '450px' }}>
-          <WebLoginScreen 
-            onLoginSuccess={() => {
-              window.location.reload();
-            }}
-          />
+          <p>如果验证失败，您可以使用其他登录方式继续。</p>
         </div>
       </div>
     );
