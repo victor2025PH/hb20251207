@@ -46,24 +46,39 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
     setLoading('telegram');
     setError(null);
     try {
-      // 检查是否有 Telegram WebApp
+      // 检查是否有 Telegram WebApp 和有效的 initData
       const initData = getInitData();
       const tgUser = getTelegramUser();
       
-      if (initData && initData.length > 0 && tgUser) {
-        // 如果有有效的 initData，尝试获取用户信息
-        // 这应该由 AuthGuard 自动处理，但这里提供一个手动触发的方式
-        try {
-          const response = await getCurrentUser();
-          // 如果成功，说明已经通过 Telegram 认证
-          onLoginSuccess?.();
-        } catch (err: any) {
-          // 如果失败，说明 initData 无效或已过期
-          setError('Telegram认证失败，请刷新页面重试或使用其他登录方式');
-        }
-      } else {
-        // 如果没有 initData，提示用户
+      if (!initData || initData.length === 0) {
+        // 如果没有 initData，说明不是在真正的 Telegram MiniApp 中
         setError('请在Telegram中打开此应用，或使用其他登录方式');
+        setLoading(null);
+        return;
+      }
+      
+      if (!tgUser) {
+        // 如果有 initData 但没有用户信息，可能是 initData 格式错误
+        setError('Telegram用户信息不可用，请刷新页面重试或使用其他登录方式');
+        setLoading(null);
+        return;
+      }
+      
+      // 如果有有效的 initData 和用户信息，尝试获取用户信息
+      // 这应该由 AuthGuard 自动处理，但这里提供一个手动触发的方式
+      try {
+        const response = await getCurrentUser();
+        // 如果成功，说明已经通过 Telegram 认证
+        // 刷新页面以更新认证状态
+        window.location.reload();
+      } catch (err: any) {
+        // 如果失败，检查错误类型
+        if (err?.isUnauthorized || err?.response?.status === 401) {
+          // initData 可能无效、已过期或 hash 验证失败
+          setError('Telegram认证失败：initData无效或已过期，请刷新页面重试或使用其他登录方式');
+        } else {
+          setError(err?.message || 'Telegram登录失败，请重试');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Telegram登录失败');

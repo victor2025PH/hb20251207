@@ -154,35 +154,43 @@ async def get_current_user_from_token(
         # MiniApp 環境：優先使用 Telegram 認證
         if should_allow_telegram_auth(request) and x_telegram_init_data:
             try:
-                from api.utils.telegram_auth import parse_telegram_init_data
+                from api.utils.telegram_auth import parse_telegram_init_data, verify_telegram_init_data
                 from api.services.identity_service import IdentityService
                 
-                user_data = parse_telegram_init_data(x_telegram_init_data)
-                
-                if user_data and 'id' in user_data:
-                    tg_id = int(user_data['id'])
+                # 驗證 initData 的 hash（生產環境必須驗證）
+                if not verify_telegram_init_data(x_telegram_init_data):
+                    logger.warning(f"Telegram initData hash 驗證失敗")
+                    user = None
+                else:
+                    user_data = parse_telegram_init_data(x_telegram_init_data)
                     
-                    try:
-                        user = await IdentityService.get_or_create_user_by_identity(
-                            db=db,
-                            provider='telegram',
-                            provider_user_id=str(tg_id),
-                            provider_data={
-                                'id': tg_id,
-                                'username': user_data.get('username'),
-                                'first_name': user_data.get('first_name'),
-                                'last_name': user_data.get('last_name'),
-                                'language_code': user_data.get('language_code', 'zh-TW'),
-                            }
-                        )
-                        try:
-                            await db.refresh(user)
-                        except Exception as refresh_error:
-                            logger.warning(f"刷新用户数据失败（不影响使用）: {refresh_error}")
+                    if user_data and 'id' in user_data:
+                        tg_id = int(user_data['id'])
                         
-                        logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
-                    except Exception as identity_error:
-                        logger.error(f"IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
+                        try:
+                            user = await IdentityService.get_or_create_user_by_identity(
+                                db=db,
+                                provider='telegram',
+                                provider_user_id=str(tg_id),
+                                provider_data={
+                                    'id': tg_id,
+                                    'username': user_data.get('username'),
+                                    'first_name': user_data.get('first_name'),
+                                    'last_name': user_data.get('last_name'),
+                                    'language_code': user_data.get('language_code', 'zh-TW'),
+                                }
+                            )
+                            try:
+                                await db.refresh(user)
+                            except Exception as refresh_error:
+                                logger.warning(f"刷新用户数据失败（不影响使用）: {refresh_error}")
+                            
+                            logger.info(f"Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}")
+                        except Exception as identity_error:
+                            logger.error(f"IdentityService 創建/獲取用戶失敗: {identity_error}", exc_info=True)
+                            user = None
+                    else:
+                        logger.warning(f"Telegram initData 中沒有用戶信息")
                         user = None
             except Exception as e:
                 logger.error(f"Telegram initData 認證失敗: {e}", exc_info=True)
