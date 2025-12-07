@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # 日誌
     LOG_LEVEL: str = "INFO"
 
+    # Redis 配置（可選）
+    REDIS_URL: str = ""  # Redis 連接 URL（留空則使用內存緩存）
+    
     # AI 系統對接
     AI_API_KEY: str = ""  # AI 系統 API 金鑰（留空則開發模式允許任意金鑰）
     AI_API_RATE_LIMIT: int = 100  # 每分鐘請求限制
