@@ -1,354 +1,308 @@
 /**
- * Telegram MiniApp 調試面板
- * 在 URL 後加 #debug=1 啟用
- * 例如：https://mini.usdt2026.cc/lucky-wheel#debug=1
+ * 调试面板组件
+ * 在 Telegram MiniApp 中显示调试信息，无需开发者工具
  */
-import { useState, useEffect, useRef } from 'react'
-import { X, Bug, Terminal, AlertCircle, Globe, Database, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { getInitData, getTelegramUser, initTelegram } from '../utils/telegram';
+import { isInTelegram } from '../utils/platform';
 
-interface LogEntry {
-  type: 'log' | 'error' | 'warn' | 'info'
-  message: string
-  timestamp: Date
-}
-
-interface NetworkEntry {
-  method: string
-  url: string
-  status?: number
-  duration?: number
-  timestamp: Date
+interface DebugInfo {
+  timestamp: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  data?: any;
 }
 
 export default function DebugPanel() {
-  const [isEnabled, setIsEnabled] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [activeTab, setActiveTab] = useState<'console' | 'network' | 'storage' | 'info'>('console')
-  const [logs, setLogs] = useState<LogEntry[]>([])
-  const [networks, setNetworks] = useState<NetworkEntry[]>([])
-  const [storage, setStorage] = useState<Record<string, string>>({})
-  const logsEndRef = useRef<HTMLDivElement>(null)
+  const [isOpen, setIsOpen] = useState(false);
+  const [logs, setLogs] = useState<DebugInfo[]>([]);
+  const [telegramInfo, setTelegramInfo] = useState<any>(null);
+  const [apiRequests, setApiRequests] = useState<any[]>([]);
 
-  // 檢查是否啟用調試模式
   useEffect(() => {
-    const checkDebugMode = () => {
-      const hash = window.location.hash
-      const enabled = hash.includes('debug=1')
-      setIsEnabled(enabled)
-      if (enabled) {
-        console.log('[DebugPanel] Debug mode enabled')
-      }
-    }
+    // 只在开发环境或 URL 参数包含 debug=true 时显示
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDebugMode = import.meta.env.DEV || urlParams.get('debug') === 'true';
     
-    checkDebugMode()
-    window.addEventListener('hashchange', checkDebugMode)
-    return () => window.removeEventListener('hashchange', checkDebugMode)
-  }, [])
-
-  // 攔截 console
-  useEffect(() => {
-    if (!isEnabled) return
-
-    const originalLog = console.log
-    const originalError = console.error
-    const originalWarn = console.warn
-    const originalInfo = console.info
-
-    const addLog = (type: LogEntry['type'], args: any[]) => {
-      const message = args.map(arg => {
-        if (typeof arg === 'object') {
-          try {
-            return JSON.stringify(arg, null, 2)
-          } catch {
-            return String(arg)
-          }
-        }
-        return String(arg)
-      }).join(' ')
-
-      setLogs(prev => [...prev.slice(-100), { type, message, timestamp: new Date() }])
+    if (!isDebugMode) {
+      return;
     }
 
-    console.log = (...args) => {
-      originalLog.apply(console, args)
-      addLog('log', args)
-    }
-    console.error = (...args) => {
-      originalError.apply(console, args)
-      addLog('error', args)
-    }
-    console.warn = (...args) => {
-      originalWarn.apply(console, args)
-      addLog('warn', args)
-    }
-    console.info = (...args) => {
-      originalInfo.apply(console, args)
-      addLog('info', args)
-    }
+    // 初始化 Telegram 信息
+    const updateTelegramInfo = async () => {
+      await initTelegram();
+      const initData = getInitData();
+      const user = getTelegramUser();
+      
+      setTelegramInfo({
+        hasWebApp: !!window.Telegram?.WebApp,
+        platform: window.Telegram?.WebApp?.platform,
+        version: window.Telegram?.WebApp?.version,
+        hasInitData: !!initData,
+        initDataLength: initData?.length || 0,
+        initDataPreview: initData ? initData.substring(0, 100) + '...' : 'empty',
+        user: user ? {
+          id: user.id,
+          username: user.username,
+          first_name: user.first_name,
+          last_name: user.last_name,
+        } : null,
+        fullInitData: initData || 'empty',
+      });
+    };
 
-    // 捕獲未處理的錯誤
-    const errorHandler = (event: ErrorEvent) => {
-      addLog('error', [`Uncaught Error: ${event.message} at ${event.filename}:${event.lineno}`])
-    }
-    window.addEventListener('error', errorHandler)
+    updateTelegramInfo();
 
-    // 捕獲 Promise 錯誤
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
-      addLog('error', [`Unhandled Promise Rejection: ${event.reason}`])
-    }
-    window.addEventListener('unhandledrejection', rejectionHandler)
+    // 拦截 console.log 来捕获日志
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
 
-    return () => {
-      console.log = originalLog
-      console.error = originalError
-      console.warn = originalWarn
-      console.info = originalInfo
-      window.removeEventListener('error', errorHandler)
-      window.removeEventListener('unhandledrejection', rejectionHandler)
-    }
-  }, [isEnabled])
-
-  // 攔截 fetch
-  useEffect(() => {
-    if (!isEnabled) return
-
-    const originalFetch = window.fetch
-    window.fetch = async (...args) => {
-      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url
-      const method = (args[1]?.method || 'GET').toUpperCase()
-      const startTime = Date.now()
-
-      const entry: NetworkEntry = {
-        method,
-        url: url.length > 50 ? url.substring(0, 50) + '...' : url,
-        timestamp: new Date(),
+    console.log = (...args: any[]) => {
+      originalLog.apply(console, args);
+      if (args[0]?.includes?.('[Auth]') || args[0]?.includes?.('[API') || args[0]?.includes?.('[Telegram]')) {
+        addLog('info', args.join(' '), args);
       }
+    };
+
+    console.warn = (...args: any[]) => {
+      originalWarn.apply(console, args);
+      if (args[0]?.includes?.('[Auth]') || args[0]?.includes?.('[API') || args[0]?.includes?.('[Telegram]')) {
+        addLog('warning', args.join(' '), args);
+      }
+    };
+
+    console.error = (...args: any[]) => {
+      originalError.apply(console, args);
+      addLog('error', args.join(' '), args);
+    };
+
+    // 拦截 API 请求
+    const originalFetch = window.fetch;
+    window.fetch = async (...args: any[]) => {
+      const url = args[0];
+      const options = args[1] || {};
+      const headers = options.headers || {};
+      
+      setApiRequests(prev => [...prev, {
+        url,
+        method: options.method || 'GET',
+        headers: headers,
+        timestamp: new Date().toISOString(),
+      }]);
 
       try {
-        const response = await originalFetch.apply(window, args)
-        entry.status = response.status
-        entry.duration = Date.now() - startTime
-        setNetworks(prev => [...prev.slice(-50), entry])
-        return response
+        const response = await originalFetch.apply(window, args);
+        return response;
       } catch (error) {
-        entry.status = 0
-        entry.duration = Date.now() - startTime
-        setNetworks(prev => [...prev.slice(-50), entry])
-        throw error
+        addLog('error', `API Request failed: ${url}`, error);
+        throw error;
       }
-    }
+    };
 
     return () => {
-      window.fetch = originalFetch
-    }
-  }, [isEnabled])
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+      window.fetch = originalFetch;
+    };
+  }, []);
 
-  // 讀取 localStorage
-  useEffect(() => {
-    if (!isEnabled) return
-    
-    const readStorage = () => {
-      const items: Record<string, string> = {}
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key) {
-          const value = localStorage.getItem(key) || ''
-          items[key] = value.length > 100 ? value.substring(0, 100) + '...' : value
-        }
-      }
-      setStorage(items)
-    }
+  const addLog = (type: DebugInfo['type'], message: string, data?: any) => {
+    setLogs(prev => [...prev, {
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      message,
+      data,
+    }].slice(-50)); // 只保留最近50条
+  };
 
-    readStorage()
-    const interval = setInterval(readStorage, 2000)
-    return () => clearInterval(interval)
-  }, [isEnabled])
-
-  // 自動滾動到底部
-  useEffect(() => {
-    if (activeTab === 'console' && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [logs, activeTab])
-
-  if (!isEnabled) return null
-
-  const telegramInfo = {
-    platform: window.Telegram?.WebApp?.platform || 'N/A',
-    version: window.Telegram?.WebApp?.version || 'N/A',
-    initData: window.Telegram?.WebApp?.initData ? '✅ Present' : '❌ Missing',
-    user: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'N/A',
-    colorScheme: window.Telegram?.WebApp?.colorScheme || 'N/A',
-  }
-
-  const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'error': return 'text-red-400 bg-red-500/10'
-      case 'warn': return 'text-yellow-400 bg-yellow-500/10'
-      case 'info': return 'text-blue-400 bg-blue-500/10'
-      default: return 'text-gray-300'
-    }
+  // 只在开发环境或 debug=true 时显示
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDebugMode = import.meta.env.DEV || urlParams.get('debug') === 'true';
+  
+  if (!isDebugMode) {
+    return null;
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[9999] bg-black/95 backdrop-blur border-t border-green-500/30 text-xs font-mono">
-      {/* 標題欄 */}
-      <div 
-        className="flex items-center justify-between px-3 py-2 bg-green-500/20 cursor-pointer"
-        onClick={() => setIsExpanded(!isExpanded)}
+    <>
+      {/* 浮动按钮 */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          position: 'fixed',
+          bottom: '80px',
+          right: '20px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          backgroundColor: '#007bff',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer',
+          zIndex: 9999,
+          fontSize: '20px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+        }}
+        title="调试面板"
       >
-        <div className="flex items-center gap-2 text-green-400">
-          <Bug size={14} />
-          <span className="font-bold">Debug Panel</span>
-          <span className="text-green-400/60">#{window.location.pathname}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              window.location.hash = ''
-              setIsEnabled(false)
-            }}
-            className="p-1 hover:bg-white/10 rounded"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
+        🐛
+      </button>
 
-      {isExpanded && (
-        <>
-          {/* Tab 欄 */}
-          <div className="flex border-b border-gray-700">
-            {[
-              { id: 'console', icon: Terminal, label: 'Console', count: logs.length },
-              { id: 'network', icon: Globe, label: 'Network', count: networks.length },
-              { id: 'storage', icon: Database, label: 'Storage', count: Object.keys(storage).length },
-              { id: 'info', icon: AlertCircle, label: 'Info' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1 px-3 py-1.5 border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-green-500 text-green-400 bg-green-500/10'
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <tab.icon size={12} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className="text-[10px] bg-gray-700 px-1 rounded">{tab.count}</span>
-                )}
-              </button>
-            ))}
+      {/* 调试面板 */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            zIndex: 10000,
+            padding: '20px',
+            overflow: 'auto',
+            color: 'white',
+            fontSize: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0 }}>🐛 调试面板</h2>
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                padding: '5px 15px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              关闭
+            </button>
           </div>
 
-          {/* 內容區 */}
-          <div className="h-40 overflow-y-auto">
-            {activeTab === 'console' && (
-              <div className="p-2 space-y-1">
-                {logs.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">No logs yet</div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setLogs([])}
-                      className="flex items-center gap-1 text-gray-500 hover:text-gray-300 mb-2"
-                    >
-                      <Trash2 size={12} /> Clear
-                    </button>
-                    {logs.map((log, i) => (
-                      <div key={i} className={`px-2 py-1 rounded ${getLogColor(log.type)}`}>
-                        <span className="text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
-                        <span className="ml-2">{log.message}</span>
-                      </div>
-                    ))}
-                    <div ref={logsEndRef} />
-                  </>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'network' && (
-              <div className="p-2">
-                {networks.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">No network requests yet</div>
-                ) : (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-gray-500 text-left">
-                        <th className="px-2 py-1">Method</th>
-                        <th className="px-2 py-1">URL</th>
-                        <th className="px-2 py-1">Status</th>
-                        <th className="px-2 py-1">Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {networks.map((net, i) => (
-                        <tr key={i} className={net.status && net.status >= 400 ? 'text-red-400' : 'text-gray-300'}>
-                          <td className="px-2 py-1 text-blue-400">{net.method}</td>
-                          <td className="px-2 py-1 truncate max-w-[150px]">{net.url}</td>
-                          <td className="px-2 py-1">{net.status || 'ERR'}</td>
-                          <td className="px-2 py-1">{net.duration}ms</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'storage' && (
-              <div className="p-2">
-                {Object.keys(storage).length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">No localStorage items</div>
-                ) : (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-gray-500 text-left">
-                        <th className="px-2 py-1">Key</th>
-                        <th className="px-2 py-1">Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(storage).map(([key, value]) => (
-                        <tr key={key} className="text-gray-300">
-                          <td className="px-2 py-1 text-cyan-400">{key}</td>
-                          <td className="px-2 py-1 truncate max-w-[200px]">{value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'info' && (
-              <div className="p-3 space-y-2">
-                <h3 className="text-green-400 font-bold mb-2">Telegram WebApp Info</h3>
-                {Object.entries(telegramInfo).map(([key, value]) => (
-                  <div key={key} className="flex justify-between">
-                    <span className="text-gray-500">{key}:</span>
-                    <span className="text-gray-300">{value}</span>
-                  </div>
-                ))}
-                <hr className="border-gray-700 my-2" />
-                <div className="flex justify-between">
-                  <span className="text-gray-500">URL:</span>
-                  <span className="text-gray-300 truncate max-w-[200px]">{window.location.href}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">User Agent:</span>
-                  <span className="text-gray-300 truncate max-w-[200px]">{navigator.userAgent.slice(0, 50)}...</span>
-                </div>
-              </div>
-            )}
+          {/* Telegram 信息 */}
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#1a1a1a', borderRadius: '5px' }}>
+            <h3 style={{ marginTop: 0 }}>📱 Telegram 信息</h3>
+            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {JSON.stringify(telegramInfo, null, 2)}
+            </pre>
           </div>
-        </>
+
+          {/* 环境信息 */}
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#1a1a1a', borderRadius: '5px' }}>
+            <h3 style={{ marginTop: 0 }}>🌐 环境信息</h3>
+            <div>
+              <div>URL: {window.location.href}</div>
+              <div>User Agent: {navigator.userAgent}</div>
+              <div>在 Telegram 中: {isInTelegram() ? '✅ 是' : '❌ 否'}</div>
+              <div>JWT Token: {localStorage.getItem('auth_token') ? '✅ 存在' : '❌ 不存在'}</div>
+            </div>
+          </div>
+
+          {/* API 请求 */}
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#1a1a1a', borderRadius: '5px' }}>
+            <h3 style={{ marginTop: 0 }}>📡 最近的 API 请求 ({apiRequests.length})</h3>
+            <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+              {apiRequests.slice(-10).map((req, idx) => (
+                <div key={idx} style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#2a2a2a', borderRadius: '3px' }}>
+                  <div><strong>{req.method}</strong> {req.url}</div>
+                  <div style={{ fontSize: '10px', color: '#aaa' }}>{req.timestamp}</div>
+                  {req.headers && (
+                    <details style={{ marginTop: '5px' }}>
+                      <summary style={{ cursor: 'pointer' }}>Headers</summary>
+                      <pre style={{ fontSize: '10px' }}>{JSON.stringify(req.headers, null, 2)}</pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 日志 */}
+          <div style={{ padding: '15px', backgroundColor: '#1a1a1a', borderRadius: '5px' }}>
+            <h3 style={{ marginTop: 0 }}>📋 日志 ({logs.length})</h3>
+            <div style={{ maxHeight: '300px', overflow: 'auto' }}>
+              {logs.map((log, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: '5px',
+                    padding: '5px',
+                    backgroundColor: log.type === 'error' ? '#4a1a1a' : log.type === 'warning' ? '#4a4a1a' : '#1a1a2a',
+                    borderRadius: '3px',
+                    fontSize: '11px',
+                  }}
+                >
+                  <span style={{ color: '#aaa' }}>[{log.timestamp}]</span>{' '}
+                  <span style={{ color: log.type === 'error' ? '#ff6b6b' : log.type === 'warning' ? '#ffd93d' : '#6bcf7f' }}>
+                    {log.type.toUpperCase()}
+                  </span>{' '}
+                  {log.message}
+                  {log.data && (
+                    <details style={{ marginTop: '5px' }}>
+                      <summary style={{ cursor: 'pointer', fontSize: '10px' }}>详情</summary>
+                      <pre style={{ fontSize: '10px', whiteSpace: 'pre-wrap' }}>
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => {
+                setLogs([]);
+                setApiRequests([]);
+              }}
+              style={{
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              清空日志
+            </button>
+            <button
+              onClick={() => {
+                const data = {
+                  telegramInfo,
+                  logs,
+                  apiRequests,
+                  environment: {
+                    url: window.location.href,
+                    userAgent: navigator.userAgent,
+                    isInTelegram: isInTelegram(),
+                    hasToken: !!localStorage.getItem('auth_token'),
+                  },
+                };
+                navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                alert('调试信息已复制到剪贴板！');
+              }}
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              复制调试信息
+            </button>
+          </div>
+        </div>
       )}
-    </div>
-  )
+    </>
+  );
 }
-
