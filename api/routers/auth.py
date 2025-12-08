@@ -191,12 +191,12 @@ async def get_current_user_from_token(
                 f"[Auth] 開始處理 Telegram initData，長度: {len(x_telegram_init_data)}"
             )
 
-                # 驗證 initData 的 hash（如果 BOT_TOKEN 配置了則驗證）
-                # 如果 BOT_TOKEN 未配置，跳過驗證（僅用於開發環境）
-                should_verify = bool(settings.BOT_TOKEN)
-                logger.debug(
-                    f"[Auth] BOT_TOKEN 配置狀態: {should_verify}, BOT_TOKEN 長度: {len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0}"
-                )
+            # 驗證 initData 的 hash（如果 BOT_TOKEN 配置了則驗證）
+            # 如果 BOT_TOKEN 未配置，跳過驗證（僅用於開發環境）
+            should_verify = bool(settings.BOT_TOKEN)
+            logger.debug(
+                f"[Auth] BOT_TOKEN 配置狀態: {should_verify}, BOT_TOKEN 長度: {len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0}"
+            )
 
             hash_valid = True  # 默認值：如果不需要驗證，則認為有效
             if should_verify:
@@ -210,10 +210,10 @@ async def get_current_user_from_token(
                         f"[Auth] 請檢查：1. BOT_TOKEN 是否正確 2. initData 是否已過期 3. initData 是否被篡改"
                     )
                     user = None
-                    else:
-                        logger.debug(f"[Auth] Telegram initData hash 驗證成功")
                 else:
-                    logger.debug(f"[Auth] 跳過 initData hash 驗證（BOT_TOKEN 未配置）- 僅用於開發環境")
+                    logger.debug(f"[Auth] Telegram initData hash 驗證成功")
+            else:
+                logger.debug(f"[Auth] 跳過 initData hash 驗證（BOT_TOKEN 未配置）- 僅用於開發環境")
 
             # 只有在 hash 驗證通過（或跳過驗證）時才解析用戶數據
             if hash_valid:
