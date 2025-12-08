@@ -80,6 +80,11 @@ export function AuthGuard({
 
   // 加载中
   if (loading) {
+    console.log('[AuthGuard] Still loading, showing loading screen...', {
+      isAuthenticated,
+      hasUser: !!user,
+      platform
+    });
     return (
       <div style={{ 
         display: 'flex', 
@@ -92,6 +97,13 @@ export function AuthGuard({
       </div>
     );
   }
+  
+  console.log('[AuthGuard] Loading complete, checking auth state...', {
+    isAuthenticated,
+    hasUser: !!user,
+    platform,
+    requireAuth
+  });
 
   // 不需要认证
   if (!requireAuth) {
@@ -100,8 +112,17 @@ export function AuthGuard({
 
   // 已认证
   if (isAuthenticated && user) {
+    console.log('[AuthGuard] User is authenticated, rendering protected content', {
+      userId: user.id,
+      username: user.username
+    });
     return <>{children}</>;
   }
+  
+  console.log('[AuthGuard] User is not authenticated, showing login screen', {
+    isAuthenticated,
+    hasUser: !!user
+  });
 
   // 未认证 - 显示登录界面
   

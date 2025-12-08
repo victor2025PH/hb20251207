@@ -15,7 +15,7 @@ const api = axios.create({
 
 // 請求攔截器 - 添加認證信息（JWT Token 和 Telegram initData）
 api.interceptors.request.use((config) => {
-  // 檢查是否在 Telegram 環境中
+  // 檢查是否在 Telegram 環境中（必須有有效的 initData）
   const initData = getInitData()
   const isInTelegramEnv = initData && initData.length > 0
   
@@ -49,7 +49,9 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`
     console.log('[API Request]', config.url, 'with JWT token', {
-      method: config.method
+      method: config.method,
+      tokenLength: token.length,
+      tokenPreview: token.substring(0, 20) + '...'
     })
     return config
   }
@@ -57,7 +59,10 @@ api.interceptors.request.use((config) => {
   // 既沒有 JWT Token 也沒有有效的 Telegram initData
   // 對於需要認證的端點，這會導致 401，但我們在響應攔截器中處理
   console.debug('[API Request]', config.url, 'without valid auth - token and initData are both empty/missing', {
-    method: config.method
+    method: config.method,
+    hasInitData: !!initData,
+    initDataLength: initData?.length || 0,
+    hasToken: !!token
   })
   return config
 })

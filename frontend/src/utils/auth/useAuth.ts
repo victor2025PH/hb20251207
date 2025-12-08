@@ -115,25 +115,46 @@ export function useAuth() {
       
       // Web环境：检查是否有JWT Token
       const token = localStorage.getItem('auth_token');
+      console.log('[Auth] Checking JWT token in localStorage...', { 
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        platform: platformInfo.platform,
+        isInTelegram: isInTelegram()
+      });
+      
       if (token) {
         try {
+          console.log('[Auth] Token found, calling getCurrentUser() to verify...');
           const response = await getCurrentUser();
+          console.log('[Auth] getCurrentUser() succeeded, user authenticated', {
+            userId: response.data?.id,
+            username: response.data?.username
+          });
           setAuthState({
             user: response.data,
             loading: false,
             isAuthenticated: true,
             platform: platformInfo.platform
           });
+          console.log('[Auth] Auth state updated to authenticated=true');
           return;
         } catch (error: any) {
           // Token无效或已过期，清除
+          console.error('[Auth] getCurrentUser() failed:', {
+            error: error.message,
+            status: error?.response?.status,
+            isUnauthorized: error?.isUnauthorized
+          });
           if (error?.isUnauthorized || error?.response?.status === 401) {
-            console.debug('[Auth] JWT Token无效或已过期，清除token');
+            console.warn('[Auth] JWT Token无效或已过期，清除token');
           } else {
             console.warn('[Auth] 获取用户信息失败:', error);
           }
           localStorage.removeItem('auth_token');
+          console.log('[Auth] Token removed from localStorage');
         }
+      } else {
+        console.log('[Auth] No token found in localStorage');
       }
       
       // 未认证
