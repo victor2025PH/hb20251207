@@ -102,15 +102,16 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
     try {
       if (window.google?.accounts?.id) {
         // 使用 Google One Tap 登录（弹出登录窗口）
-        window.google.accounts.id.prompt((notification: any) => {
+        const googleAccounts = window.google.accounts;
+        googleAccounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed()) {
             // One Tap 不可用，尝试使用弹出窗口
-            if (!window.google?.accounts?.oauth2) {
+            if (!googleAccounts.oauth2) {
               setError('Google登录服务未加载，请刷新页面重试');
               setLoading(null);
               return;
             }
-            const client = window.google.accounts.oauth2.initTokenClient({
+            const client = googleAccounts.oauth2.initTokenClient({
               client_id: GOOGLE_CLIENT_ID,
               scope: 'openid email profile',
               callback: async (tokenResponse: any) => {
@@ -143,12 +144,12 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
             client.requestAccessToken();
           } else if (notification.isSkippedMoment()) {
             // 用户跳过了 One Tap，使用弹出窗口
-            if (!window.google?.accounts?.oauth2) {
+            if (!googleAccounts.oauth2) {
               setError('Google登录服务未加载，请刷新页面重试');
               setLoading(null);
               return;
             }
-            const client = window.google.accounts.oauth2.initTokenClient({
+            const client = googleAccounts.oauth2.initTokenClient({
               client_id: GOOGLE_CLIENT_ID,
               scope: 'openid email profile',
               callback: async (tokenResponse: any) => {
