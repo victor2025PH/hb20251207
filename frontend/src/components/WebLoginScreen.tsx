@@ -105,6 +105,11 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
         window.google.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed()) {
             // One Tap 不可用，尝试使用弹出窗口
+            if (!window.google?.accounts?.oauth2) {
+              setError('Google登录服务未加载，请刷新页面重试');
+              setLoading(null);
+              return;
+            }
             const client = window.google.accounts.oauth2.initTokenClient({
               client_id: GOOGLE_CLIENT_ID,
               scope: 'openid email profile',
@@ -138,6 +143,11 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
             client.requestAccessToken();
           } else if (notification.isSkippedMoment()) {
             // 用户跳过了 One Tap，使用弹出窗口
+            if (!window.google?.accounts?.oauth2) {
+              setError('Google登录服务未加载，请刷新页面重试');
+              setLoading(null);
+              return;
+            }
             const client = window.google.accounts.oauth2.initTokenClient({
               client_id: GOOGLE_CLIENT_ID,
               scope: 'openid email profile',

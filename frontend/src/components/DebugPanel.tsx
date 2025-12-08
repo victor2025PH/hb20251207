@@ -92,7 +92,7 @@ export default function DebugPanel() {
       }]);
 
       try {
-        const response = await originalFetch.apply(window, args);
+        const response = await originalFetch(args[0] as RequestInfo | URL, args[1] as RequestInit | undefined);
         return response;
       } catch (error) {
         addLog('error', `API Request failed: ${url}`, error);
