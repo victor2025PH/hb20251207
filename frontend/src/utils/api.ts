@@ -192,7 +192,15 @@ export async function generateMagicLink(
 export async function getCurrentUser(): Promise<{ data: any }> {
   // 始终使用 api 实例，让拦截器自动处理认证
   // 拦截器会优先使用 JWT Token，如果没有则使用 Telegram initData
-  return api.get('/v1/users/me')
+  // 注意：响应拦截器返回的是 response.data，所以这里直接返回后端数据
+  // 但为了保持类型一致性，我们包装成 { data: ... } 格式
+  const result = await api.get('/v1/users/me')
+  // 如果 result 已经是对象且包含 data 字段，直接返回
+  // 否则包装成 { data: result } 格式
+  if (result && typeof result === 'object' && 'data' in result) {
+    return result as { data: any }
+  }
+  return { data: result }
 }
 
 // 导出api对象供useAuth使用

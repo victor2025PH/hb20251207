@@ -126,17 +126,39 @@ export function useAuth() {
         try {
           console.log('[Auth] Token found, calling getCurrentUser() to verify...');
           const response = await getCurrentUser();
-          console.log('[Auth] getCurrentUser() succeeded, user authenticated', {
-            userId: response.data?.id,
-            username: response.data?.username
+          console.log('[Auth] getCurrentUser() response:', {
+            responseType: typeof response,
+            hasData: !!response.data,
+            responseKeys: Object.keys(response || {}),
+            fullResponse: response
           });
+          
+          // 确保 response.data 存在且包含必要的字段
+          const userData = response.data || response;
+          console.log('[Auth] Extracted user data:', {
+            userId: userData?.id,
+            username: userData?.username,
+            hasId: !!userData?.id,
+            hasUsername: !!userData?.username,
+            allKeys: Object.keys(userData || {})
+          });
+          
+          if (!userData || !userData.id) {
+            console.error('[Auth] User data is invalid:', userData);
+            throw new Error('Invalid user data received from server');
+          }
+          
           setAuthState({
-            user: response.data,
+            user: userData,
             loading: false,
             isAuthenticated: true,
             platform: platformInfo.platform
           });
-          console.log('[Auth] Auth state updated to authenticated=true');
+          console.log('[Auth] Auth state updated to authenticated=true', {
+            userId: userData.id,
+            username: userData.username,
+            isAuthenticated: true
+          });
           return;
         } catch (error: any) {
           // Token无效或已过期，清除

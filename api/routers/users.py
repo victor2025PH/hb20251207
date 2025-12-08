@@ -75,22 +75,30 @@ async def get_user_balance(
     )
 
 
-@router.get("/me", response_model=UserProfile)
+@router.get("/me")
 async def get_my_profile(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取當前用戶資料（從 JWT Token 或 Telegram initData 中獲取）"""
+    """獲取當前用戶資料（從 JWT Token 或 Telegram initData 中獲取）
+    
+    返回完整的用戶信息，包括餘額等，用於前端認證狀態管理
+    """
     try:
-        return UserProfile(
+        from api.utils.auth_utils import UserResponse
+        
+        # 返回完整的 UserResponse 結構，與 /api/auth/me 保持一致
+        return UserResponse(
             id=current_user.id,
-            tg_id=current_user.tg_id,  # 可能为 None（非 Telegram 用户）
+            tg_id=current_user.tg_id or 0,  # 非 Telegram 用户时为 0
             username=current_user.username,
             first_name=current_user.first_name,
+            last_name=current_user.last_name,
             level=current_user.level or 1,
-            xp=current_user.xp or 0,
-            invite_code=current_user.invite_code,
-            invite_count=current_user.invite_count or 0,
+            balance_usdt=float(current_user.balance_usdt or 0),
+            balance_ton=float(current_user.balance_ton or 0),
+            balance_stars=current_user.balance_stars or 0,
+            balance_points=current_user.balance_points or 0,
         )
     except Exception as e:
         logger.error(f"获取用户资料失败: {e}", exc_info=True)
