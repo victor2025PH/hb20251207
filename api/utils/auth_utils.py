@@ -2,6 +2,7 @@
 认证工具函数
 用于避免循环导入
 """
+
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt
@@ -24,6 +25,7 @@ def create_access_token(user_id: int) -> str:
 
 class TokenResponse(BaseModel):
     """Token 響應"""
+
     access_token: str
     token_type: str = "bearer"
     user: dict
@@ -31,6 +33,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """用戶響應"""
+
     id: int
     tg_id: int
     username: Optional[str] = None
@@ -41,7 +44,6 @@ class UserResponse(BaseModel):
     balance_ton: float
     balance_stars: int
     balance_points: int
-    
+
     class Config:
         from_attributes = True
-
