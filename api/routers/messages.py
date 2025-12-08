@@ -282,7 +282,12 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"[WS] Failed to accept connection: {e}")
         return
 
+    # 建立連接管理器會話
     await manager.connect(websocket, user_id)
+    logger.info(
+        f"[WS] WebSocket connection established and kept alive for user_id={user_id}"
+    )
+
     try:
         while True:
             # 接收心跳消息或其他消息
@@ -290,29 +295,31 @@ async def websocket_endpoint(websocket: WebSocket):
                 data = await websocket.receive_text()
                 if data == "ping":
                     await websocket.send_text("pong")
-                    logger.debug(f"[WebSocket] Heartbeat received from user {user_id}")
+                    logger.debug(f"[WS] Heartbeat received from user {user_id}")
                 else:
-                    logger.debug(
-                        f"[WebSocket] Received message from user {user_id}: {data}"
-                    )
+                    logger.debug(f"[WS] Received message from user {user_id}: {data}")
             except WebSocketDisconnect:
                 # 正常断开连接
-                logger.info(f"[WebSocket] User {user_id} disconnected normally")
+                logger.info(f"[WS] Client disconnected user_id={user_id}")
                 break
             except Exception as e:
                 logger.error(
-                    f"[WebSocket] Error receiving message from user {user_id}: {e}",
+                    f"[WS] Error receiving message from user {user_id}: {e}",
                     exc_info=True,
                 )
                 # 继续循环，尝试接收下一条消息
                 continue
     except WebSocketDisconnect:
-        logger.info(f"[WebSocket] User {user_id} disconnected")
+        logger.info(f"[WS] Client disconnected user_id={user_id}")
     except Exception as e:
-        logger.error(f"[WebSocket] Fatal error for user {user_id}: {e}", exc_info=True)
+        logger.error(f"[WS] Unexpected error for user_id={user_id}: {e}", exc_info=True)
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except Exception:
+            pass
     finally:
         manager.disconnect(user_id)
-        logger.info(f"[WebSocket] Cleaned up connection for user {user_id}")
+        logger.info(f"[WS] Cleaned up connection for user_id={user_id}")
 
 
 @router.get("/", response_model=MessageListResponse)

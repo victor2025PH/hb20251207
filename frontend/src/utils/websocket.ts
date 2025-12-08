@@ -128,16 +128,33 @@ class WebSocketManager {
           reject(error)
         }
 
-        this.ws.onclose = () => {
-          console.log('[WebSocket] Disconnected')
+        this.ws.onclose = (event) => {
+          console.log(
+            '[WebSocket] Disconnected',
+            'code:',
+            event.code,
+            'reason:',
+            event.reason,
+            'wasClean:',
+            event.wasClean
+          )
           this.isConnecting = false
           this.stopHeartbeat()
-          
-          // 嘗試重連
+
+          // 正常關閉（1000 = Normal Closure, 1001 = Going Away），不重連
+          if (event.code === 1000 || event.code === 1001) {
+            console.log('[WebSocket] Normal close, not reconnecting')
+            return
+          }
+
+          // 異常關閉，嘗試重連
+          console.log('[WebSocket] Abnormal close, scheduling reconnect')
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++
             const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-            console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
+            console.log(
+              `[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
+            )
             setTimeout(() => {
               this.connect().catch(console.error)
             }, delay)
