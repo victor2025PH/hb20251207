@@ -94,14 +94,14 @@ async def google_auth(
     token = create_access_token(user.id)
     user_response = UserResponse(
         id=user.id,
-        tg_id=user.tg_id or 0,
+        tg_id=getattr(user, "tg_id", 0) or 0,
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
         level=user.level,
-        balance_usdt=float(user.balance_usdt or 0),
-        balance_ton=float(user.balance_ton or 0),
-        balance_stars=user.balance_stars or 0,
-        balance_points=user.balance_points or 0,
+        balance_usdt=float(getattr(user, "balance_usdt", 0) or 0),
+        balance_ton=float(getattr(user, "balance_ton", 0) or 0),
+        balance_stars=getattr(user, "balance_stars", 0) or 0,
+        balance_points=getattr(user, "balance_points", 0) or 0,
     )
-    return TokenResponse(access_token=token, user=user_response)
+    return TokenResponse(access_token=token, user=user_response.model_dump())
