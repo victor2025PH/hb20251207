@@ -393,31 +393,32 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
 
   return (
     <div className="web-login-screen">
-      <div className="login-container">
-        <h2>登录到红包游戏</h2>
+      <div className="login-container" style={{ position: 'relative' }}>
+        {/* 调试按钮 - 放在标题旁边，更明显 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h2 style={{ margin: 0, flex: 1 }}>登录到红包游戏</h2>
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              backgroundColor: showDebug ? '#dc3545' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              whiteSpace: 'nowrap',
+            }}
+            title="点击显示/隐藏调试信息"
+          >
+            🐛 {showDebug ? '隐藏' : '调试'}
+          </button>
+        </div>
         <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
           选择一种登录方式
         </p>
-
-        {/* 调试按钮 */}
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            padding: '5px 10px',
-            fontSize: '12px',
-            backgroundColor: '#666',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            zIndex: 1000,
-          }}
-        >
-          {showDebug ? '隐藏' : '显示'}调试
-        </button>
 
         {/* 调试面板 */}
         {showDebug && (
