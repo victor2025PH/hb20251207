@@ -21,6 +21,69 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState('');
   const [magicLinkToken, setMagicLinkToken] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [telegramInfo, setTelegramInfo] = useState<any>(null);
+
+  // 初始化调试信息
+  useEffect(() => {
+    const updateTelegramInfo = () => {
+      const initData = getInitData();
+      const user = getTelegramUser();
+      const webApp = (window as any).Telegram?.WebApp;
+      
+      setTelegramInfo({
+        hasWebApp: !!webApp,
+        platform: webApp?.platform || 'unknown',
+        version: webApp?.version || 'unknown',
+        hasInitData: !!initData && initData.length > 0,
+        initDataLength: initData?.length || 0,
+        initDataPreview: initData ? initData.substring(0, 100) + '...' : 'empty',
+        user: user ? {
+          id: user.id,
+          username: user.username,
+          first_name: user.first_name,
+        } : null,
+      });
+    };
+
+    updateTelegramInfo();
+    const interval = setInterval(updateTelegramInfo, 2000); // 每2秒更新一次
+
+    // 拦截 console.log 来捕获关键日志
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    console.log = (...args: any[]) => {
+      originalLog.apply(console, args);
+      const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      if (message.includes('[Auth]') || message.includes('[Telegram]') || message.includes('[API')) {
+        setDebugLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${message}`]);
+      }
+    };
+
+    console.warn = (...args: any[]) => {
+      originalWarn.apply(console, args);
+      const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      if (message.includes('[Auth]') || message.includes('[Telegram]') || message.includes('[API')) {
+        setDebugLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ⚠️ ${message}`]);
+      }
+    };
+
+    console.error = (...args: any[]) => {
+      originalError.apply(console, args);
+      const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      setDebugLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ❌ ${message}`]);
+    };
+
+    return () => {
+      clearInterval(interval);
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, []);
 
   // Google 登录成功回调
   const handleGoogleCredentialResponse = useCallback(async (response: any) => {
@@ -335,6 +398,101 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
         <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
           选择一种登录方式
         </p>
+
+        {/* 调试按钮 */}
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            padding: '5px 10px',
+            fontSize: '12px',
+            backgroundColor: '#666',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            zIndex: 1000,
+          }}
+        >
+          {showDebug ? '隐藏' : '显示'}调试
+        </button>
+
+        {/* 调试面板 */}
+        {showDebug && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            backgroundColor: '#1a1a1a',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '11px',
+            maxHeight: '300px',
+            overflow: 'auto',
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '14px' }}>🐛 调试信息</h3>
+            
+            {/* Telegram 信息 */}
+            <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#2a2a2a', borderRadius: '4px' }}>
+              <strong>📱 Telegram:</strong>
+              <div>WebApp: {telegramInfo?.hasWebApp ? '✅' : '❌'}</div>
+              <div>平台: {telegramInfo?.platform || 'unknown'}</div>
+              <div>版本: {telegramInfo?.version || 'unknown'}</div>
+              <div>InitData: {telegramInfo?.hasInitData ? `✅ (${telegramInfo.initDataLength} 字符)` : '❌ 空'}</div>
+              {telegramInfo?.user && (
+                <div>用户: {telegramInfo.user.first_name} (@{telegramInfo.user.username || '无'})</div>
+              )}
+              {telegramInfo?.initDataPreview && (
+                <details style={{ marginTop: '0.5rem' }}>
+                  <summary style={{ cursor: 'pointer' }}>InitData 预览</summary>
+                  <pre style={{ fontSize: '10px', wordBreak: 'break-all' }}>{telegramInfo.initDataPreview}</pre>
+                </details>
+              )}
+            </div>
+
+            {/* 日志 */}
+            <div>
+              <strong>📋 日志 ({debugLogs.length}):</strong>
+              <div style={{ maxHeight: '150px', overflow: 'auto', marginTop: '0.5rem' }}>
+                {debugLogs.length === 0 ? (
+                  <div style={{ color: '#888' }}>暂无日志</div>
+                ) : (
+                  debugLogs.map((log, idx) => (
+                    <div key={idx} style={{ marginBottom: '2px', wordBreak: 'break-all', fontSize: '10px' }}>
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* 复制按钮 */}
+            <button
+              onClick={() => {
+                const data = {
+                  telegramInfo,
+                  logs: debugLogs,
+                  timestamp: new Date().toISOString(),
+                };
+                navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                alert('调试信息已复制到剪贴板！');
+              }}
+              style={{
+                marginTop: '0.5rem',
+                padding: '5px 10px',
+                fontSize: '11px',
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              复制调试信息
+            </button>
+          </div>
+        )}
         
         {error && (
           <div className="error-message" style={{ 
