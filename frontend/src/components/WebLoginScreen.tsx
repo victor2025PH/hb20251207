@@ -2,7 +2,7 @@
  * Web登录界面
  * 支持多种登录方式：Google、Telegram、Facebook、WhatsApp、Wallet、Magic Link
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Globe, MessageCircle, Facebook, MessageSquare, Wallet, Key } from 'lucide-react';
 import { googleAuth, walletAuth, verifyMagicLink, getCurrentUser } from '../utils/api';
 import { useAuth } from '../utils/auth/useAuth';
@@ -12,6 +12,9 @@ interface WebLoginScreenProps {
   onLoginSuccess?: () => void;
 }
 
+// Google Client ID (硬编码)
+const GOOGLE_CLIENT_ID = '853109842218-v250plv0gc9f3gl6tvbh3ltsckoj0156.apps.googleusercontent.com';
+
 export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
   const { login, loginWithMagicLink } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
@@ -19,24 +22,159 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
   const [walletAddress, setWalletAddress] = useState('');
   const [magicLinkToken, setMagicLinkToken] = useState('');
 
-  // Google登录
+  // Google 登录成功回调
+  const handleGoogleCredentialResponse = useCallback(async (response: any) => {
+    setLoading('google');
+    setError(null);
+    try {
+      // 解码 JWT Token 获取用户信息
+      let userInfo: any = {};
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        userInfo = {
+          email: payload.email,
+          given_name: payload.given_name,
+          family_name: payload.family_name,
+          picture: payload.picture,
+        };
+      } catch (e) {
+        console.warn('Failed to decode Google token:', e);
+      }
+
+      // 发送 POST 请求到后端 /api/v1/auth/web/google
+      await login('google', {
+        id_token: response.credential,
+        email: userInfo.email,
+        given_name: userInfo.given_name,
+        family_name: userInfo.family_name,
+        picture: userInfo.picture,
+      });
+      
+      // 等待状态更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      onLoginSuccess?.();
+    } catch (err: any) {
+      setError(err.message || 'Google登录失败');
+      setLoading(null);
+    }
+  }, [login, onLoginSuccess]);
+
+  // 初始化 Google Sign-In
+  useEffect(() => {
+    // 检查是否已加载 Google 脚本
+    if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+      // 脚本已存在，直接初始化
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+        });
+      }
+      return;
+    }
+
+    // 加载 Google GSI 脚本
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      // 初始化 Google Sign-In
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+        });
+      }
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      // 不清理脚本，因为可能被其他组件使用
+    };
+  }, [handleGoogleCredentialResponse]);
+
+  // Google登录按钮点击（触发 Google 登录流程）
   const handleGoogleLogin = async () => {
     setLoading('google');
     setError(null);
     try {
-      // TODO: 集成Google OAuth SDK
-      // 这里需要实际的Google OAuth流程
-      const mockIdToken = 'mock_google_id_token';
-      await login('google', {
-        id_token: mockIdToken,
-        email: 'user@example.com',
-        given_name: 'User',
-        family_name: 'Name'
-      });
-      onLoginSuccess?.();
+      if (window.google?.accounts?.id) {
+        // 使用 Google One Tap 登录（弹出登录窗口）
+        window.google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed()) {
+            // One Tap 不可用，尝试使用弹出窗口
+            const client = window.google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'openid email profile',
+              callback: async (tokenResponse: any) => {
+                try {
+                  // 使用 access_token 获取用户信息
+                  const userInfoResponse = await fetch(
+                    `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenResponse.access_token}`
+                  );
+                  const userInfo = await userInfoResponse.json();
+                  
+                  // 发送到后端（注意：这里使用 access_token 作为 id_token，后端需要适配）
+                  await login('google', {
+                    id_token: tokenResponse.access_token, // 临时方案
+                    email: userInfo.email,
+                    given_name: userInfo.given_name,
+                    family_name: userInfo.family_name,
+                    picture: userInfo.picture,
+                  });
+                  
+                  // 等待状态更新完成
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
+                  onLoginSuccess?.();
+                } catch (err: any) {
+                  setError(err.message || 'Google登录失败');
+                  setLoading(null);
+                }
+              },
+            });
+            client.requestAccessToken();
+          } else if (notification.isSkippedMoment()) {
+            // 用户跳过了 One Tap，使用弹出窗口
+            const client = window.google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'openid email profile',
+              callback: async (tokenResponse: any) => {
+                try {
+                  const userInfoResponse = await fetch(
+                    `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${tokenResponse.access_token}`
+                  );
+                  const userInfo = await userInfoResponse.json();
+                  
+                  await login('google', {
+                    id_token: tokenResponse.access_token,
+                    email: userInfo.email,
+                    given_name: userInfo.given_name,
+                    family_name: userInfo.family_name,
+                    picture: userInfo.picture,
+                  });
+                  
+                  // 等待状态更新完成
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
+                  onLoginSuccess?.();
+                } catch (err: any) {
+                  setError(err.message || 'Google登录失败');
+                  setLoading(null);
+                }
+              },
+            });
+            client.requestAccessToken();
+          }
+        });
+      } else {
+        setError('Google登录服务未加载，请刷新页面重试');
+        setLoading(null);
+      }
     } catch (err: any) {
       setError(err.message || 'Google登录失败');
-    } finally {
       setLoading(null);
     }
   };
@@ -129,6 +267,10 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
         address: walletAddress,
         network: 'TON'
       });
+      
+      // 等待状态更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       onLoginSuccess?.();
     } catch (err: any) {
       setError(err.message || '钱包连接失败');
@@ -148,6 +290,10 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
     setError(null);
     try {
       await loginWithMagicLink(magicLinkToken);
+      
+      // 等待状态更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       onLoginSuccess?.();
     } catch (err: any) {
       setError(err.message || 'Magic Link验证失败');
@@ -401,5 +547,29 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
       `}</style>
     </div>
   );
+}
+
+// 扩展 Window 类型以支持 Google API
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (response: any) => void }) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+          prompt: (callback: (notification: any) => void) => void;
+        };
+        oauth2: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: any) => void;
+          }) => {
+            requestAccessToken: () => void;
+          };
+        };
+      };
+    };
+  }
 }
 

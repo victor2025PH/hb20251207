@@ -110,8 +110,10 @@ export function AuthGuard({
   if (!hasTelegramWebApp || !hasValidInitData || telegramInitTimeout) {
     return (
       <WebLoginScreen 
-        onLoginSuccess={() => {
+        onLoginSuccess={async () => {
           // 登录成功后会通过useAuth自动更新状态
+          // 等待一小段时间确保状态更新完成，然后刷新页面
+          await new Promise(resolve => setTimeout(resolve, 300));
           window.location.reload();
         }}
       />
@@ -151,8 +153,10 @@ export function AuthGuard({
   // 默认情况：显示登录界面（确保总是返回有效的 React 元素）
   return (
     <WebLoginScreen 
-      onLoginSuccess={() => {
+      onLoginSuccess={async () => {
         // 登录成功后会通过useAuth自动更新状态
+        // 等待一小段时间确保状态更新完成，然后刷新页面
+        await new Promise(resolve => setTimeout(resolve, 300));
         window.location.reload();
       }}
     />
