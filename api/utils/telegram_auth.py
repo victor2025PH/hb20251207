@@ -68,7 +68,7 @@ def verify_telegram_init_data(init_data: str) -> bool:
             key, value = pair.split('=', 1)  # 只分割第一個 '='
             if key == 'hash':
                 hash_value = value
-            else:
+            elif key != 'signature':  # signature 字段不參與 hash 驗證
                 # 保持原始 URL 編碼的值
                 params_dict[key] = value
         
@@ -77,7 +77,7 @@ def verify_telegram_init_data(init_data: str) -> bool:
             return False
         
         # 構建 data_check_string（使用原始 URL 編碼的值）
-        # 按 key 排序，構建 key=value 格式，用換行符連接
+        # 排除 hash 和 signature 字段，按 key 排序，構建 key=value 格式，用換行符連接
         data_check_string = "\n".join(
             f"{k}={v}" for k, v in sorted(params_dict.items()) if v is not None and v != ''
         )
