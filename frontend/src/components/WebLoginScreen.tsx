@@ -134,9 +134,10 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
                   );
                   const userInfo = await userInfoResponse.json();
                   
-                  // 发送到后端（注意：这里使用 access_token 作为 id_token，后端需要适配）
+                  // OAuth2 流程：使用 access_token 获取用户信息后，直接使用降级登录
+                  // 不发送 id_token（因为 access_token 不是 JWT 格式），后端会使用降级逻辑
                   await login('google', {
-                    id_token: tokenResponse.access_token, // 临时方案
+                    id_token: '', // 空字符串，触发后端降级逻辑
                     email: userInfo.email,
                     given_name: userInfo.given_name,
                     family_name: userInfo.family_name,
@@ -171,8 +172,10 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
                   );
                   const userInfo = await userInfoResponse.json();
                   
+                  // OAuth2 流程：使用 access_token 获取用户信息后，直接使用降级登录
+                  // 不发送 id_token（因为 access_token 不是 JWT 格式），后端会使用降级逻辑
                   await login('google', {
-                    id_token: tokenResponse.access_token,
+                    id_token: '', // 空字符串，触发后端降级逻辑
                     email: userInfo.email,
                     given_name: userInfo.given_name,
                     family_name: userInfo.family_name,
