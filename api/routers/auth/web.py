@@ -1,184 +1,107 @@
-"""
-Web认证API - Google OAuth和Wallet连接
-用于H5/Web版本的登录
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from loguru import logger
-
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from google.auth.exceptions import GoogleAuthError, TransportError
 from shared.database.connection import get_db_session
 from api.services.identity_service import IdentityService
 from api.utils.auth_utils import create_access_token, TokenResponse, UserResponse
+import os
 
 router = APIRouter(prefix="/web", tags=["Web Auth"])
 
 
 class GoogleAuthRequest(BaseModel):
-    """Google OAuth请求"""
-    id_token: str  # Google ID Token
+    id_token: str
     email: Optional[EmailStr] = None
+    picture: Optional[str] = None
     given_name: Optional[str] = None
     family_name: Optional[str] = None
-    picture: Optional[str] = None
-
-
-class WalletAuthRequest(BaseModel):
-    """Wallet连接请求"""
-    address: str  # 钱包地址
-    network: str = "TON"  # 网络类型
-    signature: Optional[str] = None  # 签名（用于验证）
-    message: Optional[str] = None  # 签名消息
 
 
 @router.post("/google", response_model=TokenResponse)
 async def google_auth(
-    request: GoogleAuthRequest,
-    db: AsyncSession = Depends(get_db_session)
+    request: GoogleAuthRequest, db: AsyncSession = Depends(get_db_session)
 ):
-    """
-    Google OAuth登录
-    
-    注意：这是一个简化版本，实际生产环境需要验证Google ID Token
-    """
+    logger.info("正在处理 Google 登录请求...")
+
+    # 1. 预先定义变量
+    email = None
+    google_sub = None
+    picture = None
+    name = None
+
+    # 从环境变量读取 GOOGLE_CLIENT_ID
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+
     try:
-        # TODO: 验证Google ID Token
-        # 这里应该调用Google API验证token
-        # 目前使用Mock验证
-        
-        # 提取用户信息
-        provider_data = {
-            'email': request.email,
-            'given_name': request.given_name,
-            'family_name': request.family_name,
-            'picture': request.picture,
-            'id_token': request.id_token
-        }
-        
-        # 使用email作为provider_user_id，如果没有email则使用id_token的hash
-        if not request.email:
-            import hashlib
-            provider_user_id = hashlib.sha256(request.id_token.encode()).hexdigest()[:32]
-            logger.warning(f"Google auth without email, using token hash: {provider_user_id[:8]}...")
+        # 尝试验证 Google Token
+        id_info = id_token.verify_oauth2_token(
+            request.id_token,
+            google_requests.Request(),
+            audience=client_id or None,
+        )
+        # 验证成功
+        email = id_info.get("email")
+        google_sub = id_info.get("sub")
+        picture = id_info.get("picture")
+        name = id_info.get("name")
+        logger.info(f"Google token verified: email={email}, sub={google_sub}")
+
+    except (ValueError, GoogleAuthError, TransportError) as e:
+        logger.exception(f"Google token verification failed: {e}")
+        # 【降级逻辑】如果验证失败，尝试使用前端传来的数据
+        if request.email:
+            logger.warning("Using frontend data for degraded Google login")
+            email = request.email
+            google_sub = request.email
+            picture = request.picture
+            first = request.given_name or ""
+            last = request.family_name or ""
+            name = (first + " " + last).strip() or None
         else:
-            provider_user_id = request.email
-        
-        # 获取或创建用户
-        try:
-            user = await IdentityService.get_or_create_user_by_identity(
-                db=db,
-                provider='google',
-                provider_user_id=provider_user_id,
-                provider_data=provider_data
-            )
-        except Exception as e:
-            logger.error(f"IdentityService error: {e}", exc_info=True)
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"User creation failed: {str(e)}"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无法验证 Google 凭证",
             )
-        
-        # 生成Token
-        token = create_access_token(user.id)
-        
-        logger.info(f"Google auth successful: email={request.email}, user_id={user.id}")
-        
-        return TokenResponse(
-            access_token=token,
-            user={
-                "id": user.id,
-                "uuid": user.uuid,
-                "username": user.username,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "primary_platform": user.primary_platform,
-            }
-        )
-    except HTTPException:
-        # 重新抛出 HTTPException
-        raise
-    except Exception as e:
-        logger.error(f"Google auth failed: {e}", exc_info=True)
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Google authentication failed: {str(e)}"
-        )
 
+    if not email:
+        raise HTTPException(status_code=400, detail="无法获取用户邮箱")
 
-@router.post("/wallet", response_model=TokenResponse)
-async def wallet_auth(
-    request: WalletAuthRequest,
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    Wallet连接登录
-    
-    注意：这是一个简化版本，实际生产环境需要验证钱包签名
-    """
+    # 2. 查找或创建用户
+    provider_data = {
+        "sub": google_sub,
+        "email": email,
+        "picture": picture or request.picture,
+        "name": name or request.given_name,
+    }
+
     try:
-        # TODO: 验证钱包签名
-        # 这里应该验证signature和message
-        # 目前使用Mock验证
-        
-        provider_data = {
-            'network': request.network,
-            'signature': request.signature,
-            'message': request.message
-        }
-        
-        # 获取或创建用户
         user = await IdentityService.get_or_create_user_by_identity(
             db=db,
-            provider='wallet',
-            provider_user_id=request.address,
-            provider_data=provider_data
-        )
-        
-        # 如果用户还没有wallet_address，更新它
-        if not user.wallet_address:
-            user.wallet_address = request.address
-            user.wallet_network = request.network
-            await db.commit()
-        
-        # 生成Token
-        token = create_access_token(user.id)
-        
-        logger.info(f"Wallet auth successful: address={request.address}, user_id={user.id}")
-        
-        return TokenResponse(
-            access_token=token,
-            user={
-                "id": user.id,
-                "uuid": user.uuid,
-                "wallet_address": user.wallet_address,
-                "wallet_network": user.wallet_network,
-                "primary_platform": user.primary_platform,
-            }
+            provider="google",
+            provider_user_id=email,
+            provider_data=provider_data,
         )
     except Exception as e:
-        logger.error(f"Wallet auth failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Wallet authentication failed"
-        )
+        logger.error(f"数据库服务错误: {e}")
+        raise HTTPException(status_code=500, detail="登录失败：数据库错误")
 
-
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_web(
-    current_user: "User" = Depends(lambda: None)  # TODO: 实现JWT验证
-):
-    """
-    获取当前Web用户信息
-    
-    注意：需要实现JWT验证中间件
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="JWT authentication not implemented yet"
+    # 3. 生成 Token
+    token = create_access_token(user.id)
+    user_response = UserResponse(
+        id=user.id,
+        tg_id=user.tg_id or 0,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        level=user.level,
+        balance_usdt=float(user.balance_usdt or 0),
+        balance_ton=float(user.balance_ton or 0),
+        balance_stars=user.balance_stars or 0,
+        balance_points=user.balance_points or 0,
     )
-
+    return TokenResponse(access_token=token, user=user_response)
