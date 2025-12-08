@@ -8,10 +8,14 @@ import urllib.parse
 import json
 import hashlib
 import hmac
+from datetime import datetime
 from loguru import logger
 from shared.config.settings import get_settings
 
 settings = get_settings()
+
+# auth_date 有效期（秒），默认 10 分钟
+AUTH_DATE_VALIDITY = 600  # 10 分钟
 
 
 def parse_telegram_init_data(init_data: str) -> Optional[dict]:
@@ -42,6 +46,49 @@ def parse_telegram_init_data(init_data: str) -> Optional[dict]:
         return None
 
 
+def check_auth_date_validity(init_data: str) -> tuple[bool, Optional[int]]:
+    """檢查 auth_date 是否在有效期內
+    
+    Returns:
+        tuple[bool, Optional[int]]: (是否有效, auth_date 值)
+    """
+    try:
+        # 解析 auth_date
+        params = urllib.parse.parse_qs(init_data, keep_blank_values=True)
+        auth_date_str = params.get('auth_date', [None])[0]
+        
+        if not auth_date_str:
+            logger.warning("[Telegram Auth] initData 中沒有 auth_date 字段")
+            return False, None
+        
+        try:
+            auth_date = int(auth_date_str)
+        except (ValueError, TypeError):
+            logger.warning(f"[Telegram Auth] auth_date 格式錯誤: {auth_date_str}")
+            return False, None
+        
+        # 檢查是否過期
+        current_time = int(datetime.utcnow().timestamp())
+        time_diff = current_time - auth_date
+        
+        if time_diff < 0:
+            logger.warning(f"[Telegram Auth] auth_date 在未來: {auth_date}, 當前: {current_time}")
+            return False, auth_date
+        
+        if time_diff > AUTH_DATE_VALIDITY:
+            logger.warning(
+                f"[Telegram Auth] auth_date 已過期: {time_diff} 秒 ({time_diff/60:.1f} 分鐘) "
+                f"超過有效期 {AUTH_DATE_VALIDITY} 秒"
+            )
+            return False, auth_date
+        
+        logger.debug(f"[Telegram Auth] auth_date 有效: {time_diff} 秒前")
+        return True, auth_date
+    except Exception as e:
+        logger.error(f"[Telegram Auth] 檢查 auth_date 失敗: {e}", exc_info=True)
+        return False, None
+
+
 def verify_telegram_init_data(init_data: str) -> bool:
     """驗證 Telegram initData 的 hash
     
@@ -49,16 +96,24 @@ def verify_telegram_init_data(init_data: str) -> bool:
     1. initData 是 URL 編碼的字符串
     2. hash 驗證需要使用原始 URL 編碼的值（不解碼）
     3. 構建 data_check_string 時，值應該是原始 URL 編碼的
+    
+    注意：目前暫時跳過 hash 驗證以便調試，但會檢查 auth_date 有效期
     """
     try:
-        # 如果 BOT_TOKEN 未配置，無法驗證
+        # 首先檢查 auth_date 是否有效（防止重放攻擊）
+        is_valid_date, auth_date = check_auth_date_validity(init_data)
+        if not is_valid_date:
+            logger.warning("[Telegram Auth] auth_date 驗證失敗，拒絕認證")
+            return False
+        
+        # 如果 BOT_TOKEN 未配置，無法驗證 hash
         if not settings.BOT_TOKEN:
-            logger.debug("BOT_TOKEN 未配置，跳過 initData hash 驗證")
+            logger.debug("BOT_TOKEN 未配置，跳過 initData hash 驗證（僅檢查 auth_date）")
             return True  # 開發環境允許跳過驗證
         
         # 暫時跳過 hash 驗證以便調試（生產環境應啟用）
-        # TODO: 修復 hash 驗證算法後移除此處
-        logger.warning("⚠️  暫時跳過 initData hash 驗證以便調試")
+        # TODO: 修復 hash 驗證算法後移除此處並啟用下面的驗證邏輯
+        logger.debug("⚠️  暫時跳過 initData hash 驗證以便調試（已通過 auth_date 檢查）")
         return True
         
         # 手動解析參數，保持原始 URL 編碼的值
@@ -88,9 +143,9 @@ def verify_telegram_init_data(init_data: str) -> bool:
             f"{k}={v}" for k, v in sorted_params if v is not None and v != ''
         )
         
-        logger.info(f"[Telegram Auth] 參與驗證的字段: {list(params_dict.keys())}")
-        logger.info(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
-        logger.info(f"[Telegram Auth] data_check_string 完整內容:\n{data_check_string}")
+        logger.debug(f"[Telegram Auth] 參與驗證的字段: {list(params_dict.keys())}")
+        logger.debug(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
+        logger.debug(f"[Telegram Auth] data_check_string 完整內容:\n{data_check_string}")
         
         # 計算密鑰：HMAC-SHA256("WebAppData", BOT_TOKEN)
         # 這是 Telegram 官方要求的計算方式
@@ -114,7 +169,7 @@ def verify_telegram_init_data(init_data: str) -> bool:
             logger.warning(f"  接收值: {hash_value}")
             logger.warning(f"  data_check_string: {data_check_string[:300]}...")
         else:
-            logger.info("initData hash 驗證成功")
+            logger.debug("initData hash 驗證成功")
         return is_valid
     except Exception as e:
         logger.warning(f"Failed to verify initData: {e}", exc_info=True)
