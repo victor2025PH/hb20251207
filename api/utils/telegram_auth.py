@@ -43,41 +43,66 @@ def parse_telegram_init_data(init_data: str) -> Optional[dict]:
 
 
 def verify_telegram_init_data(init_data: str) -> bool:
-    """驗證 Telegram initData 的 hash"""
+    """驗證 Telegram initData 的 hash
+    
+    根據 Telegram 官方文檔：
+    1. initData 是 URL 編碼的字符串
+    2. hash 驗證需要使用原始 URL 編碼的值（不解碼）
+    3. 構建 data_check_string 時，值應該是原始 URL 編碼的
+    """
     try:
         # 如果 BOT_TOKEN 未配置，無法驗證
         if not settings.BOT_TOKEN:
             logger.debug("BOT_TOKEN 未配置，跳過 initData hash 驗證")
             return True  # 開發環境允許跳過驗證
         
-        # 解析參數
-        params = urllib.parse.parse_qs(init_data, keep_blank_values=True)
+        # 手動解析參數，保持原始 URL 編碼的值
+        # 因為 parse_qs 會自動解碼，我們需要手動解析
+        pairs = init_data.split('&')
+        params_dict = {}
+        hash_value = None
         
-        # 獲取 hash
-        hash_value = params.get('hash', [None])[0]
+        for pair in pairs:
+            if '=' not in pair:
+                continue
+            key, value = pair.split('=', 1)  # 只分割第一個 '='
+            if key == 'hash':
+                hash_value = value
+            else:
+                # 保持原始 URL 編碼的值
+                params_dict[key] = value
+        
         if not hash_value:
             logger.warning("initData 中沒有 hash 字段")
             return False
         
-        # 移除 hash 並構建數據字符串
-        data_dict = {k: v[0] if v else '' for k, v in params.items() if k != 'hash'}
+        # 構建 data_check_string（使用原始 URL 編碼的值）
+        # 按 key 排序，構建 key=value 格式，用換行符連接
         data_check_string = "\n".join(
-            f"{k}={v}" for k, v in sorted(data_dict.items()) if v is not None
+            f"{k}={v}" for k, v in sorted(params_dict.items()) if v is not None and v != ''
         )
         
-        # 計算密鑰
+        logger.debug(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
+        logger.debug(f"[Telegram Auth] data_check_string 預覽: {data_check_string[:200]}...")
+        
+        # 計算密鑰：SHA256(BOT_TOKEN)
         secret_key = hashlib.sha256(settings.BOT_TOKEN.encode()).digest()
         
-        # 計算 HMAC
+        # 計算 HMAC-SHA256
         calculated_hash = hmac.new(
             secret_key,
-            data_check_string.encode(),
+            data_check_string.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
         
         is_valid = calculated_hash == hash_value
         if not is_valid:
-            logger.warning(f"initData hash 驗證失敗 - 計算值: {calculated_hash[:16]}..., 接收值: {hash_value[:16]}...")
+            logger.warning(f"initData hash 驗證失敗")
+            logger.warning(f"  計算值: {calculated_hash}")
+            logger.warning(f"  接收值: {hash_value}")
+            logger.warning(f"  data_check_string: {data_check_string[:300]}...")
+        else:
+            logger.info("initData hash 驗證成功")
         return is_valid
     except Exception as e:
         logger.warning(f"Failed to verify initData: {e}", exc_info=True)
