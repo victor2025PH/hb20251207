@@ -96,17 +96,18 @@ class ConnectionManager:
         self.active_connections: dict[int, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket, user_id: int):
-        await websocket.accept()
+        # 注意：websocket.accept() 应该在调用此方法之前已经完成
+        # 这里只负责将连接添加到管理器中
         self.active_connections[user_id] = websocket
         logger.info(
-            f"WebSocket connected: user_id={user_id}, total={len(self.active_connections)}"
+            f"[WS] WebSocket connected: user_id={user_id}, total={len(self.active_connections)}"
         )
 
     def disconnect(self, user_id: int):
         if user_id in self.active_connections:
             del self.active_connections[user_id]
             logger.info(
-                f"WebSocket disconnected: user_id={user_id}, total={len(self.active_connections)}"
+                f"[WS] WebSocket disconnected: user_id={user_id}, total={len(self.active_connections)}"
             )
 
     async def send_personal_message(self, message: dict, user_id: int):
