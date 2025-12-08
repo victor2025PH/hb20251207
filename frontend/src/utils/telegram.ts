@@ -115,11 +115,41 @@ export function initTelegram(): Promise<void> {
       // 调用 ready() 方法，然后使用 setTimeout 作为后备
       // Telegram WebApp SDK 的 ready() 方法会触发初始化
       webApp.ready()
-      // 使用 setTimeout 作为后备，确保不会永远等待
-      // 即使 ready 事件没有触发，也会在 100ms 后执行 onReady
-      setTimeout(() => {
+      
+      // 在真正的 Telegram MiniApp 中，initData 可能在 ready() 之后才可用
+      // 使用轮询方式等待 initData 准备就绪（最多等待 2 秒）
+      let pollAttempts = 0
+      const maxPollAttempts = 20 // 2秒，每次100ms
+      
+      const pollForInitData = () => {
+        const currentInitData = webApp.initData || ''
+        const currentUser = webApp.initDataUnsafe?.user
+        
+        if (currentInitData && currentInitData.length > 0) {
+          // initData 已准备就绪
+          console.log('[Telegram] initData 已准备就绪（通过轮询）', {
+            initDataLength: currentInitData.length,
+            hasUser: !!currentUser
+          })
+          onReady()
+        } else if (pollAttempts < maxPollAttempts) {
+          // 继续等待
+          pollAttempts++
+          setTimeout(pollForInitData, 100)
+        } else {
+          // 超时，但仍然执行 onReady（可能不在真正的 Telegram 环境中）
+          console.warn('[Telegram] 等待 initData 超时，可能不在真正的 Telegram MiniApp 中')
+          onReady()
+        }
+      }
+      
+      // 立即检查一次，如果已有 initData 则直接执行
+      if (webApp.initData && webApp.initData.length > 0) {
         onReady()
-      }, 100)
+      } else {
+        // 开始轮询
+        setTimeout(pollForInitData, 100)
+      }
     } catch (error) {
       console.error('[Telegram] Init error:', error)
       resolve()

@@ -76,26 +76,59 @@ export function useAuth() {
         
         if (initData && initData.length > 0) {
           try {
+            const tgUser = getTelegramUser();
             console.log('[Auth] 尝试使用 Telegram initData 认证...', {
               initDataLength: initData.length,
-              hasUser: !!getTelegramUser()
+              hasUser: !!tgUser,
+              userId: tgUser?.id,
+              username: tgUser?.username,
+              initDataPreview: initData.substring(0, 100) + '...'
             });
             
             // 通过Telegram initData获取用户信息
+            // 注意：getCurrentUser() 会通过 API 拦截器自动发送 initData
             const response = await getCurrentUser();
+            
+            console.log('[Auth] Telegram getCurrentUser() 响应:', {
+              hasData: !!response.data,
+              userId: response.data?.id,
+              username: response.data?.username
+            });
+            
+            // 确保 response.data 存在且包含必要的字段
+            const userData = response.data || response;
+            if (!userData || !userData.id) {
+              console.error('[Auth] Telegram 认证响应数据无效:', userData);
+              throw new Error('Invalid user data received from server');
+            }
+            
             setAuthState({
-              user: response.data,
+              user: userData,
               loading: false,
               isAuthenticated: true,
               platform: 'telegram'
             });
-            console.log('[Auth] Telegram 自动登录成功', response.data);
+            console.log('[Auth] Telegram 自动登录成功', {
+              userId: userData.id,
+              username: userData.username,
+              isAuthenticated: true
+            });
             return;
           } catch (error: any) {
-            // 认证失败，检查是否是未认证错误（静默处理）
+            // 认证失败，记录详细错误信息
+            console.error('[Auth] Telegram认证失败:', {
+              error: error.message,
+              status: error?.response?.status,
+              isUnauthorized: error?.isUnauthorized,
+              responseData: error?.response?.data
+            });
+            
             if (error?.isUnauthorized || error?.response?.status === 401) {
-              // 这是未认证的情况，静默处理，不记录错误
-              console.debug('[Auth] Telegram认证失败 - initData可能无效或已过期，将尝试其他登录方式');
+              // 这是未认证的情况，可能是 initData hash 验证失败
+              console.warn('[Auth] Telegram认证失败 - 可能的原因：');
+              console.warn('[Auth] 1. initData hash 验证失败（检查 BOT_TOKEN 配置）');
+              console.warn('[Auth] 2. initData 已过期');
+              console.warn('[Auth] 3. 后端无法解析 initData');
             } else {
               // 其他错误，记录警告
               console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);

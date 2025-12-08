@@ -23,22 +23,38 @@ api.interceptors.request.use((config) => {
   // 因為 Telegram MiniApp 應該使用 Telegram 認證
   if (isInTelegramEnv) {
     config.headers['X-Telegram-Init-Data'] = initData
+    
+    // 解析 initData 获取用户信息（用于日志）
+    let tgUserId = null
+    try {
+      const params = new URLSearchParams(initData)
+      const userStr = params.get('user')
+      if (userStr) {
+        const userData = JSON.parse(userStr)
+        tgUserId = userData.id
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+    
     // 如果同時有 JWT token，也添加（作為備用）
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
       console.log('[API Request]', config.url, 'with Telegram initData (primary) and JWT token (fallback)', {
         method: config.method,
-        headers: {
-          'X-Telegram-Init-Data': initData.substring(0, 50) + '...',
-          'Authorization': 'Bearer ***'
-        }
+        initDataLength: initData.length,
+        tgUserId: tgUserId,
+        initDataPreview: initData.substring(0, 50) + '...',
+        hasJWT: true
       })
     } else {
-      console.log('[API Request]', config.url, 'with Telegram auth:', {
+      console.log('[API Request]', config.url, 'with Telegram auth only:', {
         method: config.method,
         initDataLength: initData.length,
-        initDataPreview: initData.substring(0, 50) + '...'
+        tgUserId: tgUserId,
+        initDataPreview: initData.substring(0, 50) + '...',
+        hasJWT: false
       })
     }
     return config
