@@ -85,8 +85,13 @@ def verify_telegram_init_data(init_data: str) -> bool:
         logger.debug(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
         logger.debug(f"[Telegram Auth] data_check_string 預覽: {data_check_string[:200]}...")
         
-        # 計算密鑰：SHA256(BOT_TOKEN)
-        secret_key = hashlib.sha256(settings.BOT_TOKEN.encode()).digest()
+        # 計算密鑰：HMAC-SHA256("WebAppData", BOT_TOKEN)
+        # 這是 Telegram 官方要求的計算方式
+        secret_key = hmac.new(
+            "WebAppData".encode(),
+            settings.BOT_TOKEN.encode(),
+            hashlib.sha256
+        ).digest()
         
         # 計算 HMAC-SHA256
         calculated_hash = hmac.new(
