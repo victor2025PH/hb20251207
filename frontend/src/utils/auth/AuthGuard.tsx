@@ -111,9 +111,21 @@ export function AuthGuard({
     return (
       <WebLoginScreen 
         onLoginSuccess={async () => {
+          console.log('[AuthGuard] onLoginSuccess called, checking auth state...');
           // 登录成功后会通过useAuth自动更新状态
           // 等待一小段时间确保状态更新完成，然后刷新页面
           await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // 验证 token 是否已保存
+          const token = localStorage.getItem('auth_token');
+          console.log('[AuthGuard] Token in localStorage:', token ? 'exists' : 'missing');
+          
+          if (!token) {
+            console.error('[AuthGuard] Token not found in localStorage, login may have failed');
+            return;
+          }
+          
+          console.log('[AuthGuard] Reloading page...');
           window.location.reload();
         }}
       />

@@ -157,6 +157,7 @@ export function useAuth() {
   // 登录（Web环境）
   const login = useCallback(async (provider: 'google' | 'wallet', credentials: any) => {
     try {
+      console.log(`[useAuth] Starting ${provider} login...`);
       let authData: AuthResponse;
       if (provider === 'google') {
         authData = await googleAuth(credentials);
@@ -164,36 +165,45 @@ export function useAuth() {
         authData = await walletAuth(credentials);
       }
       
+      console.log('[useAuth] Login API response received', { hasToken: !!authData.access_token, hasUser: !!authData.user });
+      
       // authData 已经是 AuthResponse 类型，包含 access_token 和 user
       // 保存Token
       if (!authData.access_token) {
         throw new Error('登录响应中缺少 access_token');
       }
       localStorage.setItem('auth_token', authData.access_token);
+      console.log('[useAuth] Token saved to localStorage');
       
       // 登录成功后，重新获取完整的用户信息
       try {
         const userResponse = await getCurrentUser();
+        console.log('[useAuth] User info retrieved, updating auth state...');
         setAuthState({
           user: userResponse.data,
           loading: false,
           isAuthenticated: true,
           platform: detectPlatform().platform
         });
+        console.log('[useAuth] Auth state updated, isAuthenticated=true');
       } catch (userError) {
         // 如果获取用户信息失败，使用登录响应中的用户信息
-        console.warn('获取用户信息失败，使用登录响应中的信息:', userError);
+        console.warn('[useAuth] Failed to get user info, using login response data:', userError);
         setAuthState({
           user: authData.user,
           loading: false,
           isAuthenticated: true,
           platform: detectPlatform().platform
         });
+        console.log('[useAuth] Auth state updated with login response data, isAuthenticated=true');
       }
+      
+      // 等待状态更新完成（React 状态更新是异步的）
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       return authData;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[useAuth] Login error:', error);
       throw error;
     }
   }, []);

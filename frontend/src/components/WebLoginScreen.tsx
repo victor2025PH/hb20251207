@@ -24,6 +24,7 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
 
   // Google 登录成功回调
   const handleGoogleCredentialResponse = useCallback(async (response: any) => {
+    console.log('[Google Login] Credential response received', { hasCredential: !!response.credential });
     setLoading('google');
     setError(null);
     try {
@@ -37,11 +38,13 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
           family_name: payload.family_name,
           picture: payload.picture,
         };
+        console.log('[Google Login] Decoded user info', { email: userInfo.email });
       } catch (e) {
         console.warn('Failed to decode Google token:', e);
       }
 
       // 发送 POST 请求到后端 /api/v1/auth/web/google
+      console.log('[Google Login] Calling login function...');
       await login('google', {
         id_token: response.credential,
         email: userInfo.email,
@@ -50,11 +53,20 @@ export function WebLoginScreen({ onLoginSuccess }: WebLoginScreenProps) {
         picture: userInfo.picture,
       });
       
+      console.log('[Google Login] Login successful, waiting for state update...');
       // 等待状态更新完成
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      onLoginSuccess?.();
+      console.log('[Google Login] Calling onLoginSuccess callback...');
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      } else {
+        console.warn('[Google Login] onLoginSuccess callback is not defined');
+        // 如果没有回调，直接刷新页面
+        window.location.reload();
+      }
     } catch (err: any) {
+      console.error('[Google Login] Login failed:', err);
       setError(err.message || 'Google登录失败');
       setLoading(null);
     }
