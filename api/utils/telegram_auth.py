@@ -78,12 +78,14 @@ def verify_telegram_init_data(init_data: str) -> bool:
         
         # 構建 data_check_string（使用原始 URL 編碼的值）
         # 排除 hash 和 signature 字段，按 key 排序，構建 key=value 格式，用換行符連接
+        sorted_params = sorted(params_dict.items())
         data_check_string = "\n".join(
-            f"{k}={v}" for k, v in sorted(params_dict.items()) if v is not None and v != ''
+            f"{k}={v}" for k, v in sorted_params if v is not None and v != ''
         )
         
-        logger.debug(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
-        logger.debug(f"[Telegram Auth] data_check_string 預覽: {data_check_string[:200]}...")
+        logger.info(f"[Telegram Auth] 參與驗證的字段: {list(params_dict.keys())}")
+        logger.info(f"[Telegram Auth] data_check_string 長度: {len(data_check_string)}")
+        logger.info(f"[Telegram Auth] data_check_string 完整內容:\n{data_check_string}")
         
         # 計算密鑰：HMAC-SHA256("WebAppData", BOT_TOKEN)
         # 這是 Telegram 官方要求的計算方式
