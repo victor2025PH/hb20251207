@@ -119,3 +119,16 @@ Since local scripts do not automatically sync to the server, you must follow thi
 2. **NO STATUS REPORTS**:
    - **FORBIDDEN**: Do not generate markdown files for status checks (e.g., `database-data-status.md`).
    - **ACTION**: Print check results directly in the chat.
+
+   ## SSH & REMOTE COMMAND SAFETY (CRITICAL FOR WINDOWS)
+
+1.  **NO COMPLEX SSH COMMANDS**:
+    - **STRICTLY FORBIDDEN**: Do not use pipe (`|`), `grep`, `sed`, `awk`, or complex regex inside an `ssh "..."` command string.
+    - **REASON**: Nested quotes (`"`, `'`) and pipes cause Windows PowerShell to hang or fail (syntax error).
+    - **ACTION**:
+        - **INCORRECT**: `ssh user@ip "cat file.txt | grep 'error'"`
+        - **CORRECT**: `ssh user@ip "cat file.txt"` (Read the full content and analyze it in your memory).
+
+2.  **SIMPLE COMMANDS ONLY**:
+    - Only execute simple commands like `ls`, `cat`, `cd`, or running a script (`bash script.sh`) over SSH.
+    - If you need to filter logs, read the last 50 lines (`tail -n 50`) and filter them yourself, do not make the server do it via SSH command.

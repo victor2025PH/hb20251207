@@ -96,17 +96,15 @@ class LedgerService:
         if balance_after < 0:
             raise ValueError(f"Insufficient balance: {currency_enum.value} {balance_before}, required: {abs(amount)}")
         
-        # 获取或创建余额记录
+        # 获取或创建余额记录（新版本：一个用户一条记录，包含所有币种余额）
         result = await db.execute(
-            select(UserBalance).where(
-                UserBalance.user_id == user_id,
-                UserBalance.currency == currency_enum
-            )
+            select(UserBalance).where(UserBalance.user_id == user_id)
         )
         balance = result.scalar_one_or_none()
         
         if not balance:
-            balance = UserBalance(user_id=user_id, currency=currency_enum)
+            # 创建新的余额记录（不需要设置 currency，因为新版本是一个用户一条记录）
+            balance = UserBalance(user_id=user_id)
             db.add(balance)
         
         # 更新余额

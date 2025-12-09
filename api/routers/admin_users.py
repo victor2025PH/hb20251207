@@ -142,26 +142,45 @@ async def list_users(
     )
     users = users_result.scalars().all()
     
+    # 使用 LedgerService 获取余额（统一数据源）
+    from api.services.ledger_service import LedgerService
+    from decimal import Decimal
+    
     # 转换为响应模型
-    user_list = [
-        UserListItem(
-            id=user.id,
-            tg_id=user.tg_id,  # 允许为 None
-            telegram_id=user.tg_id,  # 添加 telegram_id 字段以兼容前端，允许为 None
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            level=user.level or 1,
-            balance_usdt=float(user.balance_usdt or 0),
-            balance_ton=float(user.balance_ton or 0),
-            balance_stars=user.balance_stars or 0,
-            balance_points=user.balance_points or 0,
-            is_banned=user.is_banned or False,
-            created_at=user.created_at,
-            updated_at=user.updated_at
+    user_list = []
+    for user in users:
+        # 使用 LedgerService 获取余额（与游戏端和发送红包一致）
+        try:
+            balance_usdt = float(await LedgerService.get_balance(db, user.id, 'USDT') or Decimal('0'))
+            balance_ton = float(await LedgerService.get_balance(db, user.id, 'TON') or Decimal('0'))
+            balance_stars = int(await LedgerService.get_balance(db, user.id, 'STARS') or Decimal('0'))
+            balance_points = int(await LedgerService.get_balance(db, user.id, 'POINTS') or Decimal('0'))
+        except Exception as e:
+            # 如果 LedgerService 失败，回退到 User 表余额
+            logger.warning(f"Failed to get balance from LedgerService for user {user.id}, falling back to User table: {e}")
+            balance_usdt = float(user.balance_usdt or 0)
+            balance_ton = float(user.balance_ton or 0)
+            balance_stars = user.balance_stars or 0
+            balance_points = user.balance_points or 0
+        
+        user_list.append(
+            UserListItem(
+                id=user.id,
+                tg_id=user.tg_id,  # 允许为 None
+                telegram_id=user.tg_id,  # 添加 telegram_id 字段以兼容前端，允许为 None
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                level=user.level or 1,
+                balance_usdt=balance_usdt,
+                balance_ton=balance_ton,
+                balance_stars=balance_stars,
+                balance_points=balance_points,
+                is_banned=user.is_banned or False,
+                created_at=user.created_at,
+                updated_at=user.updated_at
+            )
         )
-        for user in users
-    ]
     
     result = {
         "success": True,
@@ -191,7 +210,7 @@ async def adjust_user_balance(
     db: AsyncSession = Depends(get_db_session),
     admin: AdminUser = Depends(get_current_active_admin)
 ):
-    """调整用户余额"""
+    """调整用户余额（使用 LedgerService 统一数据源）"""
     # 清除用户列表缓存（余额变更会影响列表）
     cache = get_cache_service()
     await cache.delete_pattern("admin:users:list:*")
@@ -203,53 +222,48 @@ async def adjust_user_balance(
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
     
-    # 根据货币类型调整余额
+    # 验证货币类型
     currency_map = {
-        "usdt": "balance_usdt",
-        "ton": "balance_ton",
-        "stars": "balance_stars",
-        "points": "balance_points",
+        "usdt": "USDT",
+        "ton": "TON",
+        "stars": "STARS",
+        "points": "POINTS",
     }
     
-    if request.currency not in currency_map:
+    if request.currency.lower() not in currency_map:
         raise HTTPException(status_code=400, detail=f"不支持的货币类型: {request.currency}")
     
-    balance_field = currency_map[request.currency]
-    current_balance = getattr(user, balance_field) or Decimal(0)
-    if isinstance(current_balance, (int, float)):
-        current_balance = Decimal(str(current_balance))
-    
-    # 更新余额
+    currency = currency_map[request.currency.lower()]
     amount_decimal = Decimal(str(request.amount))
-    new_balance = current_balance + amount_decimal
-    if new_balance < 0:
+    
+    # 使用 LedgerService 获取当前余额
+    from api.services.ledger_service import LedgerService
+    current_balance = await LedgerService.get_balance(db, user.id, currency)
+    
+    # 检查余额是否足够（如果是减少操作）
+    if amount_decimal < 0 and current_balance + amount_decimal < 0:
         raise HTTPException(status_code=400, detail="余额不能为负数")
     
-    setattr(user, balance_field, new_balance)
-    
-    # 转换货币类型为枚举
-    currency_enum_map = {
-        "usdt": CurrencyType.USDT,
-        "ton": CurrencyType.TON,
-        "stars": CurrencyType.STARS,
-        "points": CurrencyType.POINTS,
-    }
-    currency_enum = currency_enum_map.get(request.currency.lower(), CurrencyType.USDT)
-    
-    # 创建交易记录
-    transaction = Transaction(
-        user_id=user.id,
-        type="admin_adjust",
-        amount=amount_decimal,
-        currency=currency_enum,
-        balance_before=current_balance,
-        balance_after=new_balance,
-        note=request.reason or f"管理员 {admin.username} 调整余额",
-    )
-    db.add(transaction)
-    
-    await db.commit()
-    await db.refresh(user)
+    # 使用 LedgerService 创建账本条目（统一数据源）
+    try:
+        entry_result = await LedgerService.create_entry(
+            db=db,
+            user_id=user.id,
+            amount=amount_decimal,
+            currency=currency,
+            entry_type='ADMIN_ADJUST',
+            related_type='admin_operation',
+            description=request.reason or f"管理员 {admin.username} 调整余额",
+            created_by=f'admin:{admin.username}'
+        )
+        
+        new_balance = Decimal(entry_result['balance_after'])
+    except ValueError as e:
+        # 余额不足
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to adjust balance using LedgerService: {e}")
+        raise HTTPException(status_code=500, detail="余额调整失败")
     
     return {
         "success": True,
@@ -257,8 +271,8 @@ async def adjust_user_balance(
         "data": {
             "user_id": user.id,
             "currency": request.currency,
-            "old_balance": current_balance,
-            "new_balance": new_balance,
+            "old_balance": float(current_balance),
+            "new_balance": float(new_balance),
             "amount": request.amount,
         }
     }
@@ -340,6 +354,23 @@ async def get_user_detail_full(
     )
     total_transactions = total_transactions_result.scalar() or 0
     
+    # 使用 LedgerService 获取余额（统一数据源）
+    from api.services.ledger_service import LedgerService
+    from decimal import Decimal
+    
+    try:
+        balance_usdt = float(await LedgerService.get_balance(db, user.id, 'USDT') or Decimal('0'))
+        balance_ton = float(await LedgerService.get_balance(db, user.id, 'TON') or Decimal('0'))
+        balance_stars = int(await LedgerService.get_balance(db, user.id, 'STARS') or Decimal('0'))
+        balance_points = int(await LedgerService.get_balance(db, user.id, 'POINTS') or Decimal('0'))
+    except Exception as e:
+        # 如果 LedgerService 失败，回退到 User 表余额
+        logger.warning(f"Failed to get balance from LedgerService for user {user.id}, falling back to User table: {e}")
+        balance_usdt = float(user.balance_usdt or 0)
+        balance_ton = float(user.balance_ton or 0)
+        balance_stars = user.balance_stars or 0
+        balance_points = user.balance_points or 0
+    
     return {
         "success": True,
         "data": {
@@ -349,10 +380,10 @@ async def get_user_detail_full(
                 "username": user.username,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
-                "balance_usdt": float(user.balance_usdt or 0),
-                "balance_ton": float(user.balance_ton or 0),
-                "balance_stars": user.balance_stars or 0,
-                "balance_points": user.balance_points or 0,
+                "balance_usdt": balance_usdt,
+                "balance_ton": balance_ton,
+                "balance_stars": balance_stars,
+                "balance_points": balance_points,
                 "level": user.level or 0,
                 "xp": user.xp or 0,
                 "invite_code": user.invite_code,
@@ -509,27 +540,45 @@ async def batch_operation(
         
     elif request.operation == "export":
         # 批量导出（返回用户数据）
+        # 使用 LedgerService 获取余额（统一数据源）
+        from api.services.ledger_service import LedgerService
+        from decimal import Decimal
+        
+        user_list = []
+        for user in users:
+            try:
+                balance_usdt = float(await LedgerService.get_balance(db, user.id, 'USDT') or Decimal('0'))
+                balance_ton = float(await LedgerService.get_balance(db, user.id, 'TON') or Decimal('0'))
+                balance_stars = int(await LedgerService.get_balance(db, user.id, 'STARS') or Decimal('0'))
+                balance_points = int(await LedgerService.get_balance(db, user.id, 'POINTS') or Decimal('0'))
+            except Exception as e:
+                # 如果 LedgerService 失败，回退到 User 表余额
+                logger.warning(f"Failed to get balance from LedgerService for user {user.id}, falling back to User table: {e}")
+                balance_usdt = float(user.balance_usdt or 0)
+                balance_ton = float(user.balance_ton or 0)
+                balance_stars = user.balance_stars or 0
+                balance_points = user.balance_points or 0
+            
+            user_list.append({
+                "id": user.id,
+                "telegram_id": user.tg_id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "balance_usdt": balance_usdt,
+                "balance_ton": balance_ton,
+                "balance_stars": balance_stars,
+                "balance_points": balance_points,
+                "level": user.level or 0,
+                "is_banned": user.is_banned or False,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+            })
+        
         return {
             "success": True,
             "message": "导出数据准备完成",
             "data": {
-                "users": [
-                    {
-                        "id": user.id,
-                        "telegram_id": user.tg_id,
-                        "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "balance_usdt": float(user.balance_usdt or 0),
-                        "balance_ton": float(user.balance_ton or 0),
-                        "balance_stars": user.balance_stars or 0,
-                        "balance_points": user.balance_points or 0,
-                        "level": user.level or 0,
-                        "is_banned": user.is_banned or False,
-                        "created_at": user.created_at.isoformat() if user.created_at else None,
-                    }
-                    for user in users
-                ]
+                "users": user_list
             }
         }
     else:
