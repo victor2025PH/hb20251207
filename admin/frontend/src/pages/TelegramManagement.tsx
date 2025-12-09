@@ -226,20 +226,53 @@ export default function TelegramManagement() {
           form={form}
           layout="vertical"
           onFinish={(values) => {
-            sendMessageMutation.mutate(values)
+            // 驗證並轉換 chat_id 為數字
+            const chatId = Number(values.chat_id)
+            if (isNaN(chatId) || chatId <= 0) {
+              message.error('Chat ID 必須是有效的正整數')
+              return
+            }
+            
+            // 驗證消息內容
+            if (!values.text || !values.text.trim()) {
+              message.error('請輸入消息內容')
+              return
+            }
+            
+            sendMessageMutation.mutate({
+              chat_id: chatId,
+              text: values.text.trim(),
+            })
           }}
         >
           <Form.Item
             name="chat_id"
             label="Chat ID"
-            rules={[{ required: true, message: '請輸入 Chat ID' }]}
+            rules={[
+              { required: true, message: '請輸入 Chat ID' },
+              {
+                validator: (_, value) => {
+                  if (!value) {
+                    return Promise.resolve()
+                  }
+                  const num = Number(value)
+                  if (isNaN(num) || num <= 0) {
+                    return Promise.reject(new Error('Chat ID 必須是有效的正整數'))
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
           >
-            <Input placeholder="輸入群組或用戶 ID" />
+            <Input placeholder="輸入群組或用戶 ID" type="number" />
           </Form.Item>
           <Form.Item
             name="text"
             label="消息內容"
-            rules={[{ required: true, message: '請輸入消息內容' }]}
+            rules={[
+              { required: true, message: '請輸入消息內容' },
+              { whitespace: true, message: '消息內容不能為空' }
+            ]}
           >
             <Input.TextArea rows={5} placeholder="輸入要發送的消息..." />
           </Form.Item>

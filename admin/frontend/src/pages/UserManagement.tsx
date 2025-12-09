@@ -425,21 +425,42 @@ export default function UserManagement() {
           form={form}
           layout="vertical"
           onFinish={(values) => {
-            if (values.message && selectedUser?.telegram_id) {
-              sendMessageMutation.mutate({
-                chat_id: selectedUser.telegram_id,
-                text: values.message,
-              })
+            // 檢查消息內容
+            if (!values.message || !values.message.trim()) {
+              message.error('請輸入消息內容')
+              return
             }
+            
+            // 檢查 Telegram ID
+            if (!selectedUser?.telegram_id) {
+              message.error('該用戶沒有有效的 Telegram ID，無法發送消息')
+              return
+            }
+            
+            // 確保 telegram_id 是數字
+            const chatId = Number(selectedUser.telegram_id)
+            if (isNaN(chatId) || chatId <= 0) {
+              message.error('Telegram ID 無效，無法發送消息')
+              return
+            }
+            
+            // 發送消息
+            sendMessageMutation.mutate({
+              chat_id: chatId,
+              text: values.message.trim(),
+            })
           }}
         >
           <Form.Item label="接收者">
-            <Input value={selectedUser?.username || selectedUser?.telegram_id} disabled />
+            <Input value={selectedUser?.username || selectedUser?.telegram_id || '未知'} disabled />
           </Form.Item>
           <Form.Item
             name="message"
             label="* 消息內容"
-            rules={[{ required: true, message: '請輸入消息內容' }]}
+            rules={[
+              { required: true, message: '請輸入消息內容' },
+              { whitespace: true, message: '消息內容不能為空' }
+            ]}
           >
             <Input.TextArea rows={5} placeholder="輸入要發送的消息..." />
           </Form.Item>
