@@ -62,7 +62,7 @@ async def seed_referral_tree():
                 INSERT INTO users (
                     username, first_name, last_name, invite_code, 
                     balance_usdt, balance_ton, balance_stars, balance_points,
-                    level, xp, created_at, invited_by_id
+                    level, xp, created_at, referrer_id
                 ) VALUES 
                 ('test_user_1', 'User', 'One', 'USER001', 500.0, 50.0, 2500, 5000, 3, 300, CURRENT_TIMESTAMP, :root_id),
                 ('test_user_2', 'User', 'Two', 'USER002', 500.0, 50.0, 2500, 5000, 3, 300, CURRENT_TIMESTAMP, :root_id)
@@ -85,7 +85,7 @@ async def seed_referral_tree():
                 INSERT INTO users (
                     username, first_name, last_name, invite_code, 
                     balance_usdt, balance_ton, balance_stars, balance_points,
-                    level, xp, created_at, invited_by_id
+                    level, xp, created_at, referrer_id
                 ) VALUES 
                 ('test_user_1_1', 'User', 'One-One', 'U1_1001', 200.0, 20.0, 1000, 2000, 2, 200, CURRENT_TIMESTAMP, :user1_id),
                 ('test_user_1_2', 'User', 'One-Two', 'U1_1002', 200.0, 20.0, 1000, 2000, 2, 200, CURRENT_TIMESTAMP, :user1_id),
@@ -108,6 +108,13 @@ async def seed_referral_tree():
             )
             user2_1_id = user2_1_result.scalar_one()
             logger.info(f"✅ 创建第3层用户: user_1_1 (id: {user1_1_id}), user_1_2 (id: {user1_2_id}), user_2_1 (id: {user2_1_id})")
+            
+            # 更新 invited_by 字段（兼容旧字段）
+            await db.execute(text("""
+                UPDATE users 
+                SET invited_by = referrer_id 
+                WHERE referrer_id IS NOT NULL AND invited_by IS NULL
+            """))
             
             await db.commit()
             logger.info("✅ 推荐关系树测试数据生成完成！")

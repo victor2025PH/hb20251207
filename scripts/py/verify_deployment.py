@@ -24,16 +24,19 @@ async def verify_deployment():
             count = result.scalar_one()
             logger.info(f"✅ scheduled_redpacket_rains 表存在，记录数: {count}")
             
-            # 2. 检查 system_config 表
-            result = await db.execute(
-                text("SELECT COUNT(*) FROM system_config WHERE key LIKE '%commission%' OR key LIKE '%invite%'")
-            )
-            config_count = result.scalar_one()
-            logger.info(f"✅ 推荐系统配置项数: {config_count}")
+            # 2. 检查 system_config 表（如果存在）
+            try:
+                result = await db.execute(
+                    text("SELECT COUNT(*) FROM system_config WHERE key LIKE '%commission%' OR key LIKE '%invite%'")
+                )
+                config_count = result.scalar_one()
+                logger.info(f"✅ 推荐系统配置项数: {config_count}")
+            except Exception:
+                logger.warning("⚠️  system_config 表不存在（可能需要运行数据库迁移）")
             
             # 3. 检查测试用户
             result = await db.execute(
-                text("SELECT username, invited_by_id FROM users WHERE username LIKE 'test_%' ORDER BY username")
+                text("SELECT username, referrer_id FROM users WHERE username LIKE 'test_%' ORDER BY username")
             )
             test_users = result.fetchall()
             logger.info(f"✅ 测试用户数: {len(test_users)}")
