@@ -20,8 +20,8 @@ router = APIRouter(prefix="/api/v1/admin/users", tags=["管理后台-用户管�
 class UserListItem(BaseModel):
     """用户列表项"""
     id: int
-    tg_id: int
-    telegram_id: int  # 前端使用的字段名
+    tg_id: Optional[int] = None  # 允许为 None（非 Telegram 用户）
+    telegram_id: Optional[int] = None  # 前端使用的字段名，允许为 None
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -43,6 +43,7 @@ class UserListItem(BaseModel):
             data['telegram_id'] = data['tg_id']
         elif 'tg_id' not in data and 'telegram_id' in data:
             data['tg_id'] = data['telegram_id']
+        # 如果两者都为 None，保持 None（非 Telegram 用户）
         super().__init__(**data)
 
 
