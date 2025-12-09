@@ -38,8 +38,8 @@
     - **NO COMPLEX SSH COMMANDS**: **Strictly Forbidden** to use `grep`, `awk`, `sed`, `|`, or quotes (`"`, `'`) inside an `ssh` command.
     - **REASON**: Nested quotes cause syntax errors in PowerShell (the `>>` hang).
     - **ACTION**: 
-        - ❌ `ssh user@ip "cat file | grep 'text'"` (BANNED)
-        - ✅ `ssh user@ip "cat file"` (Read full content, then process in chat memory).
+        - INCORRECT: `ssh user@ip "cat file | grep 'text'"` (BANNED)
+        - CORRECT: `ssh user@ip "cat file"` (Read full content, then process in chat memory).
 
 ---
 
