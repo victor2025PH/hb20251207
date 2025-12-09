@@ -383,6 +383,13 @@ export default function WalletPage() {
             ))}
           </div>
 
+          {/* 等級標籤 */}
+          {profile && (
+            <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 bg-[#1C1C1E]/80 backdrop-blur-sm border border-orange-500/30 rounded-full">
+              <span className="text-orange-400 text-xs font-bold">Lv.{profile.level}</span>
+            </div>
+          )}
+
           {/* 圖標 */}
           <div className={`relative z-10 w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center mb-1.5 border-4 border-[#1C1C1E] transition-transform duration-100 ${isHolding ? 'scale-125 shadow-[0_0_50px_orange]' : 'shadow-[0_0_20px_rgba(234,88,12,0.5)]'}`}>
             <Gift size={28} className={`text-white drop-shadow-md ${!isHolding && 'animate-[wiggle_1s_ease-in-out_infinite]'}`} />
@@ -402,14 +409,33 @@ export default function WalletPage() {
             <Send size={14} className="-ml-0.5 mt-0.5" />
           </div>
 
-          {/* 進度條 */}
+          {/* 等級進度條 */}
           <div className="absolute bottom-0 left-0 w-full h-1.5 bg-orange-500/20">
             <motion.div
-              className="h-full bg-orange-500 shadow-[0_0_15px_orange]"
-              initial={{ width: '65%' }}
-              animate={{ width: isHolding ? `${chargeLevel}%` : '65%' }}
-              transition={{ duration: isHolding ? 0 : 1 }}
-            />
+              className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 shadow-[0_0_15px_orange]"
+              initial={{ width: 0 }}
+              animate={{ 
+                width: profile 
+                  ? `${Math.min(100, ((profile.xp || 0) % 100))}%` 
+                  : '0%'
+              }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+              {/* 進度條流動效果 */}
+              {profile && (profile.xp || 0) % 100 > 0 && (
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                  animate={{
+                    x: ['-100%', '100%'],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                />
+              )}
+            </motion.div>
           </div>
         </motion.div>
 
@@ -868,23 +894,6 @@ export default function WalletPage() {
             </div>
           </motion.div>
 
-        {/* 用戶等級 */}
-        {profile && (
-          <div className="bg-[#1C1C1E] border border-white/5 rounded-2xl p-4 shrink-0">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-300 text-base font-medium">{t('level')}</span>
-              <span className="text-white font-bold">Lv.{profile.level}</span>
-            </div>
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-brand-red to-orange-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${(profile.xp % 100)}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-        )}
         </div>
       </div>
     </PageTransition>
