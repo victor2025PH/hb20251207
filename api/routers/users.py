@@ -113,12 +113,32 @@ async def get_my_balance(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user_from_token)
 ):
-    """獲取當前用戶餘額（從 JWT Token 或 Telegram initData 中獲取）"""
+    """獲取當前用戶餘額（從 JWT Token 或 Telegram initData 中獲取）
+    
+    使用 LedgerService 獲取餘額，確保與發送紅包時的餘額檢查一致
+    """
+    # 優先使用 LedgerService 獲取餘額（與發送紅包時的檢查一致）
+    try:
+        from api.services.ledger_service import LedgerService
+        from decimal import Decimal
+        
+        usdt = float(await LedgerService.get_balance(db, current_user.id, 'USDT') or Decimal('0'))
+        ton = float(await LedgerService.get_balance(db, current_user.id, 'TON') or Decimal('0'))
+        stars = int(await LedgerService.get_balance(db, current_user.id, 'STARS') or Decimal('0'))
+        points = int(await LedgerService.get_balance(db, current_user.id, 'POINTS') or Decimal('0'))
+    except Exception as e:
+        # 如果 LedgerService 不可用，回退到 User 表餘額
+        logger.warning(f"Failed to get balance from LedgerService, falling back to User table: {e}")
+        usdt = float(current_user.balance_usdt or 0)
+        ton = float(current_user.balance_ton or 0)
+        stars = current_user.balance_stars or 0
+        points = current_user.balance_points or 0
+    
     return UserBalance(
-        usdt=float(current_user.balance_usdt or 0),
-        ton=float(current_user.balance_ton or 0),
-        stars=current_user.balance_stars or 0,
-        points=current_user.balance_points or 0,
+        usdt=usdt,
+        ton=ton,
+        stars=stars,
+        points=points,
     )
 
 
