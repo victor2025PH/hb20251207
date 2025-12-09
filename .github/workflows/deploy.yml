@@ -149,7 +149,11 @@ jobs:
             
             # 关键修复：检查 activate 文件是否存在，而不是检查目录
             echo "🔍 检查虚拟环境关键文件: $VENV_DIR/bin/activate"
-            if [ ! -f "$VENV_DIR/bin/activate" ]; then
+            # 使用变量存储检查结果，避免 set -e 导致的问题
+            ACTIVATE_EXISTS=false
+            test -f "$VENV_DIR/bin/activate" && ACTIVATE_EXISTS=true || true
+            
+            if [ "$ACTIVATE_EXISTS" = "false" ]; then
               echo "⚠️  虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
               
               # 暴力清理旧的（可能是空的）目录
@@ -179,7 +183,9 @@ jobs:
               }
               
               # 验证创建结果
-              if [ ! -f "$VENV_DIR/bin/activate" ]; then
+              ACTIVATE_EXISTS_AFTER=false
+              test -f "$VENV_DIR/bin/activate" && ACTIVATE_EXISTS_AFTER=true || true
+              if [ "$ACTIVATE_EXISTS_AFTER" = "false" ]; then
                 echo "❌ 错误: 虚拟环境创建后 activate 文件仍不存在"
                 echo "💡 调试信息:"
                 echo "  - 虚拟环境目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
@@ -219,7 +225,9 @@ jobs:
             echo "📂 activate 脚本路径: $VENV_DIR/bin/activate"
             
             # 再次确认文件存在（防止在验证后文件被删除）
-            if [ ! -f "$VENV_DIR/bin/activate" ]; then
+            ACTIVATE_EXISTS_FINAL=false
+            test -f "$VENV_DIR/bin/activate" && ACTIVATE_EXISTS_FINAL=true || true
+            if [ "$ACTIVATE_EXISTS_FINAL" = "false" ]; then
               echo "❌ 错误: activate 脚本不存在，无法激活"
               echo "💡 调试信息:"
               echo "  - 虚拟环境目录: $VENV_DIR"
