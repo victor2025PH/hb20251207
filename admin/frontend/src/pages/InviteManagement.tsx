@@ -33,7 +33,7 @@ import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { inviteApi } from '../utils/api'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 
 const { Text } = Typography
 
