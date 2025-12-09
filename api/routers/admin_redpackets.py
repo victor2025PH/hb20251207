@@ -287,6 +287,10 @@ async def refund_redpacket(
     current_admin: dict = Depends(get_current_admin),
 ):
     """手动退款红包（使用 LedgerService）"""
+    # 清除红包列表缓存
+    cache = get_cache_service()
+    await cache.delete_pattern("admin:redpackets:list:*")
+    
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
     redpacket = result.scalar_one_or_none()
