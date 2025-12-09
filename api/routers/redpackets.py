@@ -27,6 +27,13 @@ router = APIRouter()
 bot = Bot(token=settings.BOT_TOKEN)
 
 
+def get_enum_value(value) -> str:
+    """安全獲取枚舉或字符串的值"""
+    if hasattr(value, 'value'):
+        return value.value
+    return str(value)
+
+
 class CreateRedPacketRequest(BaseModel):
     """創建紅包請求"""
     currency: Union[CurrencyType, str] = CurrencyType.USDT
@@ -117,10 +124,11 @@ async def create_red_packet(
     
     # 使用LedgerService檢查餘額
     from api.services.ledger_service import LedgerService
+    currency_str = get_enum_value(request.currency).upper()
     current_balance = await LedgerService.get_balance(
         db=db,
         user_id=sender.id,
-        currency=request.currency.value.upper()
+        currency=currency_str
     )
     
     if current_balance < Decimal(str(request.total_amount)):
@@ -143,14 +151,15 @@ async def create_red_packet(
     # 使用LedgerService扣除餘額（創建賬本條目）
     from api.services.ledger_service import LedgerService
     try:
+        currency_str = get_enum_value(request.currency)
         await LedgerService.create_entry(
             db=db,
             user_id=sender.id,
             amount=-Decimal(str(request.total_amount)),  # 負數表示扣除
-            currency=request.currency.value.upper(),
+            currency=currency_str.upper(),
             entry_type='SEND_PACKET',
             related_type='red_packet',
-            description=f"發送紅包: {request.total_amount} {request.currency.value}",
+            description=f"發送紅包: {request.total_amount} {currency_str}",
             created_by='user'
         )
     except ValueError as e:
@@ -197,8 +206,8 @@ async def create_red_packet(
             packet_uuid=packet_uuid,
             packet_data={
                 'sender_id': sender.id,
-                'currency': request.currency.value,
-                'packet_type': request.packet_type.value,
+                'currency': get_enum_value(request.currency),
+                'packet_type': get_enum_value(request.packet_type),
                 'total_amount': float(request.total_amount),
                 'total_count': request.total_count,
                 'claimed_amount': 0,
@@ -242,13 +251,17 @@ async def create_red_packet(
             if bot_status not in ['left', 'kicked']:
                 # 機器人在群組中，發送紅包消息
                 try:
+                    # 安全獲取 packet_type 和 currency 的值
+                    packet_type_str = get_enum_value(request.packet_type)
+                    currency_str = get_enum_value(packet.currency)
+                    
                     # 構建群組中的紅包消息
-                    type_text = "🎲 手氣最佳" if request.packet_type.value == "random" else "💣 紅包炸彈"
+                    type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
                     group_message = f"""
 🧧 *{packet.message}*
 
 {type_text}
-💰 金額：{float(packet.total_amount):.2f} {packet.currency.value.upper()}
+💰 金額：{float(packet.total_amount):.2f} {currency_str.upper()}
 👥 數量：{packet.total_count} 份
 
 🎁 點擊下方按鈕搶紅包！
@@ -285,12 +298,16 @@ async def create_red_packet(
             logger.warning(f"Error checking bot membership: {e}")
             # 無法確定，嘗試發送消息
             try:
-                type_text = "🎲 手氣最佳" if request.packet_type.value == "random" else "💣 紅包炸彈"
+                # 安全獲取 packet_type 和 currency 的值
+                packet_type_str = get_enum_value(request.packet_type)
+                currency_str = get_enum_value(packet.currency)
+                
+                type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
                 group_message = f"""
 🧧 *{packet.message}*
 
 {type_text}
-💰 金額：{float(packet.total_amount):.2f} {packet.currency.value.upper()}
+💰 金額：{float(packet.total_amount):.2f} {currency_str.upper()}
 👥 數量：{packet.total_count} 份
 
 🎁 點擊下方按鈕搶紅包！
