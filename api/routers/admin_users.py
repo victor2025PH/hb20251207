@@ -12,7 +12,9 @@ from datetime import datetime, timedelta
 from shared.database.connection import get_db_session, get_async_db
 from shared.database.models import User, Transaction, RedPacket, RedPacketClaim, CheckinRecord, CurrencyType
 from api.utils.auth import get_current_active_admin, AdminUser, get_current_admin
+from api.services.cache_service import get_cache_service
 from decimal import Decimal
+from loguru import logger
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["管理后台-用户管理"])
 
@@ -61,7 +63,28 @@ async def list_users(
     db: AsyncSession = Depends(get_db_session),
     admin: AdminUser = Depends(get_current_active_admin)
 ):
-    """获取用户列表（支持搜索和筛选）"""
+    """获取用户列表（支持搜索和筛选，带缓存）"""
+    # 生成缓存键（包含所有查询参数）
+    cache = get_cache_service()
+    cache_key = cache._make_key(
+        "admin:users:list",
+        search=search,
+        level=level,
+        is_banned=is_banned,
+        min_balance_usdt=min_balance_usdt,
+        max_balance_usdt=max_balance_usdt,
+        created_from=created_from,
+        created_to=created_to,
+        page=page,
+        limit=limit
+    )
+    
+    # 尝试从缓存获取
+    cached_result = await cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"用户列表缓存命中: {cache_key}")
+        return cached_result
+    
     query = select(User)
     
     # 搜索条件
@@ -140,13 +163,19 @@ async def list_users(
         for user in users
     ]
     
-    return {
+    result = {
         "success": True,
         "data": user_list,
         "total": total_count,
         "page": page,
         "limit": limit
     }
+    
+    # 缓存结果（30秒，因为用户列表可能频繁更新）
+    await cache.set(cache_key, result, expire=30)
+    logger.debug(f"用户列表缓存设置: {cache_key}")
+    
+    return result
 
 
 class AdjustBalanceRequest(BaseModel):
@@ -163,6 +192,10 @@ async def adjust_user_balance(
     admin: AdminUser = Depends(get_current_active_admin)
 ):
     """调整用户余额"""
+    # 清除用户列表缓存（余额变更会影响列表）
+    cache = get_cache_service()
+    await cache.delete_pattern("admin:users:list:*")
+    
     # 获取用户
     result = await db.execute(select(User).where(User.id == request.user_id))
     user = result.scalar_one_or_none()

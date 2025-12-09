@@ -12,6 +12,7 @@ from decimal import Decimal
 from shared.database.connection import get_db_session
 from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType, Transaction, ScheduledRedPacketRain
 from api.utils.auth import get_current_admin
+from api.services.cache_service import get_cache_service
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -91,7 +92,32 @@ async def list_redpackets(
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
-    """获取红包列表"""
+    """获取红包列表（带缓存和预加载优化）"""
+    # 生成缓存键
+    cache = get_cache_service()
+    cache_key = cache._make_key(
+        "admin:redpackets:list",
+        page=page,
+        page_size=page_size,
+        status=status,
+        currency=currency,
+        packet_type=packet_type,
+        sender_id=sender_id,
+        chat_id=chat_id,
+        uuid=uuid,
+        start_date=str(start_date) if start_date else None,
+        end_date=str(end_date) if end_date else None,
+        min_amount=str(min_amount) if min_amount else None,
+        max_amount=str(max_amount) if max_amount else None
+    )
+    
+    # 尝试从缓存获取
+    cached_result = await cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"红包列表缓存命中: {cache_key}")
+        return cached_result
+    
+    # 使用 selectinload 预加载关联数据，避免 N+1 查询
     query = select(RedPacket).options(selectinload(RedPacket.sender))
     
     # 構建篩選條件（排除已軟刪除的）
@@ -181,13 +207,19 @@ async def list_redpackets(
             completed_at=rp.completed_at,
         ))
     
-    return {
+    result = {
         "items": items,
         "total": total,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size,
     }
+    
+    # 缓存结果（60秒，红包列表更新频率较低）
+    await cache.set(cache_key, result, expire=60)
+    logger.debug(f"红包列表缓存设置: {cache_key}")
+    
+    return result
 
 
 @router.get("/{redpacket_id}", response_model=RedPacketDetail)
@@ -335,6 +367,9 @@ async def extend_redpacket(
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
+    # 清除红包列表缓存
+    cache = get_cache_service()
+    await cache.delete_pattern("admin:redpackets:list:*")
     """延长红包过期时间"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
@@ -364,6 +399,9 @@ async def complete_redpacket(
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
+    # 清除红包列表缓存
+    cache = get_cache_service()
+    await cache.delete_pattern("admin:redpackets:list:*")
     """強制完成紅包"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
@@ -432,6 +470,9 @@ async def delete_redpacket(
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
+    # 清除红包列表缓存
+    cache = get_cache_service()
+    await cache.delete_pattern("admin:redpackets:list:*")
     """刪除紅包（軟刪除）"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
