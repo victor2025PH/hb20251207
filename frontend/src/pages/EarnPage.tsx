@@ -57,19 +57,74 @@ export default function EarnPage() {
     }
   }
 
-  const handleShareInvite = () => {
-    playSound('pop')
-    const telegram = getTelegram()
-    if (telegram && inviteStats?.invite_link) {
-      const message = `🎁 來搶紅包啦！\n\n我在玩紅包遊戲，送你 0.5 USDT 新人獎勵！\n\n點擊加入：${inviteStats.invite_link}`
-      telegram.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteStats.invite_link)}&text=${encodeURIComponent(message)}`)
-    } else {
-      // 備用：複製邀請鏈接
-      if (inviteStats?.invite_link) {
-        navigator.clipboard.writeText(inviteStats.invite_link)
-        haptic('success')
-        showAlert('邀請鏈接已複製！')
+  const handleShareInvite = async () => {
+    try {
+      playSound('pop')
+      haptic('light')
+      
+      // 檢查邀請鏈接是否存在
+      if (!inviteStats?.invite_link) {
+        showAlert('邀請鏈接未生成，請稍後再試', 'error')
+        return
       }
+      
+      const telegram = getTelegram()
+      const shareMessage = `🎁 來搶紅包啦！\n\n我在玩紅包遊戲，送你 0.5 USDT 新人獎勵！\n\n點擊加入：${inviteStats.invite_link}`
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteStats.invite_link)}&text=${encodeURIComponent(shareMessage)}`
+      
+      // 優先使用 Telegram WebApp 的分享功能
+      if (telegram) {
+        try {
+          // 檢查是否有 openTelegramLink 方法
+          if (typeof telegram.openTelegramLink === 'function') {
+            telegram.openTelegramLink(shareUrl)
+            haptic('success')
+            return
+          }
+          // 如果沒有 openTelegramLink，嘗試使用 openLink
+          if (typeof telegram.openLink === 'function') {
+            telegram.openLink(shareUrl)
+            haptic('success')
+            return
+          }
+        } catch (error) {
+          console.error('[handleShareInvite] Telegram share error:', error)
+          // 如果 Telegram 方法失敗，繼續使用備用方案
+        }
+      }
+      
+      // 備用方案 1: 使用 Web Share API（如果支持）
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: '邀請你來搶紅包！',
+            text: shareMessage,
+            url: inviteStats.invite_link
+          })
+          haptic('success')
+          showAlert('分享成功！', 'success')
+          return
+        } catch (error: any) {
+          // 用戶取消分享不算錯誤
+          if (error.name !== 'AbortError') {
+            console.error('[handleShareInvite] Web Share API error:', error)
+          }
+        }
+      }
+      
+      // 備用方案 2: 複製邀請鏈接到剪貼板
+      try {
+        await navigator.clipboard.writeText(inviteStats.invite_link)
+        haptic('success')
+        showAlert('邀請鏈接已複製到剪貼板！', 'success')
+      } catch (error) {
+        console.error('[handleShareInvite] Clipboard error:', error)
+        showAlert('無法複製鏈接，請手動複製：' + inviteStats.invite_link, 'error')
+      }
+    } catch (error) {
+      console.error('[handleShareInvite] Unexpected error:', error)
+      haptic('error')
+      showAlert('分享失敗，請稍後再試', 'error')
     }
   }
 
