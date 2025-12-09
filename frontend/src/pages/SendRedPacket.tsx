@@ -475,8 +475,11 @@ export default function SendRedPacket() {
               <div key={c} className="flex-1 relative group">
                 <button
                   type="button"
-                  onClick={() => setCurrency(c)}
-                  className={`w-full py-3 rounded-xl border transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none ${
+                  onClick={() => {
+                    haptic('light')
+                    setCurrency(c)
+                  }}
+                  className={`w-full py-3 rounded-xl border transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none relative z-10 ${
                     currency === c
                       ? 'bg-brand-red border-brand-red text-white'
                       : 'bg-brand-darker border-white/5 text-gray-400'
@@ -485,11 +488,13 @@ export default function SendRedPacket() {
                 >
                   {c}
                 </button>
-                {/* 點擊幣種名稱查看獲取方式 */}
+                {/* 點擊右上角圖標查看獲取方式 - 只在右上角小區域 */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
+                    e.preventDefault()
+                    haptic('light')
                     // 检查是否设置了不再显示
                     const dontShow = localStorage.getItem('dont_show_currency_method')
                     if (!dontShow) {
@@ -497,13 +502,12 @@ export default function SendRedPacket() {
                       setShowCurrencyModal(true)
                     }
                   }}
-                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl cursor-pointer focus:outline-none focus:ring-0 focus-visible:outline-none"
+                  className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500/80 hover:bg-blue-500 transition-colors cursor-pointer z-20 focus:outline-none focus:ring-0 focus-visible:outline-none"
                   title="點擊查看獲取方式"
                   style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <Info size={16} className="text-white" />
+                  <Info size={14} className="text-white" />
                 </button>
-                <span className="absolute top-1 right-1 text-xs opacity-50 group-hover:opacity-100 pointer-events-none">ℹ️</span>
               </div>
             ))}
           </div>
