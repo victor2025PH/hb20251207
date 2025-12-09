@@ -14,8 +14,9 @@ from shared.config.settings import get_settings
 
 settings = get_settings()
 
-# auth_date 有效期（秒），默认 10 分钟
-AUTH_DATE_VALIDITY = 600  # 10 分钟
+# auth_date 有效期（秒），默认 24 小时
+# 注意：Telegram Desktop 客户端可能缓存 initData，所以需要较长的有效期
+AUTH_DATE_VALIDITY = 86400  # 24 小时
 
 
 def parse_telegram_init_data(init_data: str) -> Optional[dict]:
