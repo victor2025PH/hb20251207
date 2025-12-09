@@ -254,6 +254,7 @@ export async function getBalance(): Promise<Balance> {
 
 export interface RedPacket {
   id: string
+  uuid?: string  // 添加 uuid 字段
   sender_id: number
   sender_name: string
   amount: number
@@ -326,7 +327,9 @@ export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPac
 }
 
 export async function claimRedPacket(id: string): Promise<{ success: boolean; amount: number; is_luckiest: boolean; message: string }> {
-  const result = await api.post(`/v1/redpackets/${id}/claim`)
+  const response = await api.post(`/v1/redpackets/${id}/claim`)
+  // Axios 返回的是 response.data，需要访问 data 属性
+  const result = response.data || response
   // 確保返回格式正確
   if (result && typeof result === 'object') {
     return {
