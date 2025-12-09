@@ -33,6 +33,8 @@ export default defineConfig({
         },
       },
     },
+    // 确保构建时生成正确的文件名
+    chunkSizeWarningLimit: 1000,
   },
 })
 
