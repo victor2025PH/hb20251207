@@ -41,6 +41,16 @@ jobs:
             echo "🐍 虚拟环境: $VENV_DIR"
             echo "👤 当前用户: $(whoami)"
             echo "📂 当前目录: $(pwd)"
+            echo "🐍 Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
+            echo "🐍 Python3 版本: $(python3 --version 2>&1 || echo '无法获取版本')"
+            
+            # ==========================================
+            # 步骤 1: 检查并创建项目目录
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 1: 检查项目目录"
+            echo "=========================================="
             
             # 检查并创建项目目录（如果需要）
             if [ ! -d "$PROJECT_DIR" ]; then
@@ -113,39 +123,150 @@ jobs:
             }
             echo "✅ 代码更新成功"
             
-            # 激活虚拟环境并更新依赖
-            echo "📦 更新 Python 依赖..."
+            # ==========================================
+            # 步骤 2: 检查并创建虚拟环境
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 2: 检查并创建虚拟环境"
+            echo "=========================================="
             
             # 确保 api 目录存在
-            if [ ! -d "$PROJECT_DIR/api" ]; then
-              echo "⚠️  api 目录不存在，创建目录..."
-              mkdir -p "$PROJECT_DIR/api"
-            fi
+            echo "📂 确保 api 目录存在..."
+            mkdir -p "$PROJECT_DIR/api"
+            sudo chown -R $USER:$USER "$PROJECT_DIR/api" || {
+              echo "⚠️  无法修复 api 目录权限，继续..."
+            }
             
-            # 确保虚拟环境目录的父目录存在且有权限
-            VENV_PARENT_DIR=$(dirname "$VENV_DIR")
-            if [ ! -d "$VENV_PARENT_DIR" ]; then
-              echo "⚠️  虚拟环境父目录不存在，创建目录..."
-              mkdir -p "$VENV_PARENT_DIR"
-            fi
-            
-            if [ ! -d "$VENV_DIR" ]; then
-              echo "⚠️  虚拟环境不存在，创建新的虚拟环境..."
-              python3 -m venv "$VENV_DIR" || {
-                echo "❌ 创建虚拟环境失败"
+            # 确保安装了 python3-venv 模块
+            echo "🔧 检查并安装 python3-venv 模块..."
+            if ! python3 -m venv --help >/dev/null 2>&1; then
+              echo "⚠️  python3-venv 模块未安装，开始安装..."
+              sudo apt-get update && sudo apt-get install -y python3-venv || {
+                echo "❌ 安装 python3-venv 失败"
                 exit 1
               }
+              echo "✅ python3-venv 模块已安装"
+            else
+              echo "✅ python3-venv 模块已可用"
             fi
             
+            # 关键修复：检查 activate 文件是否存在，而不是检查目录
+            echo "🔍 检查虚拟环境关键文件: $VENV_DIR/bin/activate"
+            if [ ! -f "$VENV_DIR/bin/activate" ]; then
+              echo "⚠️  虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
+              
+              # 暴力清理旧的（可能是空的）目录
+              if [ -d "$VENV_DIR" ] || [ -e "$VENV_DIR" ]; then
+                echo "🗑️  删除损坏的虚拟环境目录..."
+                sudo rm -rf "$VENV_DIR" || {
+                  echo "⚠️  删除旧目录失败，尝试继续..."
+                }
+              fi
+              
+              # 确保父目录存在且有权限
+              VENV_PARENT_DIR=$(dirname "$VENV_DIR")
+              mkdir -p "$VENV_PARENT_DIR"
+              sudo chown -R $USER:$USER "$VENV_PARENT_DIR" || {
+                echo "⚠️  无法修复父目录权限，继续..."
+              }
+              
+              # 重新创建虚拟环境
+              echo "🐍 创建新的虚拟环境: $VENV_DIR"
+              python3 -m venv "$VENV_DIR" || {
+                echo "❌ 创建虚拟环境失败"
+                echo "💡 调试信息:"
+                echo "  - Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
+                echo "  - Python3 版本: $(python3 --version 2>&1 || echo '无法获取版本')"
+                echo "  - 目标目录: $VENV_DIR"
+                exit 1
+              }
+              
+              # 验证创建结果
+              if [ ! -f "$VENV_DIR/bin/activate" ]; then
+                echo "❌ 错误: 虚拟环境创建后 activate 文件仍不存在"
+                echo "💡 调试信息:"
+                echo "  - 虚拟环境目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
+                if [ -d "$VENV_DIR" ]; then
+                  echo "  - 虚拟环境目录内容:"
+                  ls -la "$VENV_DIR" || true
+                  echo "  - bin 目录是否存在: $([ -d "$VENV_DIR/bin" ] && echo '是' || echo '否')"
+                  if [ -d "$VENV_DIR/bin" ]; then
+                    echo "  - bin 目录内容:"
+                    ls -la "$VENV_DIR/bin" || true
+                  fi
+                fi
+                exit 1
+              fi
+              
+              echo "✅ 虚拟环境创建成功"
+              
+              # 修复权限
+              echo "🔧 修复虚拟环境权限..."
+              sudo chown -R $USER:$USER "$VENV_DIR" || {
+                echo "⚠️  无法修复虚拟环境权限，继续..."
+              }
+              echo "✅ 虚拟环境权限已修复"
+            else
+              echo "✅ 虚拟环境已存在且完整（activate 文件存在）"
+            fi
+            
+            # ==========================================
+            # 步骤 3: 激活虚拟环境
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 3: 激活虚拟环境"
+            echo "=========================================="
+            
+            echo "🔌 准备激活虚拟环境..."
+            echo "📂 activate 脚本路径: $VENV_DIR/bin/activate"
+            
+            # 再次确认文件存在（防止在验证后文件被删除）
+            if [ ! -f "$VENV_DIR/bin/activate" ]; then
+              echo "❌ 错误: activate 脚本不存在，无法激活"
+              echo "💡 调试信息:"
+              echo "  - 虚拟环境目录: $VENV_DIR"
+              echo "  - 目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
+              echo "  - bin 目录是否存在: $([ -d "$VENV_DIR/bin" ] && echo '是' || echo '否')"
+              echo "  - bin 目录内容:"
+              ls -la "$VENV_DIR/bin" 2>/dev/null || echo "  无法列出 bin 目录内容"
+              exit 1
+            fi
+            
+            echo "📊 脚本权限: $(ls -l "$VENV_DIR/bin/activate" 2>/dev/null | awk '{print $1, $9}' || echo '无法读取权限')"
+            echo "📊 脚本内容前5行:"
+            head -n 5 "$VENV_DIR/bin/activate" 2>/dev/null || {
+              echo "⚠️  无法读取 activate 脚本内容，但文件存在，继续尝试激活..."
+            }
+            
+            # 激活虚拟环境
+            echo "🔌 执行: source $VENV_DIR/bin/activate"
             source "$VENV_DIR/bin/activate" || {
               echo "❌ 激活虚拟环境失败"
+              echo "💡 调试信息:"
+              echo "  - activate 脚本路径: $VENV_DIR/bin/activate"
+              echo "  - 脚本是否存在: $([ -f "$VENV_DIR/bin/activate" ] && echo '是' || echo '否')"
+              echo "  - 脚本权限: $(ls -l "$VENV_DIR/bin/activate" 2>/dev/null || echo '无法读取')"
+              echo "  - 当前 shell: $SHELL"
+              echo "  - 当前目录: $(pwd)"
               exit 1
             }
-            echo "✅ 虚拟环境已激活: $VENV_DIR"
-            echo "🐍 Python 版本: $(python --version)"
-            echo "📦 pip 版本: $(pip --version)"
             
-            # 安装依赖
+            echo "✅ 虚拟环境已激活"
+            echo "🐍 Python 版本: $(python --version)"
+            echo "🐍 Python 路径: $(which python)"
+            echo "📦 pip 版本: $(pip --version)"
+            echo "📦 pip 路径: $(which pip)"
+            
+            # ==========================================
+            # 步骤 4: 安装依赖
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 4: 安装 Python 依赖"
+            echo "=========================================="
+            
             echo "📦 升级 pip..."
             pip install --upgrade pip || {
               echo "⚠️  pip 升级失败，继续..."
@@ -176,8 +297,14 @@ jobs:
               echo "⚠️  未找到 requirements.txt，跳过依赖安装"
             fi
             
-            # 构建前端
-            echo "🏗️  构建前端..."
+            # ==========================================
+            # 步骤 5: 构建前端
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 5: 构建前端"
+            echo "=========================================="
+            
             if [ -d "$PROJECT_DIR/frontend" ]; then
               cd "$PROJECT_DIR/frontend" || {
                 echo "❌ 无法进入前端目录"
@@ -216,6 +343,14 @@ jobs:
               echo "⚠️  前端目录不存在，跳过前端构建"
             fi
             
+            # ==========================================
+            # 步骤 6: 重启服务
+            # ==========================================
+            echo ""
+            echo "=========================================="
+            echo "步骤 6: 重启服务"
+            echo "=========================================="
+            
             # 检查服务是否存在
             echo "🔍 检查服务是否存在..."
             if sudo systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
@@ -253,6 +388,7 @@ jobs:
               exit 1
             fi
             
+            echo ""
             echo "=========================================="
             echo "部署完成！"
             echo "=========================================="
