@@ -348,7 +348,21 @@ export default function SendRedPacket() {
     },
     onError: (error: Error) => {
       haptic('error')
-      const errorMessage = typeof error.message === 'string' ? error.message : String(error.message || '發送失敗，請重試')
+      let errorMessage = typeof error.message === 'string' ? error.message : String(error.message || '發送失敗，請重試')
+      
+      // 將常見的英文錯誤信息翻譯成中文
+      if (errorMessage.includes('Insufficient balance') || errorMessage.includes('insufficient balance')) {
+        errorMessage = '餘額不足，請先充值'
+      } else if (errorMessage.includes('User not found')) {
+        errorMessage = '用戶不存在，請重新登錄'
+      } else if (errorMessage.includes('Unauthorized')) {
+        errorMessage = '認證失敗，請重新登錄'
+      } else if (errorMessage.includes('Bomb number is required')) {
+        errorMessage = '請選擇炸彈數字'
+      } else if (errorMessage.includes('Bomb red packet count must be')) {
+        errorMessage = '紅包炸彈數量必須是 5 個（雙雷）或 10 個（單雷）'
+      }
+      
       showAlert(errorMessage, 'error')
     },
   })
