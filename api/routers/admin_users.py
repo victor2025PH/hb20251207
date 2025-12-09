@@ -123,8 +123,8 @@ async def list_users(
     user_list = [
         UserListItem(
             id=user.id,
-            tg_id=user.tg_id,
-            telegram_id=user.tg_id,  # 添加 telegram_id 字段以兼容前端
+            tg_id=user.tg_id,  # 允许为 None
+            telegram_id=user.tg_id,  # 添加 telegram_id 字段以兼容前端，允许为 None
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
