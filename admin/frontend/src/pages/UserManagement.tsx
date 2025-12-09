@@ -373,11 +373,36 @@ export default function UserManagement() {
           form={form}
           layout="vertical"
           onFinish={(values) => {
+            // 檢查用戶 ID
+            if (!selectedUser?.id) {
+              message.error('用戶信息無效，無法調整餘額')
+              return
+            }
+            
+            // 檢查金額
+            if (values.amount === null || values.amount === undefined || values.amount === '') {
+              message.error('請輸入金額')
+              return
+            }
+            
+            const amount = Number(values.amount)
+            if (isNaN(amount) || amount === 0) {
+              message.error('金額必須是非零的有效數字')
+              return
+            }
+            
+            // 檢查貨幣類型
+            if (!values.currency) {
+              message.error('請選擇貨幣類型')
+              return
+            }
+            
+            // 發送請求
             adjustBalanceMutation.mutate({
-              user_id: selectedUser?.id,
-              amount: values.amount,
+              user_id: selectedUser.id,
+              amount: amount,
               currency: values.currency,
-              reason: values.reason,
+              reason: values.reason || undefined,
             })
           }}
         >
@@ -400,9 +425,26 @@ export default function UserManagement() {
           <Form.Item
             name="amount"
             label="金額（正數充值，負數扣款）"
-            rules={[{ required: true, message: '請輸入金額' }]}
+            rules={[
+              { required: true, message: '請輸入金額' },
+              {
+                validator: (_, value) => {
+                  if (value === null || value === undefined || value === '') {
+                    return Promise.reject(new Error('請輸入金額'))
+                  }
+                  const num = Number(value)
+                  if (isNaN(num)) {
+                    return Promise.reject(new Error('金額必須是有效數字'))
+                  }
+                  if (num === 0) {
+                    return Promise.reject(new Error('金額不能為零'))
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
           >
-            <InputNumber style={{ width: '100%' }} step={0.01} />
+            <InputNumber style={{ width: '100%' }} step={0.01} precision={2} />
           </Form.Item>
           <Form.Item name="reason" label="備註">
             <Input.TextArea rows={3} />
