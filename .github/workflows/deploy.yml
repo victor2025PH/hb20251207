@@ -139,17 +139,13 @@ jobs:
             }
             
             # 确保安装了 python3-venv 模块
-            echo "🔧 检查并安装 python3-venv 模块..."
-            if ! python3 -m venv --help >/dev/null 2>&1; then
-              echo "⚠️  python3-venv 模块未安装，开始安装..."
-              sudo apt-get update && sudo apt-get install -y python3-venv || {
-                echo "❌ 安装 python3-venv 失败"
-                exit 1
-              }
-              echo "✅ python3-venv 模块已安装"
-            else
-              echo "✅ python3-venv 模块已可用"
-            fi
+            echo "🔧 确保 python3-venv 模块可用..."
+            # 直接尝试安装（如果已安装，apt-get 会快速返回成功）
+            # 这样可以避免检查命令的退出码问题
+            sudo apt-get update && sudo apt-get install -y python3-venv || {
+              echo "⚠️  安装 python3-venv 失败，但继续尝试创建虚拟环境..."
+            }
+            echo "✅ python3-venv 模块检查完成"
             
             # 关键修复：检查 activate 文件是否存在，而不是检查目录
             echo "🔍 检查虚拟环境关键文件: $VENV_DIR/bin/activate"
