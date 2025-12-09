@@ -63,7 +63,6 @@ export default function InviteManagement() {
   const [treeModalVisible, setTreeModalVisible] = useState(false)
   const [treeUserId, setTreeUserId] = useState<number | null>(null)
   const [configForm] = Form.useForm()
-  const queryClient = useQueryClient()
 
   // 获取邀请关系列表
   const { data: listData, isLoading } = useQuery({

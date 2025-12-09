@@ -164,6 +164,26 @@ export default function RedPacketManagement() {
     },
   })
 
+  // 调度红包雨
+  const scheduleRainMutation = useMutation({
+    mutationFn: async (values: any) => {
+      const response = await redpacketApi.scheduleRain({
+        ...values,
+        start_time: values.start_time.toISOString(),
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      message.success('红包雨调度成功')
+      setScheduleRainVisible(false)
+      scheduleForm.resetFields()
+      queryClient.invalidateQueries({ queryKey: ['redpackets'] })
+    },
+    onError: (error: any) => {
+      message.error(`调度失败: ${error.message}`)
+    },
+  })
+
   const handleExtend = (id: number) => {
     Modal.confirm({
       title: '延长过期时间',

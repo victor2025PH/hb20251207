@@ -17,7 +17,7 @@ from loguru import logger
 
 async def upgrade():
     """执行迁移"""
-    async for db in get_async_db():
+    async with get_async_db() as db:
         try:
             # 创建 scheduled_redpacket_rains 表
             await db.execute(text("""
@@ -64,7 +64,7 @@ async def upgrade():
 
 async def downgrade():
     """回滚迁移"""
-    async for db in get_async_db():
+    async with get_async_db() as db:
         try:
             # 删除索引
             await db.execute(text("DROP INDEX IF EXISTS ix_scheduled_redpacket_rains_target_chat_id"))
