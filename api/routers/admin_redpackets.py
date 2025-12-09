@@ -12,7 +12,7 @@ from decimal import Decimal
 from shared.database.connection import get_db_session
 from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType, Transaction, ScheduledRedPacketRain
 from api.utils.auth import get_current_admin
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from loguru import logger
 
 router = APIRouter(prefix="/api/v1/admin/redpackets", tags=["管理后台-红包管理"])
