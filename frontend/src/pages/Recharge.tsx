@@ -204,7 +204,7 @@ export default function Recharge() {
         <div className="w-10" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
         {/* 幣種選擇 */}
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium">{t('select_currency')}</label>

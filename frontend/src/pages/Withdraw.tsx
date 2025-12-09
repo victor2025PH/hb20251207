@@ -102,7 +102,7 @@ export default function Withdraw() {
         <div className="w-10" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
         {/* 幣種選擇 */}
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium">{t('select_currency')}</label>
@@ -178,12 +178,12 @@ export default function Withdraw() {
         </div>
       </div>
 
-      {/* 提交按鈕 */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-brand-dark/90 backdrop-blur border-t border-white/5">
+      {/* 提交按鈕 - 固定在底部導航欄上方 */}
+      <div className="fixed bottom-24 left-0 right-0 p-4 bg-brand-dark/90 backdrop-blur border-t border-white/5 z-40">
         <button
           onClick={handleSubmit}
           disabled={withdrawMutation.isPending}
-          className="w-full py-4 bg-gradient-to-r from-brand-red to-orange-500 rounded-xl text-white font-bold text-lg disabled:opacity-50"
+          className="w-full py-4 bg-gradient-to-r from-brand-red to-orange-500 rounded-xl text-white font-bold text-lg disabled:opacity-50 shadow-lg shadow-brand-red/30"
         >
           {withdrawMutation.isPending ? t('submitting') : t('submit_withdraw')}
         </button>
