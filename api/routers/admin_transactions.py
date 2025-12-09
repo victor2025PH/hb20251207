@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from shared.database.connection import get_db_session
-from shared.database.models import Transaction, User, CurrencyType
+from shared.database.models import Transaction, User, CurrencyType, LedgerEntry, CurrencySource
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 from api.utils.auth import get_current_admin
 from pydantic import BaseModel
 from loguru import logger
@@ -31,6 +32,9 @@ class TransactionListItem(BaseModel):
     amount: Decimal
     balance_before: Optional[Decimal] = None
     balance_after: Optional[Decimal] = None
+    # 新增：余额分类
+    balance_real: Optional[float] = None  # 真实余额（可提现）
+    balance_bonus: Optional[float] = None  # 奖励余额（仅游戏）
     ref_id: Optional[str] = None
     note: Optional[str] = None
     status: str  # pending, completed, rejected, cancelled
@@ -125,10 +129,41 @@ async def list_transactions(
     users_result = await db.execute(users_query)
     users = {user.id: user for user in users_result.scalars().all()}
     
-    # 构建响应数据
+    # 构建响应数据（包含 Real vs Bonus 余额）
     items = []
     for tx in transactions:
         user = users.get(tx.user_id)
+        
+        # 获取用户余额分类（Real vs Bonus）
+        balance_real = None
+        balance_bonus = None
+        
+        if user and tx.currency:
+            try:
+                # 查询 LedgerEntry 计算 Real 余额（真实充值）
+                real_result = await db.execute(
+                    select(func.coalesce(func.sum(LedgerEntry.amount), 0))
+                    .where(
+                        LedgerEntry.user_id == user.id,
+                        LedgerEntry.currency == tx.currency.value.upper(),
+                        LedgerEntry.currency_source == CurrencySource.REAL_CRYPTO
+                    )
+                )
+                balance_real = float(real_result.scalar() or 0)
+                
+                # 查询 LedgerEntry 计算 Bonus 余额（奖励）
+                bonus_result = await db.execute(
+                    select(func.coalesce(func.sum(LedgerEntry.amount), 0))
+                    .where(
+                        LedgerEntry.user_id == user.id,
+                        LedgerEntry.currency == tx.currency.value.upper(),
+                        LedgerEntry.currency_source == CurrencySource.BONUS
+                    )
+                )
+                balance_bonus = float(bonus_result.scalar() or 0)
+            except Exception as e:
+                logger.warning(f"Failed to get balance breakdown for user {user.id}: {e}")
+        
         items.append(TransactionListItem(
             id=tx.id,
             user_id=tx.user_id,
@@ -140,6 +175,8 @@ async def list_transactions(
             amount=tx.amount,
             balance_before=tx.balance_before,
             balance_after=tx.balance_after,
+            balance_real=balance_real,
+            balance_bonus=balance_bonus,
             ref_id=tx.ref_id,
             note=tx.note,
             status=tx.status,

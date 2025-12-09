@@ -45,6 +45,9 @@ interface Transaction {
   amount: number
   balance_before?: number
   balance_after?: number
+  // 新增：余额分类
+  balance_real?: number  // 真实余额（可提现）
+  balance_bonus?: number  // 奖励余额（仅游戏）
   ref_id?: string
   note?: string
   created_at: string
@@ -196,6 +199,31 @@ export default function TransactionManagement() {
           )}
         </div>
       ),
+    },
+    {
+      title: '余额分类',
+      key: 'balance_breakdown',
+      width: 180,
+      render: (_, record) => {
+        // 只显示 USDT 的余额分类
+        if (record.currency.toLowerCase() !== 'usdt') {
+          return <Text type="secondary">-</Text>
+        }
+        
+        const real = record.balance_real ?? 0
+        const bonus = record.balance_bonus ?? 0
+        
+        return (
+          <div style={{ fontSize: '12px' }}>
+            <div>
+              <Tag color="green">真实: {real.toFixed(2)} USDT</Tag>
+            </div>
+            <div style={{ marginTop: '4px' }}>
+              <Tag color="orange">奖励: {bonus.toFixed(2)} USDT</Tag>
+            </div>
+          </div>
+        )
+      },
     },
     {
       title: '关联ID',

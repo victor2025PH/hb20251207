@@ -17,6 +17,8 @@ import {
   Tooltip,
   Popconfirm,
   Spin,
+  Form,
+  InputNumber,
 } from 'antd'
 import {
   SearchOutlined,
@@ -26,6 +28,7 @@ import {
   DollarOutlined,
   GiftOutlined,
   BarChartOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs, { Dayjs } from 'dayjs'
@@ -74,6 +77,8 @@ export default function RedPacketManagement() {
     dateRange: undefined as [Dayjs, Dayjs] | undefined,
   })
   const [trendDays, setTrendDays] = useState(30)
+  const [scheduleRainVisible, setScheduleRainVisible] = useState(false)
+  const [scheduleForm] = Form.useForm()
 
   // 获取红包列表
   const { data: listData, isLoading } = useQuery({
@@ -394,6 +399,17 @@ export default function RedPacketManagement() {
         </Row>
       )}
 
+      {/* 调度红包雨按钮 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Button
+          type="primary"
+          icon={<ThunderboltOutlined />}
+          onClick={() => setScheduleRainVisible(true)}
+        >
+          调度红包雨
+        </Button>
+      </Card>
+
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
@@ -556,6 +572,103 @@ export default function RedPacketManagement() {
           }}
         />
       </Card>
+
+      {/* 红包雨调度模态框 */}
+      <Modal
+        title="调度红包雨"
+        open={scheduleRainVisible}
+        onCancel={() => {
+          setScheduleRainVisible(false)
+          scheduleForm.resetFields()
+        }}
+        onOk={() => scheduleForm.submit()}
+        confirmLoading={scheduleRainMutation.isPending}
+        width={600}
+      >
+        <Form
+          form={scheduleForm}
+          layout="vertical"
+          onFinish={(values) => scheduleRainMutation.mutate(values)}
+          initialValues={{
+            currency: 'USDT',
+            packet_type: 'random',
+            message: '红包雨来了！',
+          }}
+        >
+          <Form.Item
+            label="开始时间"
+            name="start_time"
+            rules={[{ required: true, message: '请选择开始时间' }]}
+          >
+            <DatePicker
+              showTime
+              format="YYYY-MM-DD HH:mm:ss"
+              disabledDate={(current) => current && current < dayjs().startOf('day')}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          
+          <Form.Item
+            label="总金额"
+            name="total_amount"
+            rules={[{ required: true, message: '请输入总金额' }]}
+          >
+            <InputNumber
+              min={0.01}
+              step={0.01}
+              style={{ width: '100%' }}
+              addonAfter={
+                <Form.Item name="currency" noStyle>
+                  <Select style={{ width: 80 }}>
+                    <Select.Option value="USDT">USDT</Select.Option>
+                    <Select.Option value="TON">TON</Select.Option>
+                  </Select>
+                </Form.Item>
+              }
+            />
+          </Form.Item>
+          
+          <Form.Item
+            label="红包数量"
+            name="packet_count"
+            rules={[{ required: true, message: '请输入红包数量' }]}
+          >
+            <InputNumber
+              min={1}
+              max={1000}
+              style={{ width: '100%' }}
+              addonAfter="个"
+            />
+          </Form.Item>
+          
+          <Form.Item
+            label="目标群组ID（可选，留空为公开红包）"
+            name="target_chat_id"
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="留空表示公开红包"
+            />
+          </Form.Item>
+          
+          <Form.Item
+            label="红包类型"
+            name="packet_type"
+          >
+            <Select>
+              <Select.Option value="random">随机红包</Select.Option>
+              <Select.Option value="equal">平分红包</Select.Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            label="红包消息"
+            name="message"
+          >
+            <Input.TextArea rows={3} placeholder="红包雨来了！" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

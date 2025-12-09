@@ -74,12 +74,14 @@ export const dashboardApi = {
 export const redpacketApi = {
   list: (params?: any) => api.get('/v1/admin/redpackets/list', { params }),
   detail: (id: number) => api.get(`/v1/admin/redpackets/${id}`),
-  refund: (id: number) => api.post(`/v1/admin/redpackets/${id}/refund`),
+  refund: (id: number, reason?: string) => api.post(`/v1/admin/redpackets/${id}/refund`, null, { params: { reason } }),
   extend: (id: number, hours: number) => api.post(`/v1/admin/redpackets/${id}/extend`, null, { params: { hours } }),
   complete: (id: number) => api.post(`/v1/admin/redpackets/${id}/complete`),
   delete: (id: number) => api.delete(`/v1/admin/redpackets/${id}`),
   getStats: () => api.get('/v1/admin/redpackets/stats/overview'),
   getTrend: (params?: any) => api.get('/v1/admin/redpackets/stats/trend', { params }),
+  // 新增：红包雨调度
+  scheduleRain: (data: any) => api.post('/v1/admin/redpackets/schedule-rain', data),
 }
 
 export const transactionApi = {
@@ -100,6 +102,9 @@ export const inviteApi = {
   getTree: (userId: number, depth?: number) => api.get(`/v1/admin/invite/tree/${userId}`, { params: { depth } }),
   getStats: () => api.get('/v1/admin/invite/stats'),
   getTrend: (params?: any) => api.get('/v1/admin/invite/trend', { params }),
+  // 新增：佣金配置
+  getCommissionConfig: () => api.get('/v1/admin/invite/commission-config'),
+  updateCommissionConfig: (data: any) => api.post('/v1/admin/invite/commission-config', data),
 }
 
 export const reportApi = {

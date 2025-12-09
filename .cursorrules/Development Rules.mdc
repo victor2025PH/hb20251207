@@ -16,7 +16,23 @@
     - If you need to verify code, run it directly or create a proper unit test in `tests/`.
 
 ---
+## 🚫 STRICT ANTI-BLOAT RULES (NO JUNK FILES)
 
+1.  **NO DIAGNOSTIC/VERIFICATION SCRIPTS**: 
+    - **FORBIDDEN**: Do not create scripts to "check", "verify", "diagnose", or "test" the environment (e.g., `check_server.sh`, `verify_deploy.py`, `test_connection.ps1`).
+    - **REASON**: These scripts usually fail due to missing secrets and clutter the codebase.
+    - **EXCEPTION**: Only create them if the user explicitly asks "Write a test script".
+
+2.  **NO PROCESS DOCUMENTATION**: 
+    - **FORBIDDEN**: Do not generate markdown files for task tracking, progress logs, or future plans (e.g., `next_steps.md`, `deployment_log.md`, `todo.md`, `verification_report.md`).
+    - **ACTION**: Keep your plan in the chat memory. Do not write it to a file.
+    - **ONLY ALLOWED DOC**: `README.md` (and only if updating actual usage instructions).
+
+3.  **NO "FIX" SCRIPTS**:
+    - **FORBIDDEN**: Do not create standalone scripts to "fix" a specific bug (e.g., `fix_permissions.sh`).
+    - **ACTION**: Apply the fix directly to the codebase or the main deployment script.
+
+---
 ## 📂 File Organization & Paths
 
 You must strictly adhere to this directory structure when creating or modifying files:

@@ -249,6 +249,29 @@ class RedPacketClaim(Base):
     )
 
 
+class ScheduledRedPacketRain(Base):
+    """红包雨调度表"""
+    __tablename__ = "scheduled_redpacket_rains"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    start_time = Column(DateTime, nullable=False, index=True)
+    total_amount = Column(Numeric(20, 8), nullable=False)
+    currency = Column(Enum(CurrencyType), nullable=False)
+    packet_count = Column(Integer, nullable=False)
+    target_chat_id = Column(BigInteger, nullable=True, index=True)
+    message = Column(Text, nullable=True)
+    packet_type = Column(Enum(RedPacketType), default=RedPacketType.RANDOM)
+    status = Column(String(32), default="scheduled", index=True)  # scheduled, executing, completed, cancelled
+    created_by = Column(Integer, ForeignKey("admin_users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    executed_at = Column(DateTime, nullable=True)
+    
+    __table_args__ = (
+        Index("ix_scheduled_rain_start_time", "start_time"),
+        Index("ix_scheduled_rain_status", "status"),
+    )
+
+
 class TaskCompletion(Base):
     """任務完成記錄"""
     __tablename__ = "task_completions"

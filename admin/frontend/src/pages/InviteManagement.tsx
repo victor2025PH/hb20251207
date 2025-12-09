@@ -15,6 +15,10 @@ import {
   Select,
   Tree,
   Modal,
+  Form,
+  InputNumber,
+  Divider,
+  message,
 } from 'antd'
 import {
   ReloadOutlined,
@@ -22,11 +26,14 @@ import {
   TrophyOutlined,
   TeamOutlined,
   EyeOutlined,
+  SettingOutlined,
+  SaveOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { inviteApi } from '../utils/api'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 const { Text } = Typography
 
@@ -55,6 +62,8 @@ export default function InviteManagement() {
   const [trendDays, setTrendDays] = useState(30)
   const [treeModalVisible, setTreeModalVisible] = useState(false)
   const [treeUserId, setTreeUserId] = useState<number | null>(null)
+  const [configForm] = Form.useForm()
+  const queryClient = useQueryClient()
 
   // 获取邀请关系列表
   const { data: listData, isLoading } = useQuery({
@@ -97,6 +106,30 @@ export default function InviteManagement() {
       return response.data
     },
     enabled: treeModalVisible && treeUserId !== null,
+  })
+
+  // 获取佣金配置
+  const { data: configData, refetch: refetchConfig } = useQuery({
+    queryKey: ['commission-config'],
+    queryFn: async () => {
+      const response = await inviteApi.getCommissionConfig()
+      return response.data
+    },
+  })
+
+  // 更新佣金配置
+  const updateConfigMutation = useMutation({
+    mutationFn: async (values: any) => {
+      const response = await inviteApi.updateCommissionConfig(values)
+      return response.data
+    },
+    onSuccess: () => {
+      message.success('佣金配置更新成功')
+      refetchConfig()
+    },
+    onError: (error: any) => {
+      message.error(`更新失败: ${error.message}`)
+    },
   })
 
   const handleViewTree = (userId: number) => {
@@ -331,6 +364,155 @@ export default function InviteManagement() {
             <Text type="secondary">暂无数据</Text>
           </div>
         )}
+      </Card>
+
+      {/* 佣金配置 */}
+      <Card
+        title={
+          <span>
+            <SettingOutlined /> 佣金配置
+          </span>
+        }
+        style={{ marginBottom: 24 }}
+      >
+        <Form
+          form={configForm}
+          layout="vertical"
+          initialValues={configData || {
+            tier1_commission: 5.0,
+            tier2_commission: 2.0,
+            tier3_commission: 0.0,
+            agent_bonus_threshold: 100,
+            agent_bonus_amount: 50.0,
+            kol_bonus_threshold: 100,
+            kol_bonus_amount: 50.0,
+          }}
+          onFinish={(values) => {
+            updateConfigMutation.mutate(values)
+          }}
+        >
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                label="一级佣金率 (%)"
+                name="tier1_commission"
+                rules={[{ required: true, message: '请输入一级佣金率' }]}
+              >
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  style={{ width: '100%' }}
+                  addonAfter="%"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="二级佣金率 (%)"
+                name="tier2_commission"
+                rules={[{ required: true, message: '请输入二级佣金率' }]}
+              >
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  style={{ width: '100%' }}
+                  addonAfter="%"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="三级佣金率 (%)"
+                name="tier3_commission"
+              >
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  style={{ width: '100%' }}
+                  addonAfter="%"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Divider>代理奖励配置</Divider>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="代理奖励阈值（邀请用户数）"
+                name="agent_bonus_threshold"
+                rules={[{ required: true, message: '请输入代理奖励阈值' }]}
+              >
+                <InputNumber
+                  min={1}
+                  style={{ width: '100%' }}
+                  addonAfter="人"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="代理奖励金额"
+                name="agent_bonus_amount"
+                rules={[{ required: true, message: '请输入代理奖励金额' }]}
+              >
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  addonAfter="USDT"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Divider>KOL奖励配置</Divider>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="KOL奖励阈值（邀请用户数）"
+                name="kol_bonus_threshold"
+                rules={[{ required: true, message: '请输入KOL奖励阈值' }]}
+              >
+                <InputNumber
+                  min={1}
+                  style={{ width: '100%' }}
+                  addonAfter="人"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="KOL奖励金额"
+                name="kol_bonus_amount"
+                rules={[{ required: true, message: '请输入KOL奖励金额' }]}
+              >
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  addonAfter="USDT"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SaveOutlined />}
+              loading={updateConfigMutation.isPending}
+            >
+              保存配置
+            </Button>
+          </Form.Item>
+        </Form>
       </Card>
 
       {/* 筛选栏 */}

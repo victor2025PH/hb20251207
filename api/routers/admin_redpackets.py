@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from shared.database.connection import get_db_session
-from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType, Transaction
+from shared.database.models import RedPacket, RedPacketClaim, User, RedPacketStatus, RedPacketType, CurrencyType, Transaction, ScheduledRedPacketRain
 from api.utils.auth import get_current_admin
 from pydantic import BaseModel
 from loguru import logger
@@ -250,10 +250,11 @@ async def get_redpacket_detail(
 @router.post("/{redpacket_id}/refund")
 async def refund_redpacket(
     redpacket_id: int,
+    reason: Optional[str] = Query(None, description="退款原因"),
     db: AsyncSession = Depends(get_db_session),
     current_admin: dict = Depends(get_current_admin),
 ):
-    """手动退款红包"""
+    """手动退款红包（使用 LedgerService）"""
     query = select(RedPacket).where(RedPacket.id == redpacket_id)
     result = await db.execute(query)
     redpacket = result.scalar_one_or_none()
@@ -271,40 +272,49 @@ async def refund_redpacket(
     if not sender:
         raise HTTPException(status_code=404, detail="發送者不存在")
     
-    balance_field = f"balance_{redpacket.currency.value}"
-    current_balance = getattr(sender, balance_field, 0) or Decimal(0)
-    
     # 計算需要退還的金額
     # 如果紅包已被領取，只退還剩餘金額；如果未被領取，退還全部金額
     remaining_amount = redpacket.total_amount - redpacket.claimed_amount
     
-    if remaining_amount > 0:
-        # 退還剩餘金額給發送者
-        new_balance = current_balance + remaining_amount
-        setattr(sender, balance_field, new_balance)
-        
-        # 創建退款交易記錄
-        refund_transaction = Transaction(
+    if remaining_amount <= 0:
+        raise HTTPException(status_code=400, detail="沒有可退還的金額")
+    
+    # 使用 LedgerService 退款（確保賬本一致性）
+    from api.services.ledger_service import LedgerService
+    
+    try:
+        # 創建退款賬本條目
+        await LedgerService.create_entry(
+            db=db,
             user_id=sender.id,
-            type="refund",
-            currency=redpacket.currency,
-            amount=remaining_amount,
-            balance_before=current_balance,
-            balance_after=new_balance,
-            ref_id=f"redpacket_{redpacket.id}",
-            note=f"紅包退款: 紅包ID {redpacket.id}, 退還金額 {remaining_amount} {redpacket.currency.value.upper()}",
-            status="completed"
+            amount=remaining_amount,  # 正數表示增加餘額
+            currency=redpacket.currency.value.upper(),
+            entry_type='REFUND',
+            related_type='red_packet',
+            related_id=redpacket.id,
+            description=f"紅包退款: 紅包ID {redpacket.id}, 原因: {reason or '管理員手動退款'}",
+            created_by=f"admin_{current_admin.get('id')}"
         )
-        db.add(refund_transaction)
         
         logger.info(
-            f"Red packet refunded: redpacket_id={redpacket_id}, sender_id={sender.id}, "
-            f"amount={remaining_amount}, currency={redpacket.currency.value}, "
-            f"admin_id={current_admin.get('id')}"
+            f"Red packet refunded via LedgerService: redpacket_id={redpacket_id}, "
+            f"sender_id={sender.id}, amount={remaining_amount}, "
+            f"currency={redpacket.currency.value}, admin_id={current_admin.get('id')}"
         )
+    except ValueError as e:
+        logger.error(f"LedgerService refund failed: {e}")
+        raise HTTPException(status_code=500, detail=f"退款失敗: {str(e)}")
     
     # 更新紅包狀態
     redpacket.status = RedPacketStatus.REFUNDED
+    
+    # 如果紅包在 Redis 中，也需要清理
+    try:
+        from api.services.redis_claim_service import RedisClaimService
+        await RedisClaimService.delete_packet(redpacket.uuid)
+        logger.info(f"Redis packet deleted: {redpacket.uuid}")
+    except Exception as e:
+        logger.warning(f"Failed to delete Redis packet: {e}")
     
     await db.commit()
     await db.refresh(redpacket)
@@ -313,7 +323,8 @@ async def refund_redpacket(
         "success": True,
         "message": "退款成功",
         "refunded_amount": float(remaining_amount),
-        "currency": redpacket.currency.value
+        "currency": redpacket.currency.value,
+        "reason": reason or "管理員手動退款"
     }
 
 
@@ -536,4 +547,114 @@ async def get_redpacket_trend(
         "amounts": amounts,
         "claimed_amounts": claimed_amounts,
     }
+
+
+# 红包雨调度
+class ScheduleRainRequest(BaseModel):
+    """红包雨调度请求"""
+    start_time: datetime = Field(..., description="开始时间（ISO格式）")
+    total_amount: Decimal = Field(..., gt=0, description="总金额")
+    currency: CurrencyType = Field(CurrencyType.USDT, description="币种")
+    packet_count: int = Field(..., ge=1, le=1000, description="红包数量")
+    target_chat_id: Optional[int] = Field(None, description="目标群组ID（None表示公开红包）")
+    message: Optional[str] = Field("红包雨来了！", description="红包消息")
+    packet_type: RedPacketType = Field(RedPacketType.RANDOM, description="红包类型")
+
+
+class ScheduleRainResponse(BaseModel):
+    """红包雨调度响应"""
+    schedule_id: int
+    start_time: datetime
+    total_amount: Decimal
+    currency: str
+    packet_count: int
+    target_chat_id: Optional[int]
+    status: str  # scheduled, executing, completed, cancelled
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/schedule-rain", response_model=ScheduleRainResponse)
+async def schedule_rain(
+    request: ScheduleRainRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: dict = Depends(get_current_admin),
+):
+    """调度红包雨"""
+    import json
+    
+    # 验证开始时间（必须在未来）
+    if request.start_time <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="开始时间必须在未来")
+    
+    # 创建调度记录
+    schedule = ScheduledRedPacketRain(
+        start_time=request.start_time,
+        total_amount=request.total_amount,
+        currency=request.currency,
+        packet_count=request.packet_count,
+        target_chat_id=request.target_chat_id,
+        message=request.message,
+        packet_type=request.packet_type,
+        status="scheduled",
+        created_by=current_admin.get('id'),
+    )
+    
+    db.add(schedule)
+    await db.commit()
+    await db.refresh(schedule)
+    
+    # 将调度任务写入 Redis（用于定时触发）
+    try:
+        import redis
+        from shared.config.settings import get_settings
+        settings = get_settings()
+        
+        redis_client = redis.Redis(
+            host=getattr(settings, 'REDIS_HOST', 'localhost'),
+            port=getattr(settings, 'REDIS_PORT', 6379),
+            db=getattr(settings, 'REDIS_DB', 0),
+            decode_responses=True
+        )
+        
+        # 计算延迟时间（秒）
+        delay_seconds = int((request.start_time - datetime.utcnow()).total_seconds())
+        
+        # 使用 Redis 的延迟队列
+        schedule_key = f"redpacket_rain:schedule:{schedule.id}"
+        redis_client.setex(
+            schedule_key,
+            delay_seconds + 3600,  # 额外1小时过期时间
+            json.dumps({
+                "schedule_id": schedule.id,
+                "start_time": request.start_time.isoformat(),
+                "total_amount": str(request.total_amount),
+                "currency": request.currency.value,
+                "packet_count": request.packet_count,
+                "target_chat_id": request.target_chat_id,
+                "message": request.message,
+                "packet_type": request.packet_type.value,
+            })
+        )
+        
+        logger.info(
+            f"Red packet rain scheduled: schedule_id={schedule.id}, "
+            f"start_time={request.start_time}, delay_seconds={delay_seconds}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to schedule red packet rain in Redis: {e}")
+        # 不阻止创建，但记录错误
+    
+    return ScheduleRainResponse(
+        schedule_id=schedule.id,
+        start_time=schedule.start_time,
+        total_amount=schedule.total_amount,
+        currency=schedule.currency.value,
+        packet_count=schedule.packet_count,
+        target_chat_id=schedule.target_chat_id,
+        status=schedule.status,
+        created_at=schedule.created_at,
+    )
 

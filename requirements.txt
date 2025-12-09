@@ -13,6 +13,9 @@ asyncpg==0.29.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
 
+# Redis (必需 - 用于高并发抢红包、缓存等)
+redis==5.0.1
+
 # Telegram Bot
 python-telegram-bot==20.7
 
@@ -38,8 +41,14 @@ python-dateutil==2.8.2
 # Validation
 email-validator==2.1.0
 
+# Data Processing (用于报表导出)
+pandas==2.0.0
+openpyxl==3.1.0
+
+# Queue Services (可选 - 用于异步任务处理)
+# bullmq==1.0.0  # 如果需要使用 BullMQ 队列服务，取消注释
+# celery==5.3.4  # 如果需要使用 Celery 队列服务，取消注释
+
 # Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3
-httpx==0.26.0
-

@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from shared.database.connection import get_db_session
-from shared.database.models import User, Transaction
+from shared.database.models import User, Transaction, SystemConfig
 from api.utils.auth import get_current_active_admin, AdminUser
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/admin/invite", tags=["管理后台-邀请管理"])
 
@@ -271,4 +271,123 @@ async def get_invite_trend(
         "dates": dates,
         "new_users": new_users,
     }
+
+
+# 推荐系统配置管理
+class CommissionConfigRequest(BaseModel):
+    """推荐佣金配置请求"""
+    tier1_commission: float = Field(..., ge=0, le=100, description="一级佣金率（%）")
+    tier2_commission: float = Field(..., ge=0, le=100, description="二级佣金率（%）")
+    tier3_commission: float = Field(0.0, ge=0, le=100, description="三级佣金率（%）")
+    agent_bonus_threshold: int = Field(..., ge=1, description="代理奖励阈值（邀请用户数）")
+    agent_bonus_amount: float = Field(..., ge=0, description="代理奖励金额（USDT）")
+    kol_bonus_threshold: int = Field(100, ge=1, description="KOL奖励阈值（邀请用户数）")
+    kol_bonus_amount: float = Field(50.0, ge=0, description="KOL奖励金额（USDT）")
+
+
+class CommissionConfigResponse(BaseModel):
+    """推荐佣金配置响应"""
+    tier1_commission: float
+    tier2_commission: float
+    tier3_commission: float
+    agent_bonus_threshold: int
+    agent_bonus_amount: float
+    kol_bonus_threshold: int
+    kol_bonus_amount: float
+    updated_at: Optional[datetime] = None
+    updated_by: Optional[int] = None
+
+
+@router.get("/commission-config", response_model=CommissionConfigResponse)
+async def get_commission_config(
+    db: AsyncSession = Depends(get_db_session),
+    admin: AdminUser = Depends(get_current_active_admin),
+):
+    """获取推荐佣金配置"""
+    config = await db.scalar(
+        select(SystemConfig).where(SystemConfig.key == "referral_commission_config")
+    )
+    
+    if not config:
+        # 返回默认配置
+        return CommissionConfigResponse(
+            tier1_commission=5.0,
+            tier2_commission=2.0,
+            tier3_commission=0.0,
+            agent_bonus_threshold=100,
+            agent_bonus_amount=50.0,
+            kol_bonus_threshold=100,
+            kol_bonus_amount=50.0,
+        )
+    
+    config_data = config.value or {}
+    return CommissionConfigResponse(
+        tier1_commission=config_data.get("tier1_commission", 5.0),
+        tier2_commission=config_data.get("tier2_commission", 2.0),
+        tier3_commission=config_data.get("tier3_commission", 0.0),
+        agent_bonus_threshold=config_data.get("agent_bonus_threshold", 100),
+        agent_bonus_amount=config_data.get("agent_bonus_amount", 50.0),
+        kol_bonus_threshold=config_data.get("kol_bonus_threshold", 100),
+        kol_bonus_amount=config_data.get("kol_bonus_amount", 50.0),
+        updated_at=config.updated_at,
+        updated_by=config.updated_by,
+    )
+
+
+@router.post("/commission-config", response_model=CommissionConfigResponse)
+async def update_commission_config(
+    request: CommissionConfigRequest,
+    db: AsyncSession = Depends(get_db_session),
+    admin: AdminUser = Depends(get_current_active_admin),
+):
+    """更新推荐佣金配置"""
+    from loguru import logger
+    
+    config = await db.scalar(
+        select(SystemConfig).where(SystemConfig.key == "referral_commission_config")
+    )
+    
+    config_data = {
+        "tier1_commission": request.tier1_commission,
+        "tier2_commission": request.tier2_commission,
+        "tier3_commission": request.tier3_commission,
+        "agent_bonus_threshold": request.agent_bonus_threshold,
+        "agent_bonus_amount": request.agent_bonus_amount,
+        "kol_bonus_threshold": request.kol_bonus_threshold,
+        "kol_bonus_amount": request.kol_bonus_amount,
+    }
+    
+    if config:
+        config.value = config_data
+        config.updated_by = admin.id
+        config.updated_at = datetime.utcnow()
+    else:
+        config = SystemConfig(
+            key="referral_commission_config",
+            value=config_data,
+            description="推荐系统佣金配置（3层推荐系统）",
+            updated_by=admin.id,
+        )
+        db.add(config)
+    
+    await db.commit()
+    await db.refresh(config)
+    
+    logger.info(
+        f"Commission config updated by admin {admin.id}: "
+        f"Tier1={request.tier1_commission}%, Tier2={request.tier2_commission}%, "
+        f"Tier3={request.tier3_commission}%"
+    )
+    
+    return CommissionConfigResponse(
+        tier1_commission=request.tier1_commission,
+        tier2_commission=request.tier2_commission,
+        tier3_commission=request.tier3_commission,
+        agent_bonus_threshold=request.agent_bonus_threshold,
+        agent_bonus_amount=request.agent_bonus_amount,
+        kol_bonus_threshold=request.kol_bonus_threshold,
+        kol_bonus_amount=request.kol_bonus_amount,
+        updated_at=config.updated_at,
+        updated_by=config.updated_by,
+    )
 

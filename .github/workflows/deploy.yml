@@ -38,33 +38,28 @@ jobs:
             
             # 拉取最新代码
             echo "📥 拉取最新代码..."
-            git fetch origin
-            git reset --hard origin/main
+            git pull origin main
             
             # 激活虚拟环境并更新依赖
             echo "📦 更新 Python 依赖..."
             if [ -d "$PROJECT_DIR/.venv" ]; then
               source $PROJECT_DIR/.venv/bin/activate
-              pip install --upgrade pip
-              pip install -r $PROJECT_DIR/requirements.txt
             else
               echo "⚠️  虚拟环境不存在，创建新的虚拟环境..."
               python3 -m venv $PROJECT_DIR/.venv
               source $PROJECT_DIR/.venv/bin/activate
-              pip install --upgrade pip
-              pip install -r $PROJECT_DIR/requirements.txt
             fi
+            
+            # 安装依赖
+            pip install -r $PROJECT_DIR/requirements.txt
             
             # 重启服务
             echo "🔄 重启服务..."
-            sudo systemctl restart $SERVICE_NAME || echo "⚠️  服务重启失败，请检查服务状态"
-            
-            # 等待服务启动
-            sleep 3
+            sudo systemctl restart $SERVICE_NAME
             
             # 检查服务状态
             echo "✅ 检查服务状态..."
-            sudo systemctl status $SERVICE_NAME --no-pager || true
+            sudo systemctl status $SERVICE_NAME --no-pager
             
             echo "=========================================="
             echo "部署完成！"
