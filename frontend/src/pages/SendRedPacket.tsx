@@ -18,6 +18,7 @@ export default function SendRedPacket() {
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [showCurrencyModal, setShowCurrencyModal] = useState(false)
+  const [dontShowCurrencyModal, setDontShowCurrencyModal] = useState(false)
   const [selectedCurrencyInfo, setSelectedCurrencyInfo] = useState<'USDT' | 'TON' | 'Stars' | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   
@@ -488,8 +489,12 @@ export default function SendRedPacket() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setSelectedCurrencyInfo(c as 'USDT' | 'TON' | 'Stars')
-                    setShowCurrencyModal(true)
+                    // 检查是否设置了不再显示
+                    const dontShow = localStorage.getItem('dont_show_currency_method')
+                    if (!dontShow) {
+                      setSelectedCurrencyInfo(c as 'USDT' | 'TON' | 'Stars')
+                      setShowCurrencyModal(true)
+                    }
                   }}
                   className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl cursor-pointer"
                   title="點擊查看獲取方式"
@@ -1076,9 +1081,9 @@ export default function SendRedPacket() {
       {/* 幣種獲取方式彈窗 */}
       {showCurrencyModal && selectedCurrencyInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowCurrencyModal(false)}>
-          <div className="bg-gradient-to-br from-brand-darker via-brand-darker to-gray-900 rounded-2xl p-6 max-w-md w-full border border-white/20 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col relative" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gradient-to-br from-brand-darker via-brand-darker to-gray-900 rounded-2xl p-6 max-w-md w-full border border-white/20 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* 標題 */}
-            <div className="flex items-center justify-between mb-4 shrink-0 relative z-10">
+            <div className="flex items-center justify-between mb-4 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center shadow-lg">
                   <Wallet size={18} className="text-white" />
@@ -1090,7 +1095,12 @@ export default function SendRedPacket() {
                 </h3>
               </div>
               <button
-                onClick={() => setShowCurrencyModal(false)}
+                onClick={() => {
+                  if (dontShowCurrencyModal) {
+                    localStorage.setItem('dont_show_currency_method', 'true')
+                  }
+                  setShowCurrencyModal(false)
+                }}
                 className="p-1 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <X size={20} className="text-white" />
@@ -1098,7 +1108,7 @@ export default function SendRedPacket() {
             </div>
 
             {/* 幣種說明 */}
-            <div className="mb-4 shrink-0 relative z-10">
+            <div className="mb-4 shrink-0">
               <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
                 <p className="text-gray-300 text-sm leading-relaxed">
                   {selectedCurrencyInfo === 'USDT' && t('currency_usdt_desc')}
@@ -1108,8 +1118,8 @@ export default function SendRedPacket() {
               </div>
             </div>
 
-            {/* 獲取方式內容 */}
-            <div className="space-y-4 overflow-y-auto flex-1 relative z-10 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+            {/* 獲取方式內容 - 可滾動區域 */}
+            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
               {/* Telegram 錢包綁定 */}
               {(selectedCurrencyInfo === 'USDT' || selectedCurrencyInfo === 'TON') && (
                 <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-4">
@@ -1165,13 +1175,35 @@ export default function SendRedPacket() {
               )}
             </div>
 
-            {/* 關閉按鈕 */}
-            <button
-              onClick={() => setShowCurrencyModal(false)}
-              className="w-full mt-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shrink-0 shadow-lg shadow-blue-500/30 relative z-10"
-            >
-              {t('got_it')}
-            </button>
+            {/* 不再提示選項和關閉按鈕 - 固定在底部 */}
+            <div className="mt-4 shrink-0 space-y-3">
+              {/* 不再提示選項 */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dontShowCurrencyModal"
+                  checked={dontShowCurrencyModal}
+                  onChange={(e) => setDontShowCurrencyModal(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500 focus:ring-2"
+                />
+                <label htmlFor="dontShowCurrencyModal" className="text-gray-300 text-sm cursor-pointer select-none">
+                  {t('dont_show_again')}
+                </label>
+              </div>
+
+              {/* 關閉按鈕 */}
+              <button
+                onClick={() => {
+                  if (dontShowCurrencyModal) {
+                    localStorage.setItem('dont_show_currency_method', 'true')
+                  }
+                  setShowCurrencyModal(false)
+                }}
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg shadow-blue-500/30"
+              >
+                {t('got_it')}
+              </button>
+            </div>
           </div>
         </div>
       )}
