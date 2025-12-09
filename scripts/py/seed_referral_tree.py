@@ -48,7 +48,7 @@ async def seed_referral_tree():
                 ) VALUES (
                     'test_root_user', 'Root', 'User', 'ROOT001',
                     1000.0, 100.0, 5000, 10000,
-                    5, 500, NOW()
+                    5, 500, CURRENT_TIMESTAMP
                 ) RETURNING id
             """))
             root_result = await db.execute(
@@ -64,8 +64,8 @@ async def seed_referral_tree():
                     balance_usdt, balance_ton, balance_stars, balance_points,
                     level, xp, created_at, invited_by_id
                 ) VALUES 
-                ('test_user_1', 'User', 'One', 'USER001', 500.0, 50.0, 2500, 5000, 3, 300, NOW(), :root_id),
-                ('test_user_2', 'User', 'Two', 'USER002', 500.0, 50.0, 2500, 5000, 3, 300, NOW(), :root_id)
+                ('test_user_1', 'User', 'One', 'USER001', 500.0, 50.0, 2500, 5000, 3, 300, CURRENT_TIMESTAMP, :root_id),
+                ('test_user_2', 'User', 'Two', 'USER002', 500.0, 50.0, 2500, 5000, 3, 300, CURRENT_TIMESTAMP, :root_id)
             """), {"root_id": root_user_id})
             
             # 获取第2层用户ID
@@ -87,9 +87,9 @@ async def seed_referral_tree():
                     balance_usdt, balance_ton, balance_stars, balance_points,
                     level, xp, created_at, invited_by_id
                 ) VALUES 
-                ('test_user_1_1', 'User', 'One-One', 'U1_1001', 200.0, 20.0, 1000, 2000, 2, 200, NOW(), :user1_id),
-                ('test_user_1_2', 'User', 'One-Two', 'U1_1002', 200.0, 20.0, 1000, 2000, 2, 200, NOW(), :user1_id),
-                ('test_user_2_1', 'User', 'Two-One', 'U2_2001', 200.0, 20.0, 1000, 2000, 2, 200, NOW(), :user2_id)
+                ('test_user_1_1', 'User', 'One-One', 'U1_1001', 200.0, 20.0, 1000, 2000, 2, 200, CURRENT_TIMESTAMP, :user1_id),
+                ('test_user_1_2', 'User', 'One-Two', 'U1_1002', 200.0, 20.0, 1000, 2000, 2, 200, CURRENT_TIMESTAMP, :user1_id),
+                ('test_user_2_1', 'User', 'Two-One', 'U2_2001', 200.0, 20.0, 1000, 2000, 2, 200, CURRENT_TIMESTAMP, :user2_id)
             """), {"user1_id": user1_id, "user2_id": user2_id})
             
             # 获取第3层用户ID
