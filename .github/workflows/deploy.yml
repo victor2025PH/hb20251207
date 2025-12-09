@@ -310,7 +310,12 @@ jobs:
               echo "📂 当前前端目录: $(pwd)"
               
               # 检查 node_modules 是否存在，如果不存在则安装
-              if [ ! -d "node_modules" ]; then
+              test -d "node_modules" && {
+                echo "📦 更新前端依赖..."
+                npm install || npm install --legacy-peer-deps || {
+                  echo "⚠️  前端依赖更新失败，继续构建..."
+                }
+              } || {
                 echo "📦 安装前端依赖..."
                 npm install || {
                   echo "⚠️  npm install 失败，尝试使用 --legacy-peer-deps..."
@@ -319,12 +324,7 @@ jobs:
                     exit 1
                   }
                 }
-              else
-                echo "📦 更新前端依赖..."
-                npm install || npm install --legacy-peer-deps || {
-                  echo "⚠️  前端依赖更新失败，继续构建..."
-                }
-              fi
+              }
               
               # 构建前端
               echo "🔨 执行前端构建..."
