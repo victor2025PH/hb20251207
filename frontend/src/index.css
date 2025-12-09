@@ -79,15 +79,24 @@ body {
 
 /* 全局禁用按钮的焦点圆圈 */
 button:focus,
-button:focus-visible {
+button:focus-visible,
+button:hover {
   outline: none !important;
   box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* 禁用所有元素的焦点圆圈 */
 *:focus,
 *:focus-visible {
   outline: none !important;
+}
+
+/* 特别处理币种按钮，移除所有可能的圆圈效果 */
+button[type="button"]:hover {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* 仅在需要时显示焦点（用于可访问性） */

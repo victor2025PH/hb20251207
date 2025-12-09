@@ -476,11 +476,12 @@ export default function SendRedPacket() {
                 <button
                   type="button"
                   onClick={() => setCurrency(c)}
-                  className={`w-full py-3 rounded-xl border transition-colors ${
+                  className={`w-full py-3 rounded-xl border transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none ${
                     currency === c
                       ? 'bg-brand-red border-brand-red text-white'
                       : 'bg-brand-darker border-white/5 text-gray-400'
                   }`}
+                  style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
                 >
                   {c}
                 </button>
@@ -496,8 +497,9 @@ export default function SendRedPacket() {
                       setShowCurrencyModal(true)
                     }
                   }}
-                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl cursor-pointer"
+                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl cursor-pointer focus:outline-none focus:ring-0 focus-visible:outline-none"
                   title="點擊查看獲取方式"
+                  style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
                 >
                   <Info size={16} className="text-white" />
                 </button>
