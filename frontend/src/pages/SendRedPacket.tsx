@@ -1236,36 +1236,36 @@ export default function SendRedPacket() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* 不再提示選項和關閉按鈕 */}
-              <div className="mt-4 space-y-3 pb-2">
-                {/* 不再提示選項 */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="dontShowCurrencyModal"
-                    checked={dontShowCurrencyModal}
-                    onChange={(e) => setDontShowCurrencyModal(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500 focus:ring-2"
-                  />
-                  <label htmlFor="dontShowCurrencyModal" className="text-gray-300 text-sm cursor-pointer select-none">
-                    {t('dont_show_again')}
-                  </label>
-                </div>
-
-                {/* 關閉按鈕 */}
-                <button
-                  onClick={() => {
-                    if (dontShowCurrencyModal) {
-                      localStorage.setItem('dont_show_currency_method', 'true')
-                    }
-                    setShowCurrencyModal(false)
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg shadow-blue-500/30"
-                >
-                  {t('got_it')}
-                </button>
+            {/* 不再提示選項和關閉按鈕 - 固定在底部 */}
+            <div className="mt-4 space-y-3 shrink-0">
+              {/* 不再提示選項 */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dontShowCurrencyModal"
+                  checked={dontShowCurrencyModal}
+                  onChange={(e) => setDontShowCurrencyModal(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500 focus:ring-2"
+                />
+                <label htmlFor="dontShowCurrencyModal" className="text-gray-300 text-sm cursor-pointer select-none">
+                  {t('dont_show_again')}
+                </label>
               </div>
+
+              {/* 關閉按鈕 */}
+              <button
+                onClick={() => {
+                  if (dontShowCurrencyModal) {
+                    localStorage.setItem('dont_show_currency_method', 'true')
+                  }
+                  setShowCurrencyModal(false)
+                }}
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl text-white font-semibold hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg shadow-blue-500/30"
+              >
+                {t('got_it')}
+              </button>
             </div>
           </div>
         </div>
