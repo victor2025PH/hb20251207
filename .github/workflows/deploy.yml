@@ -149,8 +149,10 @@ jobs:
             
             # 关键修复：检查 activate 文件是否存在，而不是检查目录
             echo "🔍 检查虚拟环境关键文件: $VENV_DIR/bin/activate"
-            # 直接使用 if 检查，在 if 条件中 set -e 不会导致退出
-            if ! test -f "$VENV_DIR/bin/activate"; then
+            # 使用 test -f 检查文件，使用 && 和 || 处理结果
+            test -f "$VENV_DIR/bin/activate" 2>/dev/null && {
+              echo "✅ 虚拟环境已存在且完整（activate 文件存在）"
+            } || {
               echo "⚠️  虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
               
               # 暴力清理旧的（可能是空的）目录
@@ -180,21 +182,21 @@ jobs:
               }
               
               # 验证创建结果
-              if ! test -f "$VENV_DIR/bin/activate"; then
+              test -f "$VENV_DIR/bin/activate" 2>/dev/null || {
                 echo "❌ 错误: 虚拟环境创建后 activate 文件仍不存在"
                 echo "💡 调试信息:"
                 echo "  - 虚拟环境目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
-                if [ -d "$VENV_DIR" ]; then
+                [ -d "$VENV_DIR" ] && {
                   echo "  - 虚拟环境目录内容:"
                   ls -la "$VENV_DIR" || true
                   echo "  - bin 目录是否存在: $([ -d "$VENV_DIR/bin" ] && echo '是' || echo '否')"
-                  if [ -d "$VENV_DIR/bin" ]; then
+                  [ -d "$VENV_DIR/bin" ] && {
                     echo "  - bin 目录内容:"
                     ls -la "$VENV_DIR/bin" || true
-                  fi
-                fi
+                  } || true
+                } || true
                 exit 1
-              fi
+              }
               
               echo "✅ 虚拟环境创建成功"
               
@@ -204,9 +206,7 @@ jobs:
                 echo "⚠️  无法修复虚拟环境权限，继续..."
               }
               echo "✅ 虚拟环境权限已修复"
-            else
-              echo "✅ 虚拟环境已存在且完整（activate 文件存在）"
-            fi
+            }
             
             # ==========================================
             # 步骤 3: 激活虚拟环境
@@ -220,7 +220,7 @@ jobs:
             echo "📂 activate 脚本路径: $VENV_DIR/bin/activate"
             
             # 再次确认文件存在（防止在验证后文件被删除）
-            if ! test -f "$VENV_DIR/bin/activate"; then
+            test -f "$VENV_DIR/bin/activate" 2>/dev/null || {
               echo "❌ 错误: activate 脚本不存在，无法激活"
               echo "💡 调试信息:"
               echo "  - 虚拟环境目录: $VENV_DIR"
@@ -229,7 +229,7 @@ jobs:
               echo "  - bin 目录内容:"
               ls -la "$VENV_DIR/bin" 2>/dev/null || echo "  无法列出 bin 目录内容"
               exit 1
-            fi
+            }
             
             echo "📊 脚本权限: $(ls -l "$VENV_DIR/bin/activate" 2>/dev/null | awk '{print $1, $9}' || echo '无法读取权限')"
             echo "📊 脚本内容前5行:"
