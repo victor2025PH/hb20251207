@@ -19,7 +19,6 @@ export default function SendRedPacket() {
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [showCurrencyModal, setShowCurrencyModal] = useState(false)
   const [dontShowCurrencyModal, setDontShowCurrencyModal] = useState(false)
-  const [selectedCurrencyInfo, setSelectedCurrencyInfo] = useState<'USDT' | 'TON' | 'Stars' | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   
   // 獲取 Telegram 用戶 ID（用於搜索）
@@ -475,13 +474,7 @@ export default function SendRedPacket() {
               type="button"
               onClick={() => {
                 haptic('light')
-                // 检查是否设置了不再显示
-                const dontShow = localStorage.getItem('dont_show_currency_method')
-                if (!dontShow) {
-                  // 设置当前选中的币种
-                  setSelectedCurrencyInfo(currency as 'USDT' | 'TON' | 'Stars')
-                  setShowCurrencyModal(true)
-                }
+                setShowCurrencyModal(true)
               }}
               className="text-brand-red text-sm flex items-center gap-1 hover:opacity-80 relative group"
             >
@@ -1085,8 +1078,8 @@ export default function SendRedPacket() {
         </div>
       )}
 
-      {/* 幣種獲取方式彈窗 */}
-      {showCurrencyModal && selectedCurrencyInfo && (
+      {/* 幣種獲取方式彈窗 - 融合三個幣種的獲取方式 */}
+      {showCurrencyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowCurrencyModal(false)}>
           <div className="bg-gradient-to-br from-brand-darker via-brand-darker to-gray-900 rounded-2xl p-6 max-w-md w-full border border-white/20 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* 標題 */}
@@ -1095,10 +1088,10 @@ export default function SendRedPacket() {
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center shadow-lg">
                   <Wallet size={18} className="text-white" />
                 </div>
-                <h3 className="text-white text-xl font-bold">
-                  {selectedCurrencyInfo === 'USDT' && t('currency_usdt_get_methods')}
-                  {selectedCurrencyInfo === 'TON' && t('currency_ton_get_methods')}
-                  {selectedCurrencyInfo === 'Stars' && t('currency_stars_get_methods')}
+                <h3 className="text-white text-xl font-bold flex items-center gap-2">
+                  <TelegramStar size={18} withSpray={true} />
+                  幣種獲取方式
+                  <TelegramStar size={18} withSpray={true} />
                 </h3>
               </div>
               <button
@@ -1114,74 +1107,123 @@ export default function SendRedPacket() {
               </button>
             </div>
 
-            {/* 幣種說明 */}
-            <div className="mb-4 shrink-0">
-              <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  {selectedCurrencyInfo === 'USDT' && t('currency_usdt_desc')}
-                  {selectedCurrencyInfo === 'TON' && t('currency_ton_desc')}
-                  {selectedCurrencyInfo === 'Stars' && t('currency_stars_desc')}
-                </p>
-              </div>
-            </div>
-
-            {/* 獲取方式內容 - 可滾動區域（包含按鈕，讓按鈕隨內容滾動） */}
+            {/* 獲取方式內容 - 可滾動區域 */}
             <div className="space-y-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-              {/* Telegram 錢包綁定 */}
-              {(selectedCurrencyInfo === 'USDT' || selectedCurrencyInfo === 'TON') && (
-                <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet size={20} className="text-green-400" />
-                    <h4 className="text-white font-semibold text-base">{t('currency_get_method_telegram_wallet')}</h4>
+              {/* USDT 獲取方式 */}
+              <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">USDT</span>
                   </div>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    {t('currency_get_method_telegram_wallet_desc')}
-                  </p>
+                  <h4 className="text-white font-semibold text-base">USDT 獲取方式</h4>
                 </div>
-              )}
-
-              {/* 銀行卡充值 */}
-              {(selectedCurrencyInfo === 'USDT' || selectedCurrencyInfo === 'TON') && (
-                <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet size={20} className="text-yellow-400" />
-                    <h4 className="text-white font-semibold text-base">{t('currency_get_method_bank_card')}</h4>
+                <p className="text-gray-300 text-xs mb-3 leading-relaxed">
+                  {t('currency_usdt_desc')}
+                </p>
+                <div className="space-y-3">
+                  {/* Telegram 錢包綁定 */}
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-green-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_telegram_wallet')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_telegram_wallet_desc')}
+                    </p>
                   </div>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    {t('currency_get_method_bank_card_desc')}
-                  </p>
+                  {/* 銀行卡充值 */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-yellow-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_bank_card')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_bank_card_desc')}
+                    </p>
+                  </div>
+                  {/* 交易所購買 */}
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-purple-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_exchange')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_exchange_desc')}
+                    </p>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* 交易所購買 */}
-              {(selectedCurrencyInfo === 'USDT' || selectedCurrencyInfo === 'TON') && (
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet size={20} className="text-purple-400" />
-                    <h4 className="text-white font-semibold text-base">{t('currency_get_method_exchange')}</h4>
+              {/* TON 獲取方式 */}
+              <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">TON</span>
                   </div>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    {t('currency_get_method_exchange_desc')}
-                  </p>
+                  <h4 className="text-white font-semibold text-base">TON 獲取方式</h4>
                 </div>
-              )}
-
-              {/* Telegram Stars 獲取 */}
-              {selectedCurrencyInfo === 'Stars' && (
-                <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TelegramStar size={20} withSpray={true} />
-                    <h4 className="text-white font-semibold text-base">{t('currency_get_method_telegram_stars')}</h4>
+                <p className="text-gray-300 text-xs mb-3 leading-relaxed">
+                  {t('currency_ton_desc')}
+                </p>
+                <div className="space-y-3">
+                  {/* Telegram 錢包綁定 */}
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-green-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_telegram_wallet')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_telegram_wallet_desc')}
+                    </p>
                   </div>
-                  <div className="text-gray-300 text-sm leading-relaxed space-y-2">
+                  {/* 銀行卡充值 */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-yellow-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_bank_card')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_bank_card_desc')}
+                    </p>
+                  </div>
+                  {/* 交易所購買 */}
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wallet size={16} className="text-purple-400" />
+                      <h5 className="text-white font-medium text-sm">{t('currency_get_method_exchange')}</h5>
+                    </div>
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {t('currency_get_method_exchange_desc')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stars 獲取方式 */}
+              <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center">
+                    <TelegramStar size={16} withSpray={true} />
+                  </div>
+                  <h4 className="text-white font-semibold text-base">Stars 獲取方式</h4>
+                </div>
+                <p className="text-gray-300 text-xs mb-3 leading-relaxed">
+                  {t('currency_stars_desc')}
+                </p>
+                <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TelegramStar size={16} withSpray={true} />
+                    <h5 className="text-white font-medium text-sm">{t('currency_get_method_telegram_stars')}</h5>
+                  </div>
+                  <div className="text-gray-400 text-xs leading-relaxed space-y-1">
                     {t('currency_get_method_telegram_stars_desc').split('\n').map((line, i) => (
                       <p key={i}>{line}</p>
                     ))}
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* 不再提示選項和關閉按鈕 - 在滾動區域內，隨內容滾動 */}
+              {/* 不再提示選項和關閉按鈕 */}
               <div className="mt-4 space-y-3 pb-2">
                 {/* 不再提示選項 */}
                 <div className="flex items-center gap-2">
