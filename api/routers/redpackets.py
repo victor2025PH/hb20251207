@@ -231,11 +231,7 @@ async def create_red_packet(
     except Exception as e:
         logger.warning(f"Failed to mark send_packet task complete: {e}")
     
-    # ⚠️ 注意：不再在 API 路由中發送紅包消息
-    # 改由 Bot 處理器統一發送，避免重複發送
-    # 如果機器人不在群組中，返回 share_link 供前端使用
-    
-    # 檢查機器人是否在群組中（僅用於返回 share_link）
+    # 發送紅包消息到群組（如果指定了群組）
     message_sent = False
     share_link = None
     if request.chat_id:
@@ -244,8 +240,39 @@ async def create_red_packet(
             bot_member = await bot.get_chat_member(request.chat_id, bot_info.id)
             bot_status = bot_member.status
             if bot_status not in ['left', 'kicked']:
-                # 機器人在群組中，Bot 處理器會發送消息
-                message_sent = True
+                # 機器人在群組中，發送紅包消息
+                try:
+                    # 構建群組中的紅包消息
+                    type_text = "🎲 手氣最佳" if request.packet_type.value == "random" else "💣 紅包炸彈"
+                    group_message = f"""
+🧧 *{packet.message}*
+
+{type_text}
+💰 金額：{float(packet.total_amount):.2f} {packet.currency.value.upper()}
+👥 數量：{packet.total_count} 份
+
+🎁 點擊下方按鈕搶紅包！
+"""
+                    # 構建搶紅包按鈕
+                    claim_keyboard = [[
+                        InlineKeyboardButton(
+                            "🧧 搶紅包",
+                            callback_data=f"claim:{packet.uuid}"
+                        )
+                    ]]
+                    
+                    await bot.send_message(
+                        chat_id=request.chat_id,
+                        text=group_message,
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(claim_keyboard)
+                    )
+                    message_sent = True
+                    logger.info(f"✅ 紅包消息已發送到群組 {request.chat_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send red packet message to group {request.chat_id}: {e}")
+                    # 發送失敗，返回分享鏈接
+                    share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
             else:
                 # 機器人不在群組中，返回分享鏈接
                 share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
@@ -256,7 +283,35 @@ async def create_red_packet(
                 share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
         except Exception as e:
             logger.warning(f"Error checking bot membership: {e}")
-            # 無法確定，假設機器人在群組中
+            # 無法確定，嘗試發送消息
+            try:
+                type_text = "🎲 手氣最佳" if request.packet_type.value == "random" else "💣 紅包炸彈"
+                group_message = f"""
+🧧 *{packet.message}*
+
+{type_text}
+💰 金額：{float(packet.total_amount):.2f} {packet.currency.value.upper()}
+👥 數量：{packet.total_count} 份
+
+🎁 點擊下方按鈕搶紅包！
+"""
+                claim_keyboard = [[
+                    InlineKeyboardButton(
+                        "🧧 搶紅包",
+                        callback_data=f"claim:{packet.uuid}"
+                    )
+                ]]
+                
+                await bot.send_message(
+                    chat_id=request.chat_id,
+                    text=group_message,
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(claim_keyboard)
+                )
+                message_sent = True
+            except Exception as send_error:
+                logger.error(f"Failed to send message: {send_error}")
+                share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
     
     # 返回響應
     response = RedPacketResponse(

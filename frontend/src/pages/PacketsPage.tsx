@@ -37,7 +37,7 @@ function convertToDisplay(packet: RedPacket): PacketDisplay {
   
   return {
     id: packet.id,
-    uuid: packet.id,
+    uuid: packet.uuid || packet.id.toString(), // 使用 uuid 而不是 id
     senderName: packet.sender_name || '匿名用戶',
     senderAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${packet.sender_id}`,
     senderLevel: Math.floor(Math.random() * 50) + 1, // TODO: 從 API 獲取真實等級
@@ -75,20 +75,46 @@ export default function PacketsPage() {
     refetchInterval: 30000, // 30秒自動刷新
   })
 
-  // 轉換為顯示格式
-  const packets: PacketDisplay[] = (rawPackets || []).map(convertToDisplay)
+  // 轉換為顯示格式，並去重（基於 uuid）
+  const packetsMap = new Map<string, PacketDisplay>()
+  ;(rawPackets || []).forEach((packet: RedPacket) => {
+    const display = convertToDisplay(packet)
+    const key = display.uuid || display.id.toString()
+    // 如果已存在，保留創建時間更早的（避免重複）
+    if (!packetsMap.has(key) || packetsMap.get(key)!.timestamp > display.timestamp) {
+      packetsMap.set(key, display)
+    }
+  })
+  const packets: PacketDisplay[] = Array.from(packetsMap.values())
 
   // 搶紅包 mutation
   const claimMutation = useMutation({
     mutationFn: (packetId: string) => claimRedPacket(packetId),
     onSuccess: (result, packetId) => {
+      // 檢查領取是否成功
+      if (!result.success) {
+        setLoadingId(null)
+        playSound('click')
+        alert(result.message || '領取失敗')
+        return
+      }
+      
+      // 檢查金額是否有效
+      if (!result.amount || result.amount <= 0) {
+        console.error('[claimRedPacket] Invalid amount:', result)
+        setLoadingId(null)
+        playSound('click')
+        alert('領取失敗：金額無效')
+        return
+      }
+      
       // 刷新紅包列表和餘額
       queryClient.invalidateQueries({ queryKey: ['redpackets'] })
       queryClient.invalidateQueries({ queryKey: ['balance'] })
       
       // 顯示結果
       setClaimAmount(result.amount)
-      setClaimMessage(result.message)
+      setClaimMessage(result.message || `恭喜獲得 ${result.amount} ${selectedPacket?.currency || 'USDT'}！`)
       setShowResultModal(true)
       setLoadingId(null)
       
@@ -99,7 +125,8 @@ export default function PacketsPage() {
     onError: (error: any) => {
       setLoadingId(null)
       playSound('click')
-      alert(error.message || '領取失敗')
+      const errorMessage = error.response?.data?.detail || error.message || '領取失敗'
+      alert(errorMessage)
     }
   })
 
