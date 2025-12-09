@@ -647,6 +647,8 @@ class LedgerCategory(str, enum.Enum):
     GAME_WIN = "game_win"            # 遊戲獲勝
     GAME_LOSS = "game_loss"          # 遊戲輸錢
     FEE = "fee"                      # 手續費
+    ADMIN_ADJUST = "admin_adjust"    # 管理員調整餘額
+    CHECKIN_REWARD = "checkin_reward"  # 簽到獎勵
 
 
 class LedgerEntry(Base):
