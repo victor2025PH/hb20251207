@@ -65,16 +65,20 @@ You must strictly adhere to this directory structure when creating or modifying 
 
 Since local scripts do not automatically sync to the server, you must follow this workflow when modifying server scripts:
 
-1.  **Git Push (Local)**:
-    ```bash
-    git add scripts/server/your-script.sh
-    git commit -m "Add server script: your-script.sh"
-    git push origin main
-    ```
+1.  **NO LOCAL DEPLOYMENT SCRIPTS**:
+    - **STRICTLY FORBIDDEN** to create, suggest, or run scripts like `deploy.sh`, `auto-deploy.bat`, or `pull-and-deploy.sh`.
+    - **REASON**: The project uses GitHub Actions for CI/CD.
 
-2.  **Server Pull (Remote)**:
-    - Instruct the user to run: `git pull origin main` on the server.
-    - If needed: `chmod +x scripts/server/your-script.sh`.
+2.  **THE ONLY ALLOWED WORKFLOW**:
+    - Step 1: Modify the code.
+    - Step 2: `git add .`
+    - Step 3: `git commit -m "feat/fix: message"`
+    - Step 4: `git push origin main`
+    - **STOP HERE**. Do not log into the server. Do not check if it deployed. Assume GitHub Actions handles the rest.
+
+3.  **SSH RESTRICTION**:
+    - **DO NOT** SSH into the server unless the user explicitly asks to "debug the server logs".
+    - Never SSH to deploy code.
 
 ---
 
@@ -95,3 +99,23 @@ Since local scripts do not automatically sync to the server, you must follow thi
 
 - **Change Logs**: When performing major updates, append a brief summary to `docs/changelog.md` (create if missing).
 - **Readme Anchors**: Ensure `README.md` uses English structure but can contain Chinese descriptions if requested by the user.
+
+3.  **WINDOWS POWERSHELL COMPATIBILITY (CRITICAL)**:
+    - **NO COMMAND CHAINING**: **Strictly Forbidden** to use `&&`, `||`, or `;` to chain commands in the terminal.
+    - **REASON**: The host is running Windows PowerShell 5.1 which crashes on these operators.
+    - **ACTION**: You MUST execute commands **sequentially** (one by one). Wait for the first command to finish before proposing the next.
+    - **NO SUDO**: Do not use `sudo` for local commands.
+
+4.  **NO STATUS REPORTS**:
+    - **FORBIDDEN**: Do not generate markdown files to report status (e.g., `database-data-status.md`).
+    - **ACTION**: Output the status results **directly in the chat window** instead of creating a file.
+
+    ## WINDOWS POWERSHELL COMPATIBILITY (CRITICAL)
+1. **NO COMMAND CHAINING**: 
+   - **Strictly Forbidden** to use `&&`, `||`, or `;` to chain commands.
+   - **REASON**: Host is Windows PowerShell 5.1 which crashes on these operators.
+   - **ACTION**: Execute commands **sequentially** (one by one).
+   
+2. **NO STATUS REPORTS**:
+   - **FORBIDDEN**: Do not generate markdown files for status checks (e.g., `database-data-status.md`).
+   - **ACTION**: Print check results directly in the chat.

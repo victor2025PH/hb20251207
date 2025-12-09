@@ -466,54 +466,55 @@ export default function SendRedPacket() {
 
         {/* 幣種選擇 */}
         <div>
-          <label className="block text-gray-300 text-base mb-2 font-medium flex items-center gap-2">
-            <Wallet size={16} className="text-gray-400" />
-            {t('currency')}
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-gray-300 text-base font-medium flex items-center gap-2">
+              <Wallet size={16} className="text-gray-400" />
+              {t('currency')}
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                haptic('light')
+                // 检查是否设置了不再显示
+                const dontShow = localStorage.getItem('dont_show_currency_method')
+                if (!dontShow) {
+                  // 设置当前选中的币种
+                  setSelectedCurrencyInfo(currency as 'USDT' | 'TON' | 'Stars')
+                  setShowCurrencyModal(true)
+                }
+              }}
+              className="text-brand-red text-sm flex items-center gap-1 hover:opacity-80 relative group"
+            >
+              <Info size={14} className="relative z-10" />
+              <span className="relative z-10 font-semibold flex items-center gap-1">
+                <TelegramStar size={14} withSpray={true} />
+                獲取方式
+                <TelegramStar size={14} withSpray={true} />
+              </span>
+              {/* 發光特效 */}
+              <span className="absolute inset-0 bg-gradient-to-r from-red-500/20 via-orange-500/20 to-yellow-500/20 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse" />
+            </button>
+          </div>
           <div className="flex gap-2">
             {['USDT', 'TON', 'Stars'].map((c) => (
-              <div key={c} className="flex-1 relative group">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic('light')
-                    setCurrency(c)
-                  }}
-                  className={`w-full py-3 rounded-xl border transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none relative z-10 ${
-                    currency === c
-                      ? 'bg-brand-red border-brand-red text-white'
-                      : 'bg-brand-darker border-white/5 text-gray-400'
-                  }`}
-                  style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
-                >
-                  {c}
-                </button>
-                {/* 點擊右上角圖標查看獲取方式 - 只在右上角小區域 */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    haptic('light')
-                    // 检查是否设置了不再显示
-                    const dontShow = localStorage.getItem('dont_show_currency_method')
-                    if (!dontShow) {
-                      setSelectedCurrencyInfo(c as 'USDT' | 'TON' | 'Stars')
-                      setShowCurrencyModal(true)
-                    }
-                  }}
-                  className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500/80 hover:bg-blue-500 transition-colors cursor-pointer z-20 focus:outline-none focus:ring-0 focus-visible:outline-none"
-                  title="點擊查看獲取方式"
-                  style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <Info size={14} className="text-white" />
-                </button>
-              </div>
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  haptic('light')
+                  setCurrency(c)
+                }}
+                className={`flex-1 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none ${
+                  currency === c
+                    ? 'bg-brand-red border-brand-red text-white'
+                    : 'bg-brand-darker border-white/5 text-gray-400'
+                }`}
+                style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
+              >
+                {c}
+              </button>
             ))}
           </div>
-          <p className="text-gray-400 text-xs mt-2">
-            💡 提示：懸停幣種按鈕並點擊 ℹ️ 圖標可查看獲取方式
-          </p>
         </div>
 
         {/* 紅包類型 */}
