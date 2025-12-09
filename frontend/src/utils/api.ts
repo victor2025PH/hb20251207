@@ -328,8 +328,8 @@ export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPac
 
 export async function claimRedPacket(id: string): Promise<{ success: boolean; amount: number; is_luckiest: boolean; message: string }> {
   const response = await api.post(`/v1/redpackets/${id}/claim`)
-  // Axios 返回的是 response.data，需要访问 data 属性
-  const result = response.data || response
+  // Axios 返回的是 AxiosResponse，需要访问 data 属性
+  const result = response.data as any
   // 確保返回格式正確
   if (result && typeof result === 'object') {
     return {

@@ -37,7 +37,7 @@ function convertToDisplay(packet: RedPacket): PacketDisplay {
   
   return {
     id: packet.id,
-    uuid: packet.uuid || packet.id.toString(), // 使用 uuid 而不是 id
+    uuid: packet.uuid ?? packet.id.toString(), // 使用 uuid，如果不存在则使用 id
     senderName: packet.sender_name || '匿名用戶',
     senderAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${packet.sender_id}`,
     senderLevel: Math.floor(Math.random() * 50) + 1, // TODO: 從 API 獲取真實等級
