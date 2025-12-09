@@ -352,12 +352,13 @@ jobs:
             echo "🔍 检查服务是否存在..."
             # 使用变量存储 grep 结果，避免 set -e 导致退出
             SERVICE_EXISTS=$(sudo systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_NAME}.service" && echo "yes" || echo "no") || true
-            if [ "$SERVICE_EXISTS" = "yes" ]; then
+            # 使用 test 命令检查变量值，避免 set -e 导致退出
+            test "$SERVICE_EXISTS" = "yes" && {
               echo "✅ 服务 $SERVICE_NAME 存在"
-            else
+            } || {
               echo "⚠️  服务 $SERVICE_NAME 不存在，可能需要创建服务文件"
               echo "💡 提示: 如果服务不存在，请先创建 systemd 服务文件"
-            fi
+            }
             
             # 重启服务
             echo "🔄 重启服务: $SERVICE_NAME"
