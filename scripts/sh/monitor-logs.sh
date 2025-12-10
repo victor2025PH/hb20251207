@@ -15,19 +15,23 @@ echo ""
 
 # 检查参数
 if [ "$1" == "api" ]; then
-    SERVICE_NAME="hbgm001-backend"
+    SERVICE_NAME="luckyred-api"
     echo -e "${GREEN}监控 API 服务日志...${NC}"
 elif [ "$1" == "bot" ]; then
-    SERVICE_NAME="hbgm001-bot"
+    SERVICE_NAME="luckyred-bot"
     echo -e "${GREEN}监控 Bot 服务日志...${NC}"
 elif [ "$1" == "all" ] || [ -z "$1" ]; then
     SERVICE_MODE="all"
     echo -e "${GREEN}监控所有服务日志...${NC}"
 else
-    echo -e "${RED}用法: $0 [api|bot|all]${NC}"
+    echo -e "${RED}用法: $0 [api|bot|all] [过滤关键词]${NC}"
     echo "  api  - 只监控 API 服务"
     echo "  bot  - 只监控 Bot 服务"
     echo "  all  - 监控所有服务（默认）"
+    echo ""
+    echo "示例:"
+    echo "  $0 bot I18N          # 监控 Bot 服务中包含 I18N 的日志"
+    echo "  $0 all language      # 监控所有服务中包含 language 的日志"
     exit 1
 fi
 
@@ -39,18 +43,18 @@ if [ "$SERVICE_MODE" == "all" ]; then
     echo -e "${YELLOW}按 Ctrl+C 停止监控${NC}"
     echo ""
     if [ -z "$FILTER" ]; then
-        journalctl -u hbgm001-backend -u hbgm001-bot -f --no-pager
+        sudo journalctl -u luckyred-api -u luckyred-bot -f --no-pager
     else
-        journalctl -u hbgm001-backend -u hbgm001-bot -f --no-pager | grep --color=always -i "$FILTER"
+        sudo journalctl -u luckyred-api -u luckyred-bot -f --no-pager | grep --color=always -i "$FILTER"
     fi
 else
     # 监控单个服务
     echo -e "${YELLOW}按 Ctrl+C 停止监控${NC}"
     echo ""
     if [ -z "$FILTER" ]; then
-        journalctl -u "$SERVICE_NAME" -f --no-pager
+        sudo journalctl -u "$SERVICE_NAME" -f --no-pager
     else
-        journalctl -u "$SERVICE_NAME" -f --no-pager | grep --color=always -i "$FILTER"
+        sudo journalctl -u "$SERVICE_NAME" -f --no-pager | grep --color=always -i "$FILTER"
     fi
 fi
 
