@@ -215,7 +215,8 @@ async def get_my_invite_stats(
         await db.refresh(user)
     
     # 生成邀请链接
-    from shared.settings import settings
+    from shared.config.settings import get_settings
+    settings = get_settings()
     invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={user.invite_code}"
     
     # 获取被邀请人列表
