@@ -27,19 +27,22 @@
 
 ---
 
-## Terminal & Execution Rules (WINDOWS SPECIAL)
+## Terminal & Execution Rules (WINDOWS vs LINUX)
 
-1.  **WINDOWS POWERSHELL COMPATIBILITY (CRITICAL)**:
-    - **NO COMMAND CHAINING**: **Strictly Forbidden** to use `&&`, `||`, or `;`.
+1.  **WINDOWS POWERSHELL COMPATIBILITY (LOCAL ONLY)**:
+    - **RESTRICTION**: When executing commands in the user's **LOCAL** terminal (VS Code terminal), **Strictly Avoid** `&&`, `||`, or `;`.
     - **REASON**: PowerShell 5.1 crashes on these.
-    - **ACTION**: Execute commands **sequentially** (one by one).
+    - **ACTION**: Execute local commands **sequentially** (one by one).
 
-2.  **SSH & REMOTE COMMAND SAFETY**:
-    - **NO COMPLEX SSH COMMANDS**: **Strictly Forbidden** to use `grep`, `awk`, `sed`, `|`, or quotes (`"`, `'`) inside an `ssh` command.
-    - **REASON**: Nested quotes cause syntax errors in PowerShell (the `>>` hang).
-    - **ACTION**: 
-        - INCORRECT: `ssh user@ip "cat file | grep 'text'"` (BANNED)
-        - CORRECT: `ssh user@ip "cat file"` (Read full content, then process in chat memory).
+2.  **LINUX & DEPLOYMENT SCRIPTS (EXCEPTION)**:
+    - **CRITICAL EXCEPTION**: When writing code for **Linux Servers** (e.g., `.github/workflows/*.yml`, SSH scripts, or shell scripts), you **MUST USE** `&&` and `||` for standard error handling.
+    - **RULE**: Do **NOT** apply Windows restrictions to Linux deployment scripts.
+    - **REQUIRED PATTERN**: Use `command && echo success || echo failure` to prevent `set -e` from killing the script on checks.
+
+3.  **SSH & REMOTE COMMAND SAFETY**:
+    - **NO COMPLEX SSH COMMANDS**: **Strictly Forbidden** to use `grep`, `awk`, `sed`, `|`, or quotes (`"`, `'`) inside an `ssh` command line argument.
+    - **REASON**: Nested quotes cause syntax errors in PowerShell.
+    - **ACTION**: Read full content locally, then process in chat memory.
 
 ---
 
@@ -47,7 +50,12 @@
 
 1.  **NO DEPLOY SCRIPTS**: No `deploy.sh` or local scripts.
 2.  **WORKFLOW**: Modify Code -> `git add .` -> `git commit` -> `git push`.
-3.  **NO SSH DEPLOY**: Do not log into server to deploy.
+3.  **NO SSH DEPLOY**: Do not log into server to deploy manually.
+4.  **SERVER CONFIGURATION TRUTH (ABSOLUTE)**:
+    - **Project Root**: `/opt/luckyred`
+    - **Systemd Service**: `luckyred-api`
+    - **Virtual Env**: `/opt/luckyred/api/.venv`
+    - **RULE**: Always hardcode these paths in workflows. Never guess or detect.
 
 ---
 

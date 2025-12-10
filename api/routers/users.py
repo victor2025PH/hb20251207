@@ -189,6 +189,85 @@ async def get_referral_tree(
     return tree
 
 
+@router.get("/me/invite")
+async def get_my_invite_stats(
+    tg_id: Optional[int] = Depends(get_tg_id_from_header),
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    获取当前用户的邀请统计信息
+    包括邀请码、邀请链接、邀请人数、收益等
+    """
+    if not tg_id:
+        raise HTTPException(status_code=401, detail="Telegram user ID is required")
+    
+    result = await db.execute(select(User).where(User.tg_id == tg_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 生成邀请码（如果还没有）
+    if not user.invite_code:
+        import secrets
+        user.invite_code = secrets.token_urlsafe(8)
+        await db.commit()
+        await db.refresh(user)
+    
+    # 生成邀请链接
+    from shared.settings import settings
+    invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={user.invite_code}"
+    
+    # 获取被邀请人列表
+    invitees_result = await db.execute(
+        select(User).where(User.invited_by == tg_id).order_by(User.created_at.desc())
+    )
+    invitees = invitees_result.scalars().all()
+    
+    # 计算下一个里程碑
+    invite_milestones = [
+        {"target": 5, "reward": 5},
+        {"target": 10, "reward": 15},
+        {"target": 25, "reward": 50},
+        {"target": 50, "reward": 150},
+        {"target": 100, "reward": 500},
+    ]
+    
+    invite_count = user.invite_count or 0
+    next_milestone = None
+    next_milestone_reward = None
+    progress_to_next = 0
+    
+    for milestone in invite_milestones:
+        if invite_count < milestone["target"]:
+            next_milestone = milestone["target"]
+            next_milestone_reward = milestone["reward"]
+            progress_to_next = invite_count
+            break
+    
+    # 构建被邀请人列表
+    invitees_list = [
+        {
+            "tg_id": invitee.tg_id or 0,
+            "username": invitee.username,
+            "first_name": invitee.first_name,
+            "joined_at": invitee.created_at.isoformat() if invitee.created_at else None,
+        }
+        for invitee in invitees
+    ]
+    
+    return {
+        "invite_code": user.invite_code,
+        "invite_count": invite_count,
+        "invite_earnings": float(user.invite_earnings or 0),
+        "invite_link": invite_link,
+        "next_milestone": next_milestone,
+        "next_milestone_reward": next_milestone_reward,
+        "progress_to_next": progress_to_next,
+        "invitees": invitees_list,
+    }
+
+
 # 管理后台用户列表API
 @router.get("/list")
 async def list_users(
