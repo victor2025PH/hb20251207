@@ -451,6 +451,8 @@ async def claim_red_packet(
     db: AsyncSession = Depends(get_db_session)
 ):
     """領取紅包（支持Redis高并发，支持 Telegram 和 JWT Token 認證）"""
+    logger.info(f"🎯 收到搶紅包請求: packet_uuid={packet_uuid}, type={type(packet_uuid).__name__}")
+    """領取紅包（支持Redis高并发，支持 Telegram 和 JWT Token 認證）"""
     from api.routers.auth import get_current_user_from_token
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
     
@@ -500,12 +502,39 @@ async def claim_red_packet(
             detail="需要登錄才能搶紅包。請通過 Telegram MiniApp 訪問或先登錄。"
         )
     
+    # 查找紅包（支持 uuid 或 id）
+    try:
+        # 先嘗試用 uuid 查找
+        result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
+        packet = result.scalar_one_or_none()
+        
+        # 如果找不到，嘗試用 id 查找（如果 packet_uuid 是數字）
+        if not packet and packet_uuid.isdigit():
+            packet_id = int(packet_uuid)
+            result = await db.execute(select(RedPacket).where(RedPacket.id == packet_id))
+            packet = result.scalar_one_or_none()
+            if packet:
+                logger.info(f"🔄 使用 ID 找到紅包: id={packet_id}, uuid={packet.uuid}")
+        
+        if not packet:
+            logger.error(f"❌ 紅包不存在: packet_uuid={packet_uuid}")
+            raise HTTPException(status_code=404, detail="Red packet not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 查找紅包時發生錯誤: {e}")
+        raise HTTPException(status_code=404, detail="Red packet not found")
+    
     # 尝试使用Redis高并发抢红包
     from api.services.redis_claim_service import RedisClaimService
     claim_id = str(uuid.uuid4())
     
+    # 使用實際的 uuid
+    actual_uuid = packet.uuid
+    logger.info(f"🎯 使用實際 UUID 搶紅包: {actual_uuid}")
+    
     success, error_code, amount, packet_status = await RedisClaimService.claim_packet(
-        packet_uuid=packet_uuid,
+        packet_uuid=actual_uuid,
         user_id=claimer.id,
         claim_id=claim_id
     )

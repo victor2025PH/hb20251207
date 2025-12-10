@@ -230,7 +230,13 @@ export default function PacketsPage() {
     })
 
     // 調用真實 API 領取紅包
-    claimMutation.mutate(packet.uuid || packet.id)
+    // 确保使用 uuid，如果没有 uuid 则使用 id 转换为字符串
+    const packetId = packet.uuid || String(packet.id)
+    if (!packetId) {
+      showAlert('紅包 ID 無效', 'error')
+      return
+    }
+    claimMutation.mutate(packetId)
   }
 
   // 加載狀態
