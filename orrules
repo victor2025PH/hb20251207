@@ -1,0 +1,51 @@
+[1mdiff --git a/.cursorrules b/.cursorrules[m
+[1mindex 245d8a3..8ababe3 100644[m
+[1m--- a/.cursorrules[m
+[1m+++ b/.cursorrules[m
+[36m@@ -27,19 +27,22 @@[m
+ [m
+ ---[m
+ [m
+[31m-## Terminal & Execution Rules (WINDOWS SPECIAL)[m
+[32m+[m[32m## Terminal & Execution Rules (WINDOWS vs LINUX)[m
+ [m
+[31m-1.  **WINDOWS POWERSHELL COMPATIBILITY (CRITICAL)**:[m
+[31m-    - **NO COMMAND CHAINING**: **Strictly Forbidden** to use `&&`, `||`, or `;`.[m
+[32m+[m[32m1.  **WINDOWS POWERSHELL COMPATIBILITY (LOCAL ONLY)**:[m
+[32m+[m[32m    - **RESTRICTION**: When executing commands in the user's **LOCAL** terminal (VS Code terminal), **Strictly Avoid** `&&`, `||`, or `;`.[m
+     - **REASON**: PowerShell 5.1 crashes on these.[m
+[31m-    - **ACTION**: Execute commands **sequentially** (one by one).[m
+[32m+[m[32m    - **ACTION**: Execute local commands **sequentially** (one by one).[m
+ [m
+[31m-2.  **SSH & REMOTE COMMAND SAFETY**:[m
+[31m-    - **NO COMPLEX SSH COMMANDS**: **Strictly Forbidden** to use `grep`, `awk`, `sed`, `|`, or quotes (`"`, `'`) inside an `ssh` command.[m
+[31m-    - **REASON**: Nested quotes cause syntax errors in PowerShell (the `>>` hang).[m
+[31m-    - **ACTION**: [m
+[31m-        - INCORRECT: `ssh user@ip "cat file | grep 'text'"` (BANNED)[m
+[31m-        - CORRECT: `ssh user@ip "cat file"` (Read full content, then process in chat memory).[m
+[32m+[m[32m2.  **LINUX & DEPLOYMENT SCRIPTS (EXCEPTION)**:[m
+[32m+[m[32m    - **CRITICAL EXCEPTION**: When writing code for **Linux Servers** (e.g., `.github/workflows/*.yml`, SSH scripts, or shell scripts), you **MUST USE** `&&` and `||` for standard error handling.[m
+[32m+[m[32m    - **RULE**: Do **NOT** apply Windows restrictions to Linux deployment scripts.[m
+[32m+[m[32m    - **REQUIRED PATTERN**: Use `command && echo success || echo failure` to prevent `set -e` from killing the script on checks.[m
+[32m+[m
+[32m+[m[32m3.  **SSH & REMOTE COMMAND SAFETY**:[m
+[32m+[m[32m    - **NO COMPLEX SSH COMMANDS**: **Strictly Forbidden** to use `grep`, `awk`, `sed`, `|`, or quotes (`"`, `'`) inside an `ssh` command line argument.[m
+[32m+[m[32m    - **REASON**: Nested quotes cause syntax errors in PowerShell.[m
+[32m+[m[32m    - **ACTION**: Read full content locally, then process in chat memory.[m
+ [m
+ ---[m
+ [m
+[36m@@ -47,7 +50,12 @@[m
+ [m
+ 1.  **NO DEPLOY SCRIPTS**: No `deploy.sh` or local scripts.[m
+ 2.  **WORKFLOW**: Modify Code -> `git add .` -> `git commit` -> `git push`.[m
+[31m-3.  **NO SSH DEPLOY**: Do not log into server to deploy.[m
+[32m+[m[32m3.  **NO SSH DEPLOY**: Do not log into server to deploy manually.[m
+[32m+[m[32m4.  **SERVER CONFIGURATION TRUTH (ABSOLUTE)**:[m
+[32m+[m[32m    - **Project Root**: `/opt/luckyred`[m
+[32m+[m[32m    - **Systemd Service**: `luckyred-api`[m
+[32m+[m[32m    - **Virtual Env**: `/opt/luckyred/api/.venv`[m
+[32m+[m[32m    - **RULE**: Always hardcode these paths in workflows. Never guess or detect.[m
+ [m
+ ---[m
+ [m

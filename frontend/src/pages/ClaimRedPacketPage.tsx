@@ -1,0 +1,182 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import confetti from 'canvas-confetti'
+import { useSound } from '../hooks/useSound'
+import { claimRedPacket, getRedPacket } from '../utils/api'
+import { showAlert } from '../utils/telegram'
+import ResultModal from '../components/ResultModal'
+import Loading from '../components/Loading'
+
+export default function ClaimRedPacketPage() {
+  const { uuid } = useParams<{ uuid: string }>()
+  const navigate = useNavigate()
+  const { playSound } = useSound()
+  const [showResultModal, setShowResultModal] = useState(false)
+  const [claimAmount, setClaimAmount] = useState(0)
+  const [claimMessage, setClaimMessage] = useState('')
+  const [packetInfo, setPacketInfo] = useState<any>(null)
+
+  // 获取红包信息
+  const { data: packet, isLoading: isLoadingPacket } = useQuery({
+    queryKey: ['redpacket', uuid],
+    queryFn: () => getRedPacket(uuid!),
+    enabled: !!uuid,
+    retry: 1,
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.detail || error.message || '紅包不存在'
+      showAlert(errorMessage, 'error', '錯誤')
+      setTimeout(() => {
+        navigate('/packets')
+      }, 2000)
+    }
+  })
+
+  // 抢红包 mutation
+  const claimMutation = useMutation({
+    mutationFn: (packetId: string) => claimRedPacket(packetId),
+    onSuccess: (result) => {
+      // 檢查領取是否成功
+      if (!result.success) {
+        playSound('click')
+        showAlert(result.message || '領取失敗', 'error')
+        return
+      }
+      
+      // 檢查金額是否有效
+      if (!result.amount || result.amount <= 0) {
+        console.error('[claimRedPacket] Invalid amount:', result)
+        playSound('click')
+        showAlert('領取失敗：金額無效', 'error')
+        return
+      }
+      
+      // 顯示結果
+      setClaimAmount(result.amount)
+      setClaimMessage(result.message || `恭喜獲得 ${result.amount} ${packet?.currency || 'USDT'}！`)
+      setPacketInfo(packet)
+      setShowResultModal(true)
+      
+      // 成功動畫
+      playSound('success')
+      triggerSuccessConfetti()
+    },
+    onError: (error: any) => {
+      playSound('click')
+      const errorMessage = error.response?.data?.detail || error.message || '領取失敗'
+      showAlert(errorMessage, 'error')
+    }
+  })
+
+  const triggerSuccessConfetti = () => {
+    const end = Date.now() + 1000
+    const colors = ['#bb0000', '#ffffff', '#fb923c', '#fbbf24']
+    const frame = () => {
+      confetti({
+        particleCount: 10,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: colors,
+        zIndex: 1000,
+      })
+      confetti({
+        particleCount: 10,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: colors,
+        zIndex: 1000,
+      })
+      confetti({
+        particleCount: 15,
+        angle: 90,
+        spread: 70,
+        origin: { x: 0.5, y: 0 },
+        colors: colors,
+        zIndex: 1000,
+      })
+      if (Date.now() < end) {
+        requestAnimationFrame(frame)
+      }
+    }
+    frame()
+  }
+
+  // 自动抢红包
+  useEffect(() => {
+    if (uuid && packet && !claimMutation.isPending && !showResultModal) {
+      // 延迟一下再抢，让用户看到页面
+      const timer = setTimeout(() => {
+        claimMutation.mutate(uuid)
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [uuid, packet, claimMutation, showResultModal])
+
+  if (isLoadingPacket || claimMutation.isPending) {
+    return (
+      <div className="fixed inset-0 bg-brand-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">正在搶紅包...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!packet) {
+    return (
+      <div className="fixed inset-0 bg-brand-dark flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">紅包不存在或已過期</p>
+          <button
+            onClick={() => navigate('/packets')}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg"
+          >
+            返回紅包列表
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-brand-dark flex items-center justify-center p-6">
+        <div className="text-center">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="mb-6"
+          >
+            <div className="text-6xl mb-4">🧧</div>
+            <h2 className="text-2xl font-bold text-white mb-2">搶紅包</h2>
+            <p className="text-gray-400">{packet.message || '恭喜發財！'}</p>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* 搶紅包成功彈窗 */}
+      {showResultModal && packetInfo && (
+        <ResultModal
+          isOpen={showResultModal}
+          onClose={() => {
+            setShowResultModal(false)
+            setTimeout(() => {
+              navigate('/packets')
+            }, 300)
+          }}
+          amount={claimAmount}
+          currency={packetInfo.currency?.toUpperCase() || 'USDT'}
+          senderName={packetInfo.sender_name || '匿名用戶'}
+          senderLevel={Math.floor(Math.random() * 50) + 1}
+          message={packetInfo.message || '恭喜發財！'}
+          senderAvatar={`https://api.dicebear.com/7.x/avataaars/svg?seed=${packetInfo.sender_id}`}
+        />
+      )}
+    </>
+  )
+}
+

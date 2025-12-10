@@ -25,6 +25,7 @@ const ExchangePage = lazy(() => import('./pages/ExchangePage'))
 const LuckyWheelPage = lazy(() => import('./pages/LuckyWheelPage'))
 const TasksPage = lazy(() => import('./pages/TasksPage'))
 const DebugPage = lazy(() => import('./pages/DebugPage'))
+const ClaimRedPacketPage = lazy(() => import('./pages/ClaimRedPacketPage'))
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -139,6 +140,8 @@ export default function App() {
               <Route path="/withdraw" element={<AuthGuard><Withdraw /></AuthGuard>} />
               <Route path="/exchange" element={<AuthGuard><ExchangePage /></AuthGuard>} />
               <Route path="/lucky-wheel" element={<AuthGuard><LuckyWheelPage /></AuthGuard>} />
+              {/* 公开抢红包页面 - 需要认证但允许未登录用户访问 */}
+              <Route path="/claim/:uuid" element={<AuthGuard requireAuth={false}><ClaimRedPacketPage /></AuthGuard>} />
               {/* Debug页面不需要认证 */}
               <Route path="/debug" element={<DebugPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -62,3 +62,12 @@
 ## Security
 
 1.  **PROTECT SECRETS**: Never output real keys.
+
+# GIT SAFETY & VERIFICATION RULES
+
+When I ask you to fix code or submit changes:
+1. Run `git add .` and `git commit -m "..."` only.
+2. **CRITICAL:** Do NOT run `git push`. 
+3. After the commit command executes successfully, consider your current task **COMPLETED**.
+4. **IMMEDIATELY STOP** processing. Do not continue to verify files. Do not "spin" or wait.
+5. Output a short confirmation: "✅ Commit saved. Please verify code. Type 'push' to upload."

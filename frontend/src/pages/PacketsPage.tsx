@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti'
 import { useTranslation } from '../providers/I18nProvider'
 import { listRedPackets, claimRedPacket, type RedPacket } from '../utils/api'
 import { useSound } from '../hooks/useSound'
+import { showAlert } from '../utils/telegram'
 import ResultModal from '../components/ResultModal'
 import TelegramStar from '../components/TelegramStar'
 import PageTransition from '../components/PageTransition'
@@ -95,7 +96,7 @@ export default function PacketsPage() {
       if (!result.success) {
         setLoadingId(null)
         playSound('click')
-        alert(result.message || '領取失敗')
+        showAlert(result.message || '領取失敗', 'error')
         return
       }
       
@@ -104,7 +105,7 @@ export default function PacketsPage() {
         console.error('[claimRedPacket] Invalid amount:', result)
         setLoadingId(null)
         playSound('click')
-        alert('領取失敗：金額無效')
+        showAlert('領取失敗：金額無效', 'error')
         return
       }
       
@@ -126,7 +127,7 @@ export default function PacketsPage() {
       setLoadingId(null)
       playSound('click')
       const errorMessage = error.response?.data?.detail || error.message || '領取失敗'
-      alert(errorMessage)
+      showAlert(errorMessage, 'error')
     }
   })
 
