@@ -305,13 +305,17 @@ export default function SendRedPacket() {
   }
 
   // 刪除群組歷史記錄
-  const deleteChatFromHistory = (chatId: number) => {
+  const deleteChatFromHistory = (chatId: number, chatTitle?: string) => {
     if (typeof window === 'undefined') return
     
     try {
       const storageKey = `redpacket_chat_history_${tgId || 'default'}`
       const historyStr = localStorage.getItem(storageKey)
       let history: ChatInfo[] = historyStr ? JSON.parse(historyStr) : []
+      
+      // 查找要刪除的群組信息（用於顯示提示）
+      const chatToDelete = history.find((c: ChatInfo) => c.id === chatId)
+      const chatName = chatTitle || chatToDelete?.title || chatToDelete?.username || `Chat ${chatId}`
       
       const beforeCount = history.length
       history = history.filter((c: ChatInfo) => c.id !== chatId)
@@ -322,10 +326,18 @@ export default function SendRedPacket() {
         // 觸發 UI 更新
         setChatHistoryKey(prev => prev + 1)
         haptic('light')
-        showAlert('已刪除', 'success')
-        console.log('[deleteChatFromHistory] Deleted chat from history:', { chatId, beforeCount, afterCount })
+        
+        // 顯示詳細的刪除提示
+        showAlert(`已刪除「${chatName}」`, 'success')
+        console.log('[deleteChatFromHistory] Deleted chat from history:', { chatId, chatName, beforeCount, afterCount })
+        
+        // 如果刪除的是當前選中的群組，清除選中狀態
+        if (selectedChat?.id === chatId) {
+          setSelectedChat(null)
+        }
       } else {
         console.warn('[deleteChatFromHistory] Chat not found in history:', chatId)
+        showAlert('未找到該群組記錄', 'warning')
       }
     } catch (error) {
       console.error('[deleteChatFromHistory] Error deleting chat history:', error)
@@ -801,10 +813,7 @@ export default function SendRedPacket() {
                               )
                               
                               if (confirmed) {
-                                deleteChatFromHistory(chat.id)
-                                if (selectedChat?.id === chat.id) {
-                                  setSelectedChat(null)
-                                }
+                                deleteChatFromHistory(chat.id, chat.title || chat.username)
                               }
                             }}
                             className="p-2 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
