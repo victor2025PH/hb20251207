@@ -865,3 +865,21 @@ async def get_recommended_packets(
     
     return responses
 
+
+@router.get("/{packet_uuid}", response_model=RedPacketResponse)
+async def get_red_packet(
+    packet_uuid: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    獲取單個紅包信息（通過 UUID）
+    注意：此路由必須放在所有具體路徑（如 /list, /recommended）之後
+    """
+    result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
+    packet = result.scalar_one_or_none()
+    
+    if not packet:
+        raise HTTPException(status_code=404, detail="Red packet not found")
+    
+    return packet
+
