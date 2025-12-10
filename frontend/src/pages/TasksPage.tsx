@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Trophy, Sparkles, Users, Share2, Gamepad2, Target, CheckCircle, Gift } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
