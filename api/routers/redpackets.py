@@ -323,6 +323,9 @@ async def create_red_packet(
                             ]]
                             
                             logger.info(f"📨 正在發送消息到群組 {chat_id} (類型: {type(chat_id).__name__})...")
+                            logger.info(f"📝 消息內容預覽: {group_message[:100]}...")
+                            logger.info(f"🔘 按鈕數據: {claim_keyboard}")
+                            
                             sent_message = await bot.send_message(
                                 chat_id=chat_id,
                                 text=group_message,
@@ -330,7 +333,7 @@ async def create_red_packet(
                                 reply_markup=InlineKeyboardMarkup(claim_keyboard)
                             )
                             message_sent = True
-                            logger.info(f"✅ 紅包消息已成功發送到群組 {chat_id}, 消息ID: {sent_message.message_id}")
+                            logger.info(f"✅ 紅包消息已成功發送到群組 {chat_id}, 消息ID: {sent_message.message_id}, 時間: {sent_message.date}")
                         except TelegramError as tg_error:
                             error_msg = str(tg_error).lower()
                             logger.error(f"❌ 發送紅包消息到群組 {chat_id} 失敗: {type(tg_error).__name__}: {str(tg_error)}")
