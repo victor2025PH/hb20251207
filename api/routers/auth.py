@@ -169,8 +169,18 @@ async def get_current_user_from_token(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    has_initData = bool(x_telegram_init_data) and should_allow_telegram_auth(request)
+    # 如果有 initData，就允許嘗試 Telegram 認證（不管 host 是什麼）
+    # 因為 Telegram Desktop 等客戶端的 host 可能不在允許列表中
+    has_initData = bool(x_telegram_init_data)
     has_jwt_token = credentials is not None and credentials.credentials
+    
+    # 記錄認證策略檢查結果（用於調試）
+    if x_telegram_init_data:
+        telegram_auth_allowed = should_allow_telegram_auth(request)
+        logger.debug(
+            f"[Auth] Telegram initData 存在，認證策略檢查: {telegram_auth_allowed}, "
+            f"host: {request.headers.get('host', 'unknown')}"
+        )
 
     # Step 1: 嘗試 Telegram 認證（如果有 initData）
     if has_initData:
