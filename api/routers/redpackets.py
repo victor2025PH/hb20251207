@@ -113,8 +113,9 @@ async def create_red_packet(
     db: AsyncSession = Depends(get_db_session)
 ):
     """創建紅包"""
-    # 立即記錄請求信息，用於調試
-    logger.info(f"🎯 [創建紅包] 收到請求: sender_tg_id={sender_tg_id}, chat_id={request.chat_id}, type={type(request.chat_id).__name__}, amount={request.total_amount}, count={request.total_count}")
+    # 立即記錄請求信息，用於調試（使用簡單格式，避免被過濾）
+    logger.info(f"[CREATE_RED_PACKET] Request received: sender_tg_id={sender_tg_id}, chat_id={request.chat_id}, chat_id_type={type(request.chat_id).__name__}, amount={request.total_amount}, count={request.total_count}")
+    logger.info(f"[CREATE_RED_PACKET] chat_id details: value={request.chat_id}, is_none={request.chat_id is None}, bool_value={bool(request.chat_id)}")
     
     if sender_tg_id is None:
         raise HTTPException(status_code=401, detail="Telegram user ID is required")
@@ -248,36 +249,36 @@ async def create_red_packet(
     message_sent = False
     share_link = None
     
-    # 立即記錄 chat_id 狀態
-    logger.info(f"🔍 [發送檢查] request.chat_id={request.chat_id}, type={type(request.chat_id).__name__}, bool={bool(request.chat_id)}, is None={request.chat_id is None}")
+    # 立即記錄 chat_id 狀態（使用簡單格式，避免被過濾）
+    logger.info(f"[SEND_CHECK] request.chat_id={request.chat_id}, type={type(request.chat_id).__name__}, bool={bool(request.chat_id)}, is_none={request.chat_id is None}")
     
     # 確保 chat_id 是整數類型
     chat_id = None
     if request.chat_id is not None:
         try:
             chat_id = int(request.chat_id)
-            logger.info(f"📤 準備發送紅包消息到群組 {chat_id} (原始值: {request.chat_id}, 類型: {type(request.chat_id).__name__})")
-            logger.info(f"📋 紅包信息: uuid={packet.uuid}, amount={packet.total_amount}, count={packet.total_count}")
+            logger.info(f"[SEND_TO_GROUP] Preparing to send red packet to group {chat_id} (original={request.chat_id}, type={type(request.chat_id).__name__})")
+            logger.info(f"[SEND_TO_GROUP] Packet info: uuid={packet.uuid}, amount={packet.total_amount}, count={packet.total_count}")
         except (ValueError, TypeError) as e:
-            logger.error(f"❌ chat_id 轉換失敗: {request.chat_id} (類型: {type(request.chat_id).__name__}), 錯誤: {e}")
+            logger.error(f"[SEND_TO_GROUP] chat_id conversion failed: {request.chat_id} (type={type(request.chat_id).__name__}), error={e}")
             chat_id = None
     else:
-        logger.info(f"ℹ️  request.chat_id 為 None，跳過群組發送")
+        logger.info(f"[SEND_TO_GROUP] request.chat_id is None, skipping group send")
     
     if chat_id:
         try:
             # 檢查機器人是否在群組中
             bot_info = await bot.get_me()
-            logger.info(f"🤖 機器人信息: ID={bot_info.id}, Username=@{bot_info.username}")
+            logger.info(f"[BOT_INFO] Bot ID={bot_info.id}, Username=@{bot_info.username}")
             
             try:
                 bot_member = await bot.get_chat_member(chat_id, bot_info.id)
                 bot_status = bot_member.status
-                logger.info(f"👥 機器人在群組 {chat_id} 中的狀態: {bot_status}")
+                logger.info(f"[BOT_STATUS] Bot status in group {chat_id}: {bot_status}")
                 
                 # 將 bot_status 轉換為字符串以便比較
                 bot_status_str = str(bot_status).lower()
-                logger.info(f"🔍 機器人狀態詳情: status={bot_status_str}, type={type(bot_status).__name__}")
+                logger.info(f"[BOT_STATUS_DETAIL] status={bot_status_str}, type={type(bot_status).__name__}")
                 
                 if bot_status_str not in ['left', 'kicked']:
                     # 機器人在群組中，檢查是否有發送消息的權限
@@ -331,9 +332,9 @@ async def create_red_packet(
                                 )
                             ]]
                             
-                            logger.info(f"📨 正在發送消息到群組 {chat_id} (類型: {type(chat_id).__name__})...")
-                            logger.info(f"📝 消息內容預覽: {group_message[:100]}...")
-                            logger.info(f"🔘 按鈕數據: {claim_keyboard}")
+                            logger.info(f"[SEND_MESSAGE] Sending message to group {chat_id} (type={type(chat_id).__name__})")
+                            logger.info(f"[SEND_MESSAGE] Message preview: {group_message[:100]}...")
+                            logger.info(f"[SEND_MESSAGE] Button data: {claim_keyboard}")
                             
                             # 尝试发送消息，如果 Markdown 解析失败，使用 HTML 或纯文本
                             try:
@@ -361,29 +362,29 @@ async def create_red_packet(
                                     # 其他错误，重新抛出
                                     raise
                             message_sent = True
-                            logger.info(f"✅ 紅包消息已成功發送到群組 {chat_id}, 消息ID: {sent_message.message_id}, 時間: {sent_message.date}")
+                            logger.info(f"[SEND_SUCCESS] Red packet message sent to group {chat_id}, message_id={sent_message.message_id}, date={sent_message.date}")
                         except TelegramError as tg_error:
                             error_msg = str(tg_error).lower()
-                            logger.error(f"❌ 發送紅包消息到群組 {chat_id} 失敗: {type(tg_error).__name__}: {str(tg_error)}")
+                            logger.error(f"[SEND_FAILED] Failed to send red packet to group {chat_id}: {type(tg_error).__name__}: {str(tg_error)}")
                             logger.exception(tg_error)  # 記錄完整的堆棧跟踪
                             
                             # 檢查是否是權限問題
                             if "not enough rights" in error_msg or "can't send messages" in error_msg or "forbidden" in error_msg:
-                                logger.warning(f"⚠️  機器人沒有發送消息的權限（群組 {chat_id}）")
+                                logger.warning(f"[SEND_FAILED] Bot does not have permission to send messages (group {chat_id})")
                             # 發送失敗，返回分享鏈接
                             share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                         except Exception as e:
-                            logger.error(f"❌ 發送紅包消息到群組 {chat_id} 時發生未預期的錯誤: {type(e).__name__}: {str(e)}")
+                            logger.error(f"[SEND_FAILED] Unexpected error sending red packet to group {chat_id}: {type(e).__name__}: {str(e)}")
                             logger.exception(e)  # 記錄完整的堆棧跟踪
                             # 發送失敗，返回分享鏈接
                             share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                 else:
                     # 機器人不在群組中，返回分享鏈接
-                    logger.warning(f"⚠️  機器人不在群組 {chat_id} 中（狀態: {bot_status}），返回分享鏈接")
+                    logger.warning(f"[SEND_SKIP] Bot not in group {chat_id} (status={bot_status}), returning share link")
                     share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
             except TelegramError as member_error:
                 error_msg = str(member_error).lower()
-                logger.warning(f"⚠️  檢查機器人群組成員狀態失敗: {error_msg}")
+                logger.warning(f"[BOT_CHECK_FAILED] Failed to check bot member status: {error_msg}")
                 logger.exception(member_error)  # 記錄完整的堆棧跟踪
                 if "chat not found" in error_msg or "not enough rights" in error_msg or "forbidden" in error_msg:
                     # 機器人不在群組中，返回分享鏈接
