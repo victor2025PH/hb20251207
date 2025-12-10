@@ -323,6 +323,14 @@ export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPac
   
   console.log('[sendRedPacket] Sending request:', requestBody)
   console.log('[sendRedPacket] 紅包類型:', params.chat_id === null ? '公開紅包' : '私密紅包')
+  console.log('[sendRedPacket] chat_id 詳情:', {
+    original: params.chat_id,
+    type: typeof params.chat_id,
+    isNull: params.chat_id === null,
+    isUndefined: params.chat_id === undefined,
+    inRequestBody: requestBody.chat_id,
+    requestBodyType: typeof requestBody.chat_id
+  })
   return api.post('/redpackets/create', requestBody)
 }
 

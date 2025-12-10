@@ -113,6 +113,9 @@ async def create_red_packet(
     db: AsyncSession = Depends(get_db_session)
 ):
     """創建紅包"""
+    # 立即記錄請求信息，用於調試
+    logger.info(f"🎯 [創建紅包] 收到請求: sender_tg_id={sender_tg_id}, chat_id={request.chat_id}, type={type(request.chat_id).__name__}, amount={request.total_amount}, count={request.total_count}")
+    
     if sender_tg_id is None:
         raise HTTPException(status_code=401, detail="Telegram user ID is required")
     
@@ -245,9 +248,12 @@ async def create_red_packet(
     message_sent = False
     share_link = None
     
+    # 立即記錄 chat_id 狀態
+    logger.info(f"🔍 [發送檢查] request.chat_id={request.chat_id}, type={type(request.chat_id).__name__}, bool={bool(request.chat_id)}, is None={request.chat_id is None}")
+    
     # 確保 chat_id 是整數類型
     chat_id = None
-    if request.chat_id:
+    if request.chat_id is not None:
         try:
             chat_id = int(request.chat_id)
             logger.info(f"📤 準備發送紅包消息到群組 {chat_id} (原始值: {request.chat_id}, 類型: {type(request.chat_id).__name__})")
@@ -255,6 +261,8 @@ async def create_red_packet(
         except (ValueError, TypeError) as e:
             logger.error(f"❌ chat_id 轉換失敗: {request.chat_id} (類型: {type(request.chat_id).__name__}), 錯誤: {e}")
             chat_id = None
+    else:
+        logger.info(f"ℹ️  request.chat_id 為 None，跳過群組發送")
     
     if chat_id:
         try:
