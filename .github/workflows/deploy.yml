@@ -161,8 +161,8 @@ jobs:
               local VENV_NAME=$2
               
               echo "🔍 检查 $VENV_NAME 虚拟环境关键文件: $VENV_DIR/bin/activate"
-              # 使用 test -f 检查文件，使用 || true 避免 set -e 导致退出
-              if test -f "$VENV_DIR/bin/activate" 2>/dev/null; then
+              # 使用 ls 命令检查文件是否存在，避免 test 命令导致退出
+              if ls "$VENV_DIR/bin/activate" >/dev/null 2>&1; then
                 echo "✅ $VENV_NAME 虚拟环境已存在且完整（activate 文件存在）"
               else
                 echo "⚠️  $VENV_NAME 虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
@@ -194,7 +194,7 @@ jobs:
                 fi
                 
                 # 验证创建结果
-                if ! test -f "$VENV_DIR/bin/activate" 2>/dev/null; then
+                if ! ls "$VENV_DIR/bin/activate" >/dev/null 2>&1; then
                   echo "❌ 错误: $VENV_NAME 虚拟环境创建后 activate 文件仍不存在"
                   exit 1
                 fi
