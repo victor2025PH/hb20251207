@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { useSound } from '../hooks/useSound'
-import { claimRedPacket, getRedPacket } from '../utils/api'
+import { claimRedPacket, getRedPacket, type RedPacket } from '../utils/api'
 import { showAlert } from '../utils/telegram'
 import ResultModal from '../components/ResultModal'
 import Loading from '../components/Loading'
@@ -16,22 +16,26 @@ export default function ClaimRedPacketPage() {
   const [showResultModal, setShowResultModal] = useState(false)
   const [claimAmount, setClaimAmount] = useState(0)
   const [claimMessage, setClaimMessage] = useState('')
-  const [packetInfo, setPacketInfo] = useState<any>(null)
+  const [packetInfo, setPacketInfo] = useState<RedPacket | null>(null)
 
   // 获取红包信息
-  const { data: packet, isLoading: isLoadingPacket } = useQuery({
+  const { data: packet, isLoading: isLoadingPacket, isError, error } = useQuery<RedPacket>({
     queryKey: ['redpacket', uuid],
     queryFn: () => getRedPacket(uuid!),
     enabled: !!uuid,
     retry: 1,
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.detail || error.message || '紅包不存在'
+  })
+
+  // 使用 useEffect 替代 onError
+  useEffect(() => {
+    if (isError && error) {
+      const errorMessage = (error as any).response?.data?.detail || (error as Error).message || '紅包不存在'
       showAlert(errorMessage, 'error', '錯誤')
       setTimeout(() => {
         navigate('/packets')
       }, 2000)
     }
-  })
+  }, [isError, error, navigate])
 
   // 抢红包 mutation
   const claimMutation = useMutation({
@@ -153,7 +157,7 @@ export default function ClaimRedPacketPage() {
           >
             <div className="text-6xl mb-4">🧧</div>
             <h2 className="text-2xl font-bold text-white mb-2">搶紅包</h2>
-            <p className="text-gray-400">{packet.message || '恭喜發財！'}</p>
+            <p className="text-gray-400">{packet?.message || '恭喜發財！'}</p>
           </motion.div>
         </div>
       </div>
