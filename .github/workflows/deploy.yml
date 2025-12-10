@@ -164,7 +164,7 @@ jobs:
               # 使用 ls 命令检查文件是否存在，使用 || true 避免 ssh-action 检测到非零退出码
               # 将检查结果存储到变量中，避免在 if 条件中直接使用 ls
               VENV_EXISTS=0
-              ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && VENV_EXISTS=1 || VENV_EXISTS=0
+              (ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && VENV_EXISTS=1) || VENV_EXISTS=0 || true
               
               if [ "$VENV_EXISTS" = "1" ]; then
                 echo "✅ $VENV_NAME 虚拟环境已存在且完整（activate 文件存在）"
