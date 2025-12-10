@@ -341,36 +341,30 @@ jobs:
             fi
             
             # ==========================================
-            # 步骤 6: 重启服务 (Case-Safe Mode)
+            # 步骤 6: 重启服务
             # ==========================================
+            
             echo ""
             echo "=========================================="
             echo "步骤 6: 重启服务"
             echo "=========================================="
             
-            # 安全检查服务是否存在 (grep 失败返回 missing，整行命令返回 0)
-            SERVICE_CHECK=$(sudo systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_NAME}.service" && echo "found" || echo "missing") || true
-            echo "🔍 服务状态检查: $SERVICE_CHECK"
+            echo "🔍 检查服务是否存在..."
             
-            # 使用 case 语句分支，避免 test 或 if 判断产生 exit code 1
-            case "$SERVICE_CHECK" in
-            found)
+            if sudo systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_NAME}.service"; then
               echo "✅ 服务存在，执行重启..."
               sudo systemctl daemon-reload || {
                 echo "⚠️  systemctl daemon-reload 失败，继续..."
               }
-              # 尝试重启，如果失败不要退出脚本，而是打印日志
               sudo systemctl restart "$SERVICE_NAME" || {
-                echo "⚠️  服务重启命令返回错误，打印日志:"
+                echo "⚠️  服务重启失败，打印最近 20 行日志:"
                 sudo journalctl -u "$SERVICE_NAME" --no-pager -n 20 || true
               }
               echo "✅ 重启命令执行完毕"
-              ;;
-            *)
+            else
               echo "⚠️  注意: 服务 $SERVICE_NAME 尚未创建"
-              echo "💡 代码已部署，但服务未启动。请登录服务器创建 Systemd 服务文件。"
-              ;;
-            esac
+              echo "💡 代码已部署，但服务未启动。请登录服务器创建 systemd 服务文件。"
+            fi
             
             echo ""
             echo "=========================================="
