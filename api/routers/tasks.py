@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
+import hashlib
 from loguru import logger
 
 from shared.database.connection import get_db_session
@@ -20,14 +21,16 @@ from api.utils.telegram_auth import get_tg_id_from_header
 
 router = APIRouter()
 
-# 每日任務配置
-DAILY_TASKS = {
+# 每日任務配置 - 基礎任務（每天都有）
+DAILY_BASE_TASKS = {
     "checkin": {
         "task_name": "每日簽到",
         "task_description": "完成每日簽到，領取紅包獎勵",
         "requirement": {"action": "checkin"},
         "reward_amount": Decimal("0.1"),
         "reward_currency": CurrencyType.USDT,
+        "category": "daily",
+        "icon": "📅",
     },
     "claim_packet": {
         "task_name": "搶紅包",
@@ -35,20 +38,77 @@ DAILY_TASKS = {
         "requirement": {"action": "claim", "count": 1},
         "reward_amount": Decimal("0.05"),
         "reward_currency": CurrencyType.USDT,
+        "category": "daily",
+        "icon": "🎁",
     },
+}
+
+# 每日輪換任務池（根據日期選擇不同的任務）
+DAILY_ROTATING_TASKS = {
+    # 社交互動任務
     "send_packet": {
-        "task_name": "發紅包",
-        "task_description": "發送1個紅包即可完成任務",
+        "task_name": "發送紅包",
+        "task_description": "發送1個紅包給好友",
         "requirement": {"action": "send", "count": 1},
         "reward_amount": Decimal("0.1"),
         "reward_currency": CurrencyType.USDT,
+        "category": "social",
+        "icon": "💝",
     },
+    "send_packet_group": {
+        "task_name": "群組發包",
+        "task_description": "在群組中發送1個紅包",
+        "requirement": {"action": "send_group", "count": 1},
+        "reward_amount": Decimal("0.15"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "social",
+        "icon": "👥",
+    },
+    "claim_3_packets": {
+        "task_name": "搶包達人",
+        "task_description": "今天領取3個紅包",
+        "requirement": {"action": "claim", "count": 3},
+        "reward_amount": Decimal("0.2"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "daily",
+        "icon": "🎯",
+    },
+    "send_bomb_packet": {
+        "task_name": "炸彈紅包",
+        "task_description": "發送1個炸彈紅包",
+        "requirement": {"action": "send_bomb", "count": 1},
+        "reward_amount": Decimal("0.3"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "game",
+        "icon": "💣",
+    },
+    "claim_luckiest": {
+        "task_name": "手氣最佳",
+        "task_description": "在任意紅包中獲得手氣最佳",
+        "requirement": {"action": "claim_luckiest", "count": 1},
+        "reward_amount": Decimal("0.5"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "game",
+        "icon": "⭐",
+    },
+    # 病毒式傳播任務
     "share_app": {
         "task_name": "分享應用",
         "task_description": "分享應用鏈接給好友",
         "requirement": {"action": "share", "count": 1},
         "reward_amount": Decimal("0.05"),
         "reward_currency": CurrencyType.USDT,
+        "category": "viral",
+        "icon": "📤",
+    },
+    "share_packet": {
+        "task_name": "分享紅包",
+        "task_description": "分享1個紅包鏈接",
+        "requirement": {"action": "share_packet", "count": 1},
+        "reward_amount": Decimal("0.1"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "viral",
+        "icon": "🔗",
     },
     "invite_friend": {
         "task_name": "邀請好友",
@@ -56,8 +116,115 @@ DAILY_TASKS = {
         "requirement": {"action": "invite", "count": 1},
         "reward_amount": Decimal("0.5"),
         "reward_currency": CurrencyType.USDT,
+        "category": "viral",
+        "icon": "👫",
+    },
+    "invite_3_friends": {
+        "task_name": "社交達人",
+        "task_description": "邀請3個好友註冊",
+        "requirement": {"action": "invite", "count": 3},
+        "reward_amount": Decimal("2.0"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "viral",
+        "icon": "🌟",
+    },
+    # 遊戲任務
+    "play_lucky_wheel": {
+        "task_name": "幸運轉盤",
+        "task_description": "玩1次幸運轉盤",
+        "requirement": {"action": "play_wheel", "count": 1},
+        "reward_amount": Decimal("0.1"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "game",
+        "icon": "🎡",
+    },
+    "win_game": {
+        "task_name": "遊戲獲勝",
+        "task_description": "在任意遊戲中獲勝1次",
+        "requirement": {"action": "win_game", "count": 1},
+        "reward_amount": Decimal("0.2"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "game",
+        "icon": "🏆",
+    },
+    # 社交互動任務
+    "comment_packet": {
+        "task_name": "紅包互動",
+        "task_description": "在紅包下留言或點讚",
+        "requirement": {"action": "comment", "count": 1},
+        "reward_amount": Decimal("0.05"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "social",
+        "icon": "💬",
+    },
+    "follow_user": {
+        "task_name": "關注好友",
+        "task_description": "關注1個用戶",
+        "requirement": {"action": "follow", "count": 1},
+        "reward_amount": Decimal("0.05"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "social",
+        "icon": "👀",
+    },
+    # 挑戰任務
+    "claim_5_packets": {
+        "task_name": "搶包挑戰",
+        "task_description": "今天領取5個紅包",
+        "requirement": {"action": "claim", "count": 5},
+        "reward_amount": Decimal("0.5"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "challenge",
+        "icon": "🔥",
+    },
+    "send_3_packets": {
+        "task_name": "發包挑戰",
+        "task_description": "今天發送3個紅包",
+        "requirement": {"action": "send", "count": 3},
+        "reward_amount": Decimal("0.5"),
+        "reward_currency": CurrencyType.USDT,
+        "category": "challenge",
+        "icon": "💪",
     },
 }
+
+# 每日任務配置（合併基礎和輪換任務）
+DAILY_TASKS = {**DAILY_BASE_TASKS}
+
+
+def get_daily_rotating_tasks(date: datetime = None) -> Dict[str, Dict[str, Any]]:
+    """
+    根據日期獲取每日輪換任務（確保每天任務不同，但同一天所有用戶看到相同任務）
+    使用日期作為種子，確保任務選擇的確定性
+    """
+    if date is None:
+        date = datetime.utcnow()
+    
+    # 使用日期作為種子（格式：YYYY-MM-DD）
+    date_str = date.strftime("%Y-%m-%d")
+    seed = int(hashlib.md5(date_str.encode()).hexdigest(), 16)
+    
+    # 從輪換任務池中選擇3-4個任務（根據種子確定性選擇）
+    task_list = list(DAILY_ROTATING_TASKS.items())
+    selected_tasks = {}
+    
+    # 確保每天選擇不同的任務組合
+    # 使用種子來確定性選擇，但確保多樣性
+    num_tasks = 3  # 每天選擇3個輪換任務
+    
+    for i in range(num_tasks):
+        # 使用種子選擇任務（確保同一天所有用戶看到相同任務）
+        index = (seed + i * 7) % len(task_list)
+        task_id, task_config = task_list[index]
+        selected_tasks[task_id] = task_config
+    
+    return selected_tasks
+
+
+def get_all_daily_tasks(date: datetime = None) -> Dict[str, Dict[str, Any]]:
+    """獲取所有每日任務（基礎任務 + 當日輪換任務）"""
+    base_tasks = DAILY_BASE_TASKS.copy()
+    rotating_tasks = get_daily_rotating_tasks(date)
+    return {**base_tasks, **rotating_tasks}
 
 # 成就任務配置
 ACHIEVEMENT_TASKS = {
@@ -109,6 +276,8 @@ class TaskStatus(BaseModel):
     progress: Dict[str, Any]  # 完成進度
     reward_amount: float
     reward_currency: str
+    category: Optional[str] = None  # 任務分類：daily, social, viral, game, challenge
+    icon: Optional[str] = None  # 任務圖標
     red_packet_id: Optional[str] = None
     completed_at: Optional[datetime] = None
     claimed_at: Optional[datetime] = None
@@ -288,6 +457,100 @@ async def check_user_task_progress(
         progress["target"] = target_count
         progress["completed"] = share_count >= target_count
     
+    elif action == "send_group":
+        # 檢查群組發送紅包數量（今日）
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        result = await db.execute(
+            select(func.count(RedPacket.id)).where(
+                and_(
+                    RedPacket.sender_id == user.id,
+                    RedPacket.chat_id.isnot(None),  # 群組紅包
+                    RedPacket.created_at >= today_start
+                )
+            )
+        )
+        send_count = result.scalar() or 0
+        target_count = requirement.get("count", 1)
+        progress["current"] = send_count
+        progress["target"] = target_count
+        progress["completed"] = send_count >= target_count
+    
+    elif action == "send_bomb":
+        # 檢查發送炸彈紅包數量（今日）
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        result = await db.execute(
+            select(func.count(RedPacket.id)).where(
+                and_(
+                    RedPacket.sender_id == user.id,
+                    RedPacket.bomb_number.isnot(None),  # 炸彈紅包
+                    RedPacket.created_at >= today_start
+                )
+            )
+        )
+        bomb_count = result.scalar() or 0
+        target_count = requirement.get("count", 1)
+        progress["current"] = bomb_count
+        progress["target"] = target_count
+        progress["completed"] = bomb_count >= target_count
+    
+    elif action == "claim_luckiest":
+        # 檢查獲得手氣最佳次數（今日）
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        result = await db.execute(
+            select(func.count(RedPacketClaim.id)).where(
+                and_(
+                    RedPacketClaim.user_id == user.id,
+                    RedPacketClaim.is_luckiest == True,
+                    RedPacketClaim.claimed_at >= today_start
+                )
+            )
+        )
+        luckiest_count = result.scalar() or 0
+        target_count = requirement.get("count", 1)
+        progress["current"] = luckiest_count
+        progress["target"] = target_count
+        progress["completed"] = luckiest_count >= target_count
+    
+    elif action == "share_packet":
+        # 檢查分享紅包次數（今日）
+        share_count = 0  # TODO: 實現分享紅包記錄
+        target_count = requirement.get("count", 1)
+        progress["current"] = share_count
+        progress["target"] = target_count
+        progress["completed"] = share_count >= target_count
+    
+    elif action == "play_wheel":
+        # 檢查玩幸運轉盤次數（今日）
+        play_count = 0  # TODO: 實現遊戲記錄
+        target_count = requirement.get("count", 1)
+        progress["current"] = play_count
+        progress["target"] = target_count
+        progress["completed"] = play_count >= target_count
+    
+    elif action == "win_game":
+        # 檢查遊戲獲勝次數（今日）
+        win_count = 0  # TODO: 實現遊戲獲勝記錄
+        target_count = requirement.get("count", 1)
+        progress["current"] = win_count
+        progress["target"] = target_count
+        progress["completed"] = win_count >= target_count
+    
+    elif action == "comment":
+        # 檢查評論次數（今日）
+        comment_count = 0  # TODO: 實現評論記錄
+        target_count = requirement.get("count", 1)
+        progress["current"] = comment_count
+        progress["target"] = target_count
+        progress["completed"] = comment_count >= target_count
+    
+    elif action == "follow":
+        # 檢查關注用戶次數
+        follow_count = 0  # TODO: 實現關注記錄
+        target_count = requirement.get("count", 1)
+        progress["current"] = follow_count
+        progress["target"] = target_count
+        progress["completed"] = follow_count >= target_count
+    
     return progress
 
 
@@ -308,8 +571,11 @@ async def get_task_status(
     
     tasks = []
     
+    # 獲取當日所有任務（基礎任務 + 輪換任務）
+    daily_tasks = get_all_daily_tasks()
+    
     # 每日任務
-    for task_type, task_config in DAILY_TASKS.items():
+    for task_type, task_config in daily_tasks.items():
         try:
             # 檢查任務完成進度
             progress = await check_user_task_progress(db, user, task_type, task_config)
@@ -337,6 +603,8 @@ async def get_task_status(
                 progress=progress,
                 reward_amount=float(task_config["reward_amount"]),
                 reward_currency=task_config["reward_currency"].value,
+                category=task_config.get("category", "daily"),
+                icon=task_config.get("icon", "📋"),
                 red_packet_id=packet.uuid if packet else None,
                 completed_at=completion.completed_at if completion else None,
                 claimed_at=completion.claimed_at if completion else None,
@@ -394,6 +662,8 @@ async def get_task_status(
                 progress=progress,
                 reward_amount=float(task_config["reward_amount"]),
                 reward_currency=task_config["reward_currency"].value,
+                category=task_config.get("category", "daily"),
+                icon=task_config.get("icon", "📋"),
                 red_packet_id=packet.uuid if packet else None,
                 completed_at=completion.completed_at if completion else None,
                 claimed_at=completion.claimed_at if completion else None,

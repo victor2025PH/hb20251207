@@ -317,6 +317,7 @@ export default function EarnPage() {
                 </motion.div>
 
                 <motion.div
+                  onClick={() => navigate('/tasks')}
                   className="bg-[#1C1C1E] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:border-blue-500/30 transition-colors cursor-pointer group"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -325,7 +326,7 @@ export default function EarnPage() {
                     <Trophy className="text-blue-500" size={20} />
                   </div>
                   <h3 className="text-white text-sm font-bold mb-1">{t('tasks')}</h3>
-                  <p className="text-gray-500 text-xs">即將開放</p>
+                  <p className="text-gray-500 text-xs">完成任務領獎勵</p>
                 </motion.div>
               </div>
             </motion.div>
