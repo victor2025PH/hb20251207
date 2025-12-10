@@ -47,6 +47,7 @@ export const userApi = {
   detailFull: (id: number) => api.get(`/v1/admin/users/${id}/detail`),
   adjustBalance: (data: any) => api.post('/v1/admin/users/adjust-balance', data),
   batchOperation: (data: any) => api.post('/v1/admin/users/batch-operation', data),
+  sendSystemMessage: (data: any) => api.post('/v1/admin/users/send-system-message', data),
 }
 
 export const telegramApi = {

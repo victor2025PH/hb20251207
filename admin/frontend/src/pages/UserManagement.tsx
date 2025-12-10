@@ -82,12 +82,26 @@ export default function UserManagement() {
   const sendMessageMutation = useMutation({
     mutationFn: (data: any) => telegramApi.sendMessage(data),
     onSuccess: () => {
-      message.success('消息發送成功')
+      message.success('Telegram 消息發送成功')
       setSendMessageModalVisible(false)
       form.resetFields(['message'])
     },
     onError: (error: any) => {
       console.error('Send message error:', error)
+      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || '發送失敗'
+      message.error(errorMsg)
+    },
+  })
+
+  const sendSystemMessageMutation = useMutation({
+    mutationFn: (data: any) => userApi.sendSystemMessage(data),
+    onSuccess: () => {
+      message.success('系統消息發送成功，將顯示在用戶的"我的消息"中')
+      setSendMessageModalVisible(false)
+      form.resetFields(['message', 'messageType'])
+    },
+    onError: (error: any) => {
+      console.error('Send system message error:', error)
       const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || '發送失敗'
       message.error(errorMsg)
     },
@@ -454,11 +468,11 @@ export default function UserManagement() {
 
       {/* 發送消息模態框 */}
       <Modal
-        title="發送 Telegram 消息"
+        title="發送消息"
         open={sendMessageModalVisible}
         onCancel={() => {
           setSendMessageModalVisible(false)
-          form.resetFields(['message'])
+          form.resetFields(['message', 'messageType', 'title'])
           setSelectedUser(null)
         }}
         onOk={async () => {
@@ -472,37 +486,80 @@ export default function UserManagement() {
               return
             }
             
-            // 檢查 Telegram ID
-            if (!selectedUser?.telegram_id) {
-              message.error('該用戶沒有有效的 Telegram ID，無法發送消息')
-              return
-            }
+            const messageType = values.messageType || 'telegram'
             
-            // 確保 telegram_id 是數字
-            const chatId = Number(selectedUser.telegram_id)
-            if (isNaN(chatId) || chatId <= 0) {
-              message.error('Telegram ID 無效，無法發送消息')
-              return
+            if (messageType === 'telegram') {
+              // 發送 Telegram 消息
+              // 檢查 Telegram ID
+              if (!selectedUser?.telegram_id) {
+                message.error('該用戶沒有有效的 Telegram ID，無法發送 Telegram 消息')
+                return
+              }
+              
+              // 確保 telegram_id 是數字
+              const chatId = Number(selectedUser.telegram_id)
+              if (isNaN(chatId) || chatId <= 0) {
+                message.error('Telegram ID 無效，無法發送消息')
+                return
+              }
+              
+              // 發送 Telegram 消息
+              sendMessageMutation.mutate({
+                chat_id: chatId,
+                text: values.message.trim(),
+              })
+            } else {
+              // 發送系統消息（顯示在"我的消息"中）
+              sendSystemMessageMutation.mutate({
+                user_id: selectedUser!.id,
+                title: values.title || '系統通知',
+                content: values.message.trim(),
+              })
             }
-            
-            // 發送消息
-            sendMessageMutation.mutate({
-              chat_id: chatId,
-              text: values.message.trim(),
-            })
           } catch (error) {
             // 表單驗證失敗，Ant Design 會自動顯示錯誤信息
             console.error('Form validation error:', error)
           }
         }}
-        confirmLoading={sendMessageMutation.isPending}
+        confirmLoading={sendMessageMutation.isPending || sendSystemMessageMutation.isPending}
       >
         <Form 
           form={form}
           layout="vertical"
+          initialValues={{ messageType: 'system' }}
         >
           <Form.Item label="接收者">
             <Input value={selectedUser?.username || selectedUser?.telegram_id || '未知'} disabled />
+          </Form.Item>
+          <Form.Item
+            name="messageType"
+            label="消息類型"
+            rules={[{ required: true, message: '請選擇消息類型' }]}
+          >
+            <Select>
+              <Select.Option value="system">系統消息（顯示在"我的消息"中）</Select.Option>
+              <Select.Option value="telegram">Telegram 消息（直接發送到 Telegram）</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.messageType !== currentValues.messageType}
+          >
+            {({ getFieldValue }) => {
+              const messageType = getFieldValue('messageType')
+              if (messageType === 'system') {
+                return (
+                  <Form.Item
+                    name="title"
+                    label="消息標題"
+                    rules={[{ required: true, message: '請輸入消息標題' }]}
+                  >
+                    <Input placeholder="輸入消息標題..." />
+                  </Form.Item>
+                )
+              }
+              return null
+            }}
           </Form.Item>
           <Form.Item
             name="message"
@@ -537,14 +594,21 @@ export default function UserManagement() {
         <Form
           form={batchForm}
           layout="vertical"
+          initialValues={{ messageType: 'system' }}
           onFinish={async (values) => {
             try {
+              const operation = values.messageType === 'system' ? 'send_system_message' : 'send_message'
+              const data: any = { message: values.message }
+              if (values.messageType === 'system' && values.title) {
+                data.title = values.title
+              }
+              
               await userApi.batchOperation({
                 user_ids: selectedRowKeys,
-                operation: 'send_message',
-                data: { message: values.message },
+                operation: operation,
+                data: data,
               })
-              message.success('批量發送成功')
+              message.success(`批量發送成功（${values.messageType === 'system' ? '系統消息' : 'Telegram 消息'}）`)
               setBatchModalVisible(false)
               setSelectedRowKeys([])
               batchForm.resetFields()
@@ -556,6 +620,36 @@ export default function UserManagement() {
         >
           <Form.Item label={`將發送給 ${selectedRowKeys.length} 個用戶`}>
             <span style={{ color: '#999' }}>已選擇 {selectedRowKeys.length} 個用戶</span>
+          </Form.Item>
+          <Form.Item
+            name="messageType"
+            label="消息類型"
+            rules={[{ required: true, message: '請選擇消息類型' }]}
+          >
+            <Select>
+              <Select.Option value="system">系統消息（顯示在"我的消息"中）</Select.Option>
+              <Select.Option value="telegram">Telegram 消息（直接發送到 Telegram）</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.messageType !== currentValues.messageType}
+          >
+            {({ getFieldValue }) => {
+              const messageType = getFieldValue('messageType')
+              if (messageType === 'system') {
+                return (
+                  <Form.Item
+                    name="title"
+                    label="消息標題"
+                    rules={[{ required: true, message: '請輸入消息標題' }]}
+                  >
+                    <Input placeholder="輸入消息標題..." />
+                  </Form.Item>
+                )
+              }
+              return null
+            }}
           </Form.Item>
           <Form.Item
             name="message"

@@ -451,7 +451,7 @@ async def get_user_detail_full(
 class BatchOperationRequest(BaseModel):
     """批量操作请求"""
     user_ids: List[int]
-    operation: str  # ban, unban, send_message, export
+    operation: str  # ban, unban, send_message, send_system_message, export
     data: Optional[dict] = None  # 操作相关数据（如消息内容）
 
 
@@ -503,7 +503,7 @@ async def batch_operation(
         await db.commit()
         
     elif request.operation == "send_message":
-        # 批量发送消息（需要调用 Telegram API）
+        # 批量发送 Telegram 消息（直接发送到 Telegram，不显示在"我的消息"中）
         message_text = request.data.get("message", "") if request.data else ""
         if not message_text:
             raise HTTPException(status_code=400, detail="消息内容不能为空")
@@ -515,6 +515,10 @@ async def batch_operation(
             
             for user in users:
                 try:
+                    if not user.tg_id:
+                        failed_count += 1
+                        errors.append(f"用户 {user.id} 没有 Telegram ID")
+                        continue
                     result = await telegram_service.send_message(
                         chat_id=user.tg_id,
                         text=message_text
@@ -531,12 +535,51 @@ async def batch_operation(
             # 如果 Telegram 服务不可用，记录错误
             for user in users:
                 failed_count += 1
-                errors.append(f"用户 {user.tg_id} 发送失败: Telegram 服务未配置")
+                errors.append(f"用户 {user.id} 发送失败: Telegram 服务未配置")
         except Exception as e:
             # 其他错误
             for user in users:
                 failed_count += 1
-                errors.append(f"用户 {user.tg_id} 发送失败: {str(e)}")
+                errors.append(f"用户 {user.id} 发送失败: {str(e)}")
+    
+    elif request.operation == "send_system_message":
+        # 批量发送系统消息（显示在"我的消息"中）
+        message_text = request.data.get("message", "") if request.data else ""
+        message_title = request.data.get("title", "系统通知") if request.data else "系统通知"
+        if not message_text:
+            raise HTTPException(status_code=400, detail="消息内容不能为空")
+        
+        # 使用 MessageService 发送系统消息
+        try:
+            from api.services.message_service import MessageService
+            from shared.database.models import MessageType
+            
+            message_service = MessageService(db=db)
+            
+            for user in users:
+                try:
+                    await message_service.send_message(
+                        user_id=user.id,
+                        message_type=MessageType.SYSTEM,
+                        content=message_text,
+                        title=message_title,
+                        source="admin",
+                        source_name="管理后台"
+                    )
+                    success_count += 1
+                except Exception as e:
+                    failed_count += 1
+                    errors.append(f"用户 {user.id} 发送失败: {str(e)}")
+        except ImportError:
+            # 如果 MessageService 不可用，记录错误
+            for user in users:
+                failed_count += 1
+                errors.append(f"用户 {user.id} 发送失败: 消息服务未配置")
+        except Exception as e:
+            # 其他错误
+            for user in users:
+                failed_count += 1
+                errors.append(f"用户 {user.id} 发送失败: {str(e)}")
         
     elif request.operation == "export":
         # 批量导出（返回用户数据）
@@ -593,4 +636,52 @@ async def batch_operation(
             "errors": errors if errors else None,
         }
     }
+
+
+class SendSystemMessageRequest(BaseModel):
+    """发送系统消息请求"""
+    user_id: int
+    title: Optional[str] = "系统通知"
+    content: str
+    action_url: Optional[str] = None
+
+
+@router.post("/send-system-message")
+async def send_system_message(
+    request: SendSystemMessageRequest,
+    db: AsyncSession = Depends(get_db_session),
+    admin: AdminUser = Depends(get_current_active_admin)
+):
+    """发送系统消息给单个用户（显示在"我的消息"中）"""
+    # 获取用户
+    result = await db.execute(select(User).where(User.id == request.user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    # 使用 MessageService 发送系统消息
+    try:
+        from api.services.message_service import MessageService
+        from shared.database.models import MessageType
+        
+        message_service = MessageService(db=db)
+        message = await message_service.send_message(
+            user_id=user.id,
+            message_type=MessageType.SYSTEM,
+            content=request.content,
+            title=request.title,
+            action_url=request.action_url,
+            source="admin",
+            source_name="管理后台"
+        )
+        
+        return {
+            "success": True,
+            "message": "消息发送成功",
+            "message_id": message.id
+        }
+    except Exception as e:
+        logger.error(f"Failed to send system message to user {request.user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"发送失败: {str(e)}")
 
