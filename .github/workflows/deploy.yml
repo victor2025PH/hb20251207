@@ -354,22 +354,22 @@ jobs:
             
             # 使用 case 语句分支，避免 test 或 if 判断产生 exit code 1
             case "$SERVICE_CHECK" in
-              "found")
-                echo "✅ 服务存在，执行重启..."
-                sudo systemctl daemon-reload || {
-                  echo "⚠️  systemctl daemon-reload 失败，继续..."
-                }
-                # 尝试重启，如果失败不要退出脚本，而是打印日志
-                sudo systemctl restart "$SERVICE_NAME" || {
-                  echo "⚠️  服务重启命令返回错误，打印日志:"
-                  sudo journalctl -u "$SERVICE_NAME" --no-pager -n 20 || true
-                }
-                echo "✅ 重启命令执行完毕"
-                ;;
-              *)
-                echo "⚠️  注意: 服务 $SERVICE_NAME 尚未创建"
-                echo "💡 代码已部署，但服务未启动。请登录服务器创建 Systemd 服务文件。"
-                ;;
+            found)
+              echo "✅ 服务存在，执行重启..."
+              sudo systemctl daemon-reload || {
+                echo "⚠️  systemctl daemon-reload 失败，继续..."
+              }
+              # 尝试重启，如果失败不要退出脚本，而是打印日志
+              sudo systemctl restart "$SERVICE_NAME" || {
+                echo "⚠️  服务重启命令返回错误，打印日志:"
+                sudo journalctl -u "$SERVICE_NAME" --no-pager -n 20 || true
+              }
+              echo "✅ 重启命令执行完毕"
+              ;;
+            *)
+              echo "⚠️  注意: 服务 $SERVICE_NAME 尚未创建"
+              echo "💡 代码已部署，但服务未启动。请登录服务器创建 Systemd 服务文件。"
+              ;;
             esac
             
             echo ""
