@@ -341,30 +341,17 @@ jobs:
             fi
             
             # ==========================================
-            # 步骤 6: 重启服务
+            # 步骤 6: 重启服务 (Simple & Safe)
             # ==========================================
-            
             echo ""
             echo "=========================================="
             echo "步骤 6: 重启服务"
             echo "=========================================="
+            echo "🔄 尝试重启服务..."
             
-            echo "🔍 检查服务是否存在..."
-            
-            if sudo systemctl list-unit-files 2>/dev/null | grep -q "^${SERVICE_NAME}.service"; then
-              echo "✅ 服务存在，执行重启..."
-              sudo systemctl daemon-reload || {
-                echo "⚠️  systemctl daemon-reload 失败，继续..."
-              }
-              sudo systemctl restart "$SERVICE_NAME" || {
-                echo "⚠️  服务重启命令返回错误，打印最近 20 行日志:"
-                sudo journalctl -u "$SERVICE_NAME" --no-pager -n 20 || true
-              }
-              echo "✅ 重启命令执行完毕"
-            else
-              echo "⚠️  注意: 服务 $SERVICE_NAME 尚未创建"
-              echo "💡 代码已部署，但服务未启动。请登录服务器创建 Systemd 服务文件。"
-            fi
+            # 直接尝试重启。如果成功则打印成功；如果失败（服务不存在），则打印警告但不要退出。
+            # 注意：必须写在同一行，不要使用反斜杠换行，避免语法错误。
+            sudo systemctl restart "${SERVICE_NAME}" && echo "✅ 服务重启成功" || echo "⚠️ 服务未运行或不存在，请手动检查 (代码已成功部署)"
             
             echo ""
             echo "=========================================="
