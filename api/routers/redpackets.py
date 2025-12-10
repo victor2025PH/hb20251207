@@ -266,17 +266,35 @@ async def create_red_packet(
                 bot_status = bot_member.status
                 logger.info(f"👥 機器人在群組 {chat_id} 中的狀態: {bot_status}")
                 
-                if bot_status not in ['left', 'kicked']:
+                # 將 bot_status 轉換為字符串以便比較
+                bot_status_str = str(bot_status).lower()
+                logger.info(f"🔍 機器人狀態詳情: status={bot_status_str}, type={type(bot_status).__name__}")
+                
+                if bot_status_str not in ['left', 'kicked']:
                     # 機器人在群組中，檢查是否有發送消息的權限
-                    can_send = True
+                    can_send = False
+                    
+                    # 檢查權限屬性
                     if hasattr(bot_member, 'can_send_messages'):
                         can_send = bot_member.can_send_messages
-                    elif hasattr(bot_member, 'status') and bot_member.status == 'administrator':
-                        # 管理員通常有發送消息的權限
+                        logger.info(f"🔍 從 can_send_messages 屬性獲取權限: {can_send}")
+                    elif bot_status_str in ['administrator', 'creator']:
+                        # 管理員和創建者通常有發送消息的權限
                         can_send = True
+                        logger.info(f"🔍 管理員/創建者身份，默認有發送權限")
+                    elif bot_status_str == 'member':
+                        # 普通成員，默認有發送權限（除非群組設置了限制）
+                        can_send = True
+                        logger.info(f"🔍 普通成員身份，默認有發送權限")
+                    else:
+                        # 其他狀態，嘗試發送（如果失敗會被捕獲）
+                        can_send = True
+                        logger.warning(f"⚠️  未知的機器人狀態: {bot_status_str}，將嘗試發送")
+                    
+                    logger.info(f"📋 權限檢查結果: can_send={can_send}, bot_status={bot_status_str}")
                     
                     if not can_send:
-                        logger.warning(f"⚠️  機器人在群組 {chat_id} 中但沒有發送消息的權限")
+                        logger.warning(f"⚠️  機器人在群組 {chat_id} 中但沒有發送消息的權限 (status={bot_status_str})")
                         share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                     else:
                         # 機器人在群組中且有權限，發送紅包消息
