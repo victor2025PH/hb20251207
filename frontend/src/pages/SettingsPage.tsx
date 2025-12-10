@@ -42,9 +42,12 @@ export default function SettingsPage() {
     showAlert('語言已切換', 'success')
   }
 
-  const handleNotificationToggle = (key: keyof NotificationSettings, value: boolean) => {
+  const handleNotificationToggle = (
+    key: 'red_packet_notifications' | 'balance_notifications' | 'game_notifications',
+    value: boolean
+  ) => {
     if (notificationSettings) {
-      updateMutation.mutate({ [key]: value })
+      updateMutation.mutate({ [key]: value } as Partial<NotificationSettings>)
     }
   }
 
