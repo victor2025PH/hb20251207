@@ -38,10 +38,15 @@ class CheckinResponse(BaseModel):
 
 class CheckinStatus(BaseModel):
     """簽到狀態"""
-    today_checked: bool
+    checked_today: bool  # 前端使用的字段名
+    today_checked: bool  # 保持向后兼容
     streak: int
     last_checkin: datetime | None
     next_reward: int
+    
+    class Config:
+        # 允许使用字段别名
+        populate_by_name = True
 
 
 @router.post("", response_model=CheckinResponse)
@@ -92,18 +97,34 @@ async def do_checkin(
     user.xp = (user.xp or 0) + reward
     
     # 使用LedgerService記錄簽到獎勵
-    from api.services.ledger_service import LedgerService
-    from decimal import Decimal
-    await LedgerService.create_entry(
-        db=db,
-        user_id=user.id,
-        amount=Decimal(str(reward)),
-        currency='POINTS',
-        entry_type='CHECKIN_REWARD',
-        related_type='checkin',
-        description=f"每日簽到獎勵 (連續{new_streak}天)",
-        created_by='system'
-    )
+    try:
+        from api.services.ledger_service import LedgerService
+        from decimal import Decimal
+        await LedgerService.create_entry(
+            db=db,
+            user_id=user.id,
+            amount=Decimal(str(reward)),
+            currency='POINTS',
+            entry_type='CHECKIN_REWARD',
+            related_type='checkin',
+            description=f"每日簽到獎勵 (連續{new_streak}天)",
+            created_by='system'
+        )
+    except Exception as ledger_error:
+        # 如果 LedgerService 失敗，記錄錯誤但不影響簽到流程
+        logger.error(f"Failed to create ledger entry for checkin: {ledger_error}")
+        # 直接更新用戶積分（作為備用方案）
+        from shared.database.models import UserBalance
+        from sqlalchemy import select
+        balance_result = await db.execute(
+            select(UserBalance).where(UserBalance.user_id == user.id)
+        )
+        balance = balance_result.scalar_one_or_none()
+        if not balance:
+            balance = UserBalance(user_id=user.id, points_balance=Decimal(str(reward)))
+            db.add(balance)
+        else:
+            balance.points_balance = (balance.points_balance or Decimal('0')) + Decimal(str(reward))
     
     # 創建簽到記錄
     record = CheckinRecord(
@@ -180,7 +201,8 @@ async def get_checkin_status(
     next_reward = CHECKIN_REWARDS.get(next_day, 10)
     
     return CheckinStatus(
-        today_checked=today_checked,
+        checked_today=today_checked,  # 前端使用的字段名
+        today_checked=today_checked,  # 保持向后兼容
         streak=user.checkin_streak or 0,
         last_checkin=user.last_checkin,
         next_reward=next_reward,

@@ -130,8 +130,13 @@ export default function EarnPage() {
 
   const totalDays = 7
   const DURATION = 4
+  // 如果今天已签到，显示已签到的天数；如果今天未签到，显示已签到的天数（下一个要签到的是 streak + 1）
   const currentStreak = checkInStatus?.streak || 0
-  const progressPercent = (currentStreak / totalDays) * 100
+  const todayChecked = checkInStatus?.checked_today || false
+  // 计算进度：如果今天已签到，进度是 streak/totalDays；如果今天未签到，进度是 streak/totalDays（下一个要签到的是 streak + 1）
+  const progressPercent = todayChecked 
+    ? (currentStreak / totalDays) * 100 
+    : (currentStreak / totalDays) * 100
 
   // 計算里程碑進度
   const inviteCount = inviteStats?.invite_count || 0
@@ -214,8 +219,11 @@ export default function EarnPage() {
                   <div className="w-full flex justify-between relative z-10">
                     {Array.from({ length: totalDays }).map((_, i) => {
                       const day = i + 1
-                      const isChecked = day <= currentStreak
-                      const isToday = day === currentStreak + 1 && !checkInStatus?.checked_today
+                      // 如果今天已签到，点亮到 streak 的位置；如果今天未签到，点亮到 streak 的位置（下一个要签到的是 streak + 1）
+                      const isChecked = checkInStatus?.checked_today 
+                        ? day <= currentStreak  // 今天已签到，点亮已签到的天数
+                        : day < currentStreak + 1  // 今天未签到，点亮已签到的天数，下一个要签到的是 streak + 1
+                      const isToday = !checkInStatus?.checked_today && day === currentStreak + 1  // 下一个要签到的龙珠
                       const cycleDelay = (i / (totalDays - 1)) * DURATION
                       
                       return (
