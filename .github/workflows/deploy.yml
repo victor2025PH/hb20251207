@@ -161,9 +161,8 @@ jobs:
               local VENV_NAME=$2
               
               echo "🔍 检查 $VENV_NAME 虚拟环境关键文件: $VENV_DIR/bin/activate"
-              # 1. 严格的线性检测，绝对不要用圆括号 ()
-              # 如果 ls 成功，变量设为 1；如果失败，变量设为 0。这一行永远返回 true (0)，不会报错。
-              ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && VENV_EXISTS=1 || VENV_EXISTS=0
+              # 使用 $() 捕获输出，无论 ls 成功与否，echo 都会保证整行命令返回 0
+              VENV_EXISTS=$(ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && echo "1" || echo "0")
               
               # 2. 使用 case 语句处理逻辑
               case "$VENV_EXISTS" in
