@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Check, Star, Sparkles, UserPlus, Trophy, Copy, CheckCircle, Users, Coins, Gift, ChevronRight, Share2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from '../providers/I18nProvider'
@@ -11,6 +12,7 @@ import PageTransition from '../components/PageTransition'
 import ReferralTree from '../components/ReferralTree'
 
 export default function EarnPage() {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { playSound } = useSound()
   const queryClient = useQueryClient()
