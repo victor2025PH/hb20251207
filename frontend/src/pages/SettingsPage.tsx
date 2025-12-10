@@ -1,0 +1,208 @@
+import { useState } from 'react'
+import { X, Globe, Bell, Moon, Sun, Volume2, VolumeX, Languages } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from '../providers/I18nProvider'
+import { getNotificationSettings, updateNotificationSettings } from '../utils/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { showAlert } from '../utils/telegram'
+import PageTransition from '../components/PageTransition'
+
+export default function SettingsPage() {
+  const navigate = useNavigate()
+  const { t, language, setLanguage } = useTranslation()
+  const queryClient = useQueryClient()
+
+  // 獲取通知設置
+  const { data: notificationSettings } = useQuery({
+    queryKey: ['notification-settings'],
+    queryFn: getNotificationSettings,
+  })
+
+  // 更新通知設置
+  const updateMutation = useMutation({
+    mutationFn: updateNotificationSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notification-settings'] })
+      showAlert('設置已保存', 'success')
+    },
+    onError: () => {
+      showAlert('保存失敗', 'error')
+    },
+  })
+
+  // 語言選項
+  const languages = [
+    { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
+    { code: 'zh-CN', name: '简体中文', flag: '🇨🇳' },
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+  ]
+
+  const handleLanguageChange = (langCode: string) => {
+    setLanguage(langCode as 'zh-TW' | 'zh-CN' | 'en')
+    showAlert('語言已切換', 'success')
+  }
+
+  const handleNotificationToggle = (key: keyof typeof notificationSettings, value: boolean) => {
+    if (notificationSettings) {
+      updateMutation.mutate({ [key]: value })
+    }
+  }
+
+  return (
+    <PageTransition>
+      <div className="h-full flex flex-col bg-brand-dark">
+        {/* 頂部導航 */}
+        <div className="flex items-center justify-between p-4 border-b border-white/5">
+          <button onClick={() => navigate(-1)} className="p-2">
+            <X size={24} />
+          </button>
+          <h1 className="text-lg font-bold">{t('settings')}</h1>
+          <div className="w-10" />
+        </div>
+
+        {/* 內容區域 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* 語言設置 */}
+          <div className="bg-brand-darker rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Globe size={20} className="text-orange-400" />
+              <h2 className="text-white font-semibold">{t('language') || '語言設置'}</h2>
+            </div>
+            <div className="space-y-2">
+              {languages.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                    language === lang.code
+                      ? 'bg-orange-500/20 border border-orange-500/50'
+                      : 'bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{lang.flag}</span>
+                    <span className="text-white">{lang.name}</span>
+                  </div>
+                  {language === lang.code && (
+                    <div className="w-2 h-2 rounded-full bg-orange-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 通知設置 */}
+          <div className="bg-brand-darker rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Bell size={20} className="text-orange-400" />
+              <h2 className="text-white font-semibold">{t('notifications') || '通知設置'}</h2>
+            </div>
+            <div className="space-y-3">
+              <SettingToggle
+                label={t('red_packet_notifications') || '紅包通知'}
+                description={t('red_packet_notifications_desc') || '接收紅包領取和發送通知'}
+                checked={notificationSettings?.red_packet_notifications ?? true}
+                onChange={(checked) => handleNotificationToggle('red_packet_notifications', checked)}
+              />
+              <SettingToggle
+                label={t('balance_notifications') || '餘額變動通知'}
+                description={t('balance_notifications_desc') || '接收充值、提現和交易通知'}
+                checked={notificationSettings?.balance_notifications ?? true}
+                onChange={(checked) => handleNotificationToggle('balance_notifications', checked)}
+              />
+              <SettingToggle
+                label={t('game_notifications') || '遊戲通知'}
+                description={t('game_notifications_desc') || '接收遊戲獎勵和活動通知'}
+                checked={notificationSettings?.game_notifications ?? true}
+                onChange={(checked) => handleNotificationToggle('game_notifications', checked)}
+              />
+            </div>
+          </div>
+
+          {/* 其他設置 */}
+          <div className="bg-brand-darker rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Moon size={20} className="text-orange-400" />
+              <h2 className="text-white font-semibold">{t('other_settings') || '其他設置'}</h2>
+            </div>
+            <div className="space-y-3">
+              <SettingItem
+                label={t('sound_effects') || '音效'}
+                description={t('sound_effects_desc') || '開啟或關閉遊戲音效'}
+                icon={Volume2}
+                onClick={() => showAlert('音效設置功能開發中', 'info')}
+              />
+              <SettingItem
+                label={t('vibration') || '震動'}
+                description={t('vibration_desc') || '開啟或關閉觸覺反饋'}
+                icon={Bell}
+                onClick={() => showAlert('震動設置功能開發中', 'info')}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </PageTransition>
+  )
+}
+
+function SettingToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string
+  description?: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <div className="text-white font-medium">{label}</div>
+        {description && <div className="text-gray-400 text-sm mt-1">{description}</div>}
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`relative w-12 h-6 rounded-full transition-colors ${
+          checked ? 'bg-orange-500' : 'bg-gray-600'
+        }`}
+      >
+        <div
+          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+            checked ? 'translate-x-6' : 'translate-x-0'
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
+function SettingItem({
+  label,
+  description,
+  icon: Icon,
+  onClick,
+}: {
+  label: string
+  description?: string
+  icon: React.ElementType
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={20} className="text-gray-400" />
+        <div>
+          <div className="text-white font-medium">{label}</div>
+          {description && <div className="text-gray-400 text-sm mt-1">{description}</div>}
+        </div>
+      </div>
+    </button>
+  )
+}
+

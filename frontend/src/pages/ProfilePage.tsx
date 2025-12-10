@@ -72,17 +72,17 @@ export default function ProfilePage() {
         <MenuItem
           icon={Shield}
           title={t('security_settings')}
-          onClick={() => {}}
+          onClick={() => navigate('/security')}
         />
         <MenuItem
           icon={HelpCircle}
           title={t('help_center')}
-          onClick={() => {}}
+          onClick={() => navigate('/help')}
         />
         <MenuItem
           icon={FileText}
           title={t('user_agreement')}
-          onClick={() => {}}
+          onClick={() => navigate('/agreement')}
         />
         <MenuItem
           icon={MessageSquare}

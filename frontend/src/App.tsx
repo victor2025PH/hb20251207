@@ -26,6 +26,10 @@ const LuckyWheelPage = lazy(() => import('./pages/LuckyWheelPage'))
 const TasksPage = lazy(() => import('./pages/TasksPage'))
 const DebugPage = lazy(() => import('./pages/DebugPage'))
 const ClaimRedPacketPage = lazy(() => import('./pages/ClaimRedPacketPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SecuritySettingsPage = lazy(() => import('./pages/SecuritySettingsPage'))
+const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'))
+const UserAgreementPage = lazy(() => import('./pages/UserAgreementPage'))
 
 export default function App() {
   const { isAuthenticated } = useAuth()
@@ -142,6 +146,11 @@ export default function App() {
               <Route path="/lucky-wheel" element={<AuthGuard><LuckyWheelPage /></AuthGuard>} />
               {/* 公开抢红包页面 - 需要认证但允许未登录用户访问 */}
               <Route path="/claim/:uuid" element={<AuthGuard requireAuth={false}><ClaimRedPacketPage /></AuthGuard>} />
+              {/* 设置相关页面 */}
+              <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
+              <Route path="/security" element={<AuthGuard><SecuritySettingsPage /></AuthGuard>} />
+              <Route path="/help" element={<AuthGuard><HelpCenterPage /></AuthGuard>} />
+              <Route path="/agreement" element={<AuthGuard><UserAgreementPage /></AuthGuard>} />
               {/* Debug页面不需要认证 */}
               <Route path="/debug" element={<DebugPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
