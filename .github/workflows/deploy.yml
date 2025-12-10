@@ -162,21 +162,29 @@ jobs:
               
               echo "🔍 检查 $VENV_NAME 虚拟环境..."
               
-              # 使用 test -f 检查文件是否存在，这是最安全可靠的方法
-              # test 命令在 if 条件中不会触发 set -e 退出
-              if test -f "$VENV_DIR/bin/activate"; then
+              # 【核心修复】
+              # 1. 定义状态变量，默认 false
+              local VENV_STATUS="missing"
+              
+              # 2. 单行检测文件。
+              # 如果文件存在，变量设为 found；如果不存在，变量设为 missing。
+              # 关键点：整个这一行命令的最终退出码永远是 0，Runner 不会报错。
+              [ -f "$VENV_DIR/bin/activate" ] && VENV_STATUS="found" || VENV_STATUS="missing"
+              
+              # 3. 根据变量状态进行处理（这里只判断字符串，绝对安全）
+              if [ "$VENV_STATUS" = "found" ]; then
                 echo "✅ $VENV_NAME 虚拟环境已存在且完整"
               else
                 echo "⚠️  $VENV_NAME 虚拟环境缺失，准备重新创建..."
                 
-                # 1. 清理旧目录（即使不存在也没关系，加 -f 避免报错）
+                # 清理旧目录
                 sudo rm -rf "$VENV_DIR"
                 
-                # 2. 确保父目录存在
+                # 确保父目录
                 mkdir -p "$(dirname "$VENV_DIR")"
                 sudo chown -R $USER:$USER "$(dirname "$VENV_DIR")"
                 
-                # 3. 创建虚拟环境
+                # 创建环境
                 if python3 -m venv "$VENV_DIR"; then
                   echo "✅ venv 命令执行成功"
                 else
@@ -184,15 +192,11 @@ jobs:
                   exit 1
                 fi
                 
-                # 4. 再次验证
-                if [ -f "$VENV_DIR/bin/activate" ]; then
-                  echo "✅ 验证通过：文件已生成"
-                  # 修复权限
-                  sudo chown -R $USER:$USER "$VENV_DIR"
-                else
-                  echo "❌ 严重错误：虚拟环境创建后文件仍不存在"
-                  exit 1
-                fi
+                # 修复权限
+                sudo chown -R $USER:$USER "$VENV_DIR"
+                
+                # 二次确认（同样使用单行安全写法）
+                [ -f "$VENV_DIR/bin/activate" ] && echo "✅ 验证通过" || { echo "❌ 验证失败"; exit 1; }
               fi
             }
             
