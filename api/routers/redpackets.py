@@ -251,6 +251,7 @@ async def create_red_packet(
         try:
             chat_id = int(request.chat_id)
             logger.info(f"📤 準備發送紅包消息到群組 {chat_id} (原始值: {request.chat_id}, 類型: {type(request.chat_id).__name__})")
+            logger.info(f"📋 紅包信息: uuid={packet.uuid}, amount={packet.total_amount}, count={packet.total_count}")
         except (ValueError, TypeError) as e:
             logger.error(f"❌ chat_id 轉換失敗: {request.chat_id} (類型: {type(request.chat_id).__name__}), 錯誤: {e}")
             chat_id = None
