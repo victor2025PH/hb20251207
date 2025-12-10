@@ -224,24 +224,24 @@ jobs:
             echo "步骤 3: 激活虚拟环境"
             echo "=========================================="
             
-            echo "🔌 准备激活虚拟环境..."
-            echo "📂 activate 脚本路径: $VENV_DIR/bin/activate"
+            echo "🔌 准备激活 API 虚拟环境..."
+            echo "📂 activate 脚本路径: $API_VENV_DIR/bin/activate"
             
             # 再次确认文件存在（防止在验证后文件被删除）
-            test -f "$VENV_DIR/bin/activate" 2>/dev/null || {
-              echo "❌ 错误: activate 脚本不存在，无法激活"
+            test -f "$API_VENV_DIR/bin/activate" 2>/dev/null || {
+              echo "❌ 错误: API activate 脚本不存在，无法激活"
               echo "💡 调试信息:"
-              echo "  - 虚拟环境目录: $VENV_DIR"
-              echo "  - 目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
-              echo "  - bin 目录是否存在: $([ -d "$VENV_DIR/bin" ] && echo '是' || echo '否')"
+              echo "  - 虚拟环境目录: $API_VENV_DIR"
+              echo "  - 目录是否存在: $([ -d "$API_VENV_DIR" ] && echo '是' || echo '否')"
+              echo "  - bin 目录是否存在: $([ -d "$API_VENV_DIR/bin" ] && echo '是' || echo '否')"
               echo "  - bin 目录内容:"
-              ls -la "$VENV_DIR/bin" 2>/dev/null || echo "  无法列出 bin 目录内容"
+              ls -la "$API_VENV_DIR/bin" 2>/dev/null || echo "  无法列出 bin 目录内容"
               exit 1
             }
             
-            echo "📊 脚本权限: $(ls -l "$VENV_DIR/bin/activate" 2>/dev/null | awk '{print $1, $9}' || echo '无法读取权限')"
+            echo "📊 脚本权限: $(ls -l "$API_VENV_DIR/bin/activate" 2>/dev/null | awk '{print $1, $9}' || echo '无法读取权限')"
             echo "📊 脚本内容前5行:"
-            head -n 5 "$VENV_DIR/bin/activate" 2>/dev/null || {
+            head -n 5 "$API_VENV_DIR/bin/activate" 2>/dev/null || {
               echo "⚠️  无法读取 activate 脚本内容，但文件存在，继续尝试激活..."
             }
             
