@@ -459,14 +459,13 @@ export default function UserManagement() {
         onCancel={() => {
           setSendMessageModalVisible(false)
           form.resetFields(['message'])
+          setSelectedUser(null)
         }}
-        onOk={() => form.submit()}
-        confirmLoading={sendMessageMutation.isPending}
-      >
-        <Form 
-          form={form}
-          layout="vertical"
-          onFinish={(values) => {
+        onOk={async () => {
+          try {
+            // 先驗證表單
+            const values = await form.validateFields()
+            
             // 檢查消息內容
             if (!values.message || !values.message.trim()) {
               message.error('請輸入消息內容')
@@ -491,7 +490,16 @@ export default function UserManagement() {
               chat_id: chatId,
               text: values.message.trim(),
             })
-          }}
+          } catch (error) {
+            // 表單驗證失敗，Ant Design 會自動顯示錯誤信息
+            console.error('Form validation error:', error)
+          }
+        }}
+        confirmLoading={sendMessageMutation.isPending}
+      >
+        <Form 
+          form={form}
+          layout="vertical"
         >
           <Form.Item label="接收者">
             <Input value={selectedUser?.username || selectedUser?.telegram_id || '未知'} disabled />
@@ -501,7 +509,14 @@ export default function UserManagement() {
             label="* 消息內容"
             rules={[
               { required: true, message: '請輸入消息內容' },
-              { whitespace: true, message: '消息內容不能為空' }
+              { 
+                validator: (_, value) => {
+                  if (!value || !value.trim()) {
+                    return Promise.reject(new Error('消息內容不能為空'))
+                  }
+                  return Promise.resolve()
+                }
+              }
             ]}
           >
             <Input.TextArea rows={5} placeholder="輸入要發送的消息..." />
