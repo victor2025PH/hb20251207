@@ -269,30 +269,52 @@ async def update_user_language(user_id: int, language: str) -> bool:
             logger.warning(f"[I18N] Invalid language code '{language}', defaulting to 'zh-TW'")
             language = "zh-TW"
         
-        with get_db() as db:
-            user = db.query(User).filter(User.tg_id == user_id).first()
-            if not user:
-                logger.error(f"[I18N] User {user_id} not found in database")
-                return False
-            
-            logger.debug(f"[I18N] Found user {user_id}, current language: {getattr(user, 'language_code', None)}")
-            
-            # 更新語言
-            user.language_code = language
-            db.commit()
-            
-            logger.info(f"[I18N] Successfully updated user {user_id} language to {language}")
-            
-            # 清除緩存
-            try:
-                from bot.utils.cache import UserCache
-                UserCache.invalidate(user_id)
-                logger.debug(f"[I18N] Cleared cache for user {user_id}")
-            except Exception as cache_error:
-                logger.warning(f"[I18N] Failed to clear cache for user {user_id}: {cache_error}")
-                # 緩存清除失敗不應該影響語言更新
-            
-            return True
+        try:
+            with get_db() as db:
+                user = db.query(User).filter(User.tg_id == user_id).first()
+                if not user:
+                    logger.error(f"[I18N] User {user_id} not found in database")
+                    return False
+                
+                logger.debug(f"[I18N] Found user {user_id} (id={user.id}), current language: {getattr(user, 'language_code', None)}")
+                
+                # 更新語言
+                old_language = getattr(user, 'language_code', None)
+                user.language_code = language
+                
+                # 刷新对象以确保更改被跟踪
+                db.flush()
+                
+                # 提交更改
+                try:
+                    db.commit()
+                    logger.info(f"[I18N] Successfully committed language change for user {user_id}: {old_language} -> {language}")
+                except Exception as commit_error:
+                    logger.error(f"[I18N] Failed to commit language change for user {user_id}: {commit_error}", exc_info=True)
+                    db.rollback()
+                    return False
+                
+                # 验证更新是否成功
+                db.refresh(user)
+                if getattr(user, 'language_code', None) != language:
+                    logger.error(f"[I18N] Language update verification failed for user {user_id}: expected {language}, got {getattr(user, 'language_code', None)}")
+                    return False
+                
+                logger.info(f"[I18N] Successfully updated user {user_id} language to {language} (verified)")
+        except Exception as db_error:
+            logger.error(f"[I18N] Database error updating language for user {user_id}: {db_error}", exc_info=True)
+            return False
+        
+        # 清除緩存
+        try:
+            from bot.utils.cache import UserCache
+            UserCache.invalidate(user_id)
+            logger.debug(f"[I18N] Cleared cache for user {user_id}")
+        except Exception as cache_error:
+            logger.warning(f"[I18N] Failed to clear cache for user {user_id}: {cache_error}")
+            # 緩存清除失敗不應該影響語言更新
+        
+        return True
     except Exception as e:
-        logger.error(f"[I18N] Error updating user {user_id} language to {language}: {e}", exc_info=True)
+        logger.error(f"[I18N] Unexpected error updating user {user_id} language to {language}: {e}", exc_info=True)
         return False
