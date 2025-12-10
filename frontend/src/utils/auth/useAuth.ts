@@ -129,11 +129,20 @@ export function useAuth() {
               console.warn('[Auth] 1. initData hash 验证失败（检查 BOT_TOKEN 配置）');
               console.warn('[Auth] 2. initData 已过期');
               console.warn('[Auth] 3. 后端无法解析 initData');
+              console.warn('[Auth] 4. 用户可能尚未在系统中注册');
             } else {
               // 其他错误，记录警告
               console.warn('[Auth] Telegram认证失败，可以使用其他登录方式:', error);
             }
-            // 继续到下面的逻辑，不设置 loading=false
+            // 认证失败，设置 loading=false 以便显示登录界面
+            // 用户可以通过点击"使用Telegram登录"按钮手动重试
+            setAuthState({
+              user: null,
+              loading: false,
+              isAuthenticated: false,
+              platform: 'telegram'
+            });
+            // 不 return，继续执行下面的逻辑（检查 JWT token）
           }
         } else {
           // 在 Telegram 环境中但没有 initData，记录警告但不尝试认证
