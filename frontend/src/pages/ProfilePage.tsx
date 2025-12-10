@@ -67,22 +67,34 @@ export default function ProfilePage() {
         <MenuItem
           icon={Settings}
           title={t('settings')}
-          onClick={() => navigate('/settings')}
+          onClick={() => {
+            console.log('[ProfilePage] Navigating to /settings')
+            navigate('/settings')
+          }}
         />
         <MenuItem
           icon={Shield}
           title={t('security_settings')}
-          onClick={() => navigate('/security')}
+          onClick={() => {
+            console.log('[ProfilePage] Navigating to /security')
+            navigate('/security')
+          }}
         />
         <MenuItem
           icon={HelpCircle}
           title={t('help_center')}
-          onClick={() => navigate('/help')}
+          onClick={() => {
+            console.log('[ProfilePage] Navigating to /help')
+            navigate('/help')
+          }}
         />
         <MenuItem
           icon={FileText}
           title={t('user_agreement')}
-          onClick={() => navigate('/agreement')}
+          onClick={() => {
+            console.log('[ProfilePage] Navigating to /agreement')
+            navigate('/agreement')
+          }}
         />
         <MenuItem
           icon={MessageSquare}
