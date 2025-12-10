@@ -110,10 +110,15 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
     lang_code = query.data.split(":")[2]
     
     # 更新用户语言
+    logger.info(f"[SETUP] Updating language for user {user_id} to {lang_code}")
     success = await update_user_language(user_id, lang_code)
     
     if not success:
-        await query.message.reply_text("❌ 設置語言失敗，請稍後再試")
+        logger.error(f"[SETUP] Failed to update language for user {user_id} to {lang_code}")
+        try:
+            await query.message.reply_text("❌ 設置語言失敗，請稍後再試")
+        except Exception as reply_error:
+            logger.error(f"[SETUP] Failed to send error message: {reply_error}")
         return
     
     # 重新获取用户以获取新语言

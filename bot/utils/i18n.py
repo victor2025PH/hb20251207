@@ -262,24 +262,37 @@ def t(key: str, user: Optional[User] = None, user_id: Optional[int] = None, **kw
 async def update_user_language(user_id: int, language: str) -> bool:
     """更新用戶語言"""
     try:
+        logger.info(f"[I18N] Attempting to update language for user {user_id} to {language}")
+        
+        # 驗證語言代碼
+        if language not in TRANSLATIONS:
+            logger.warning(f"[I18N] Invalid language code '{language}', defaulting to 'zh-TW'")
+            language = "zh-TW"
+        
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == user_id).first()
             if not user:
+                logger.error(f"[I18N] User {user_id} not found in database")
                 return False
             
-            # 驗證語言代碼
-            if language not in TRANSLATIONS:
-                language = "zh-TW"
+            logger.debug(f"[I18N] Found user {user_id}, current language: {getattr(user, 'language_code', None)}")
             
+            # 更新語言
             user.language_code = language
             db.commit()
             
-            # 清除緩存
-            from bot.utils.cache import UserCache
-            UserCache.invalidate(user_id)
+            logger.info(f"[I18N] Successfully updated user {user_id} language to {language}")
             
-            logger.info(f"Updated user {user_id} language to {language}")
+            # 清除緩存
+            try:
+                from bot.utils.cache import UserCache
+                UserCache.invalidate(user_id)
+                logger.debug(f"[I18N] Cleared cache for user {user_id}")
+            except Exception as cache_error:
+                logger.warning(f"[I18N] Failed to clear cache for user {user_id}: {cache_error}")
+                # 緩存清除失敗不應該影響語言更新
+            
             return True
     except Exception as e:
-        logger.error(f"Error updating user language: {e}", exc_info=True)
+        logger.error(f"[I18N] Error updating user {user_id} language to {language}: {e}", exc_info=True)
         return False

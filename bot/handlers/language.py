@@ -36,10 +36,15 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # 更新用戶語言
+    logger.info(f"[LANGUAGE] Updating language for user {user_id} to {lang_code}")
     success = await update_user_language(user_id, lang_code)
     
     if not success:
-        await query.message.reply_text(t("error", user=db_user))
+        logger.error(f"[LANGUAGE] Failed to update language for user {user_id} to {lang_code}")
+        try:
+            await query.message.reply_text("❌ 設置語言失敗，請稍後再試")
+        except Exception as reply_error:
+            logger.error(f"[LANGUAGE] Failed to send error message: {reply_error}")
         return
     
     # 獲取新語言名稱
@@ -59,10 +64,24 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db_user = user
     
     # 顯示確認消息
-    await query.edit_message_text(
-        t("lang_changed", user=db_user, lang=lang_name),
-        reply_markup=get_language_selection_keyboard(db_user)
-    )
+    try:
+        await query.edit_message_text(
+            t("lang_changed", user=db_user, lang=lang_name),
+            parse_mode="Markdown",
+            reply_markup=get_language_selection_keyboard(db_user)
+        )
+        logger.info(f"[LANGUAGE] Successfully updated language display for user {user_id}")
+    except Exception as edit_error:
+        logger.error(f"[LANGUAGE] Failed to edit message for user {user_id}: {edit_error}")
+        # 如果编辑消息失败，尝试发送新消息
+        try:
+            await query.message.reply_text(
+                t("lang_changed", user=db_user, lang=lang_name),
+                parse_mode="Markdown",
+                reply_markup=get_language_selection_keyboard(db_user)
+            )
+        except Exception as reply_error:
+            logger.error(f"[LANGUAGE] Failed to send reply message: {reply_error}")
 
 
 async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
