@@ -613,6 +613,10 @@ export interface NotificationSettings {
   enable_activity: boolean
   enable_miniapp: boolean
   enable_telegram: boolean
+  // 新增字段，用於設置頁面
+  red_packet_notifications?: boolean
+  balance_notifications?: boolean
+  game_notifications?: boolean
 }
 
 export async function getMessages(params?: {
