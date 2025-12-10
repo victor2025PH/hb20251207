@@ -788,14 +788,26 @@ export default function SendRedPacket() {
                             <RefreshCw size={16} className="text-gray-400" />
                           </button>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation()
-                              deleteChatFromHistory(chat.id)
-                              if (selectedChat?.id === chat.id) {
-                                setSelectedChat(null)
+                              e.preventDefault()
+                              
+                              // 添加確認對話框
+                              const confirmed = await showConfirm(
+                                `確定要刪除「${chat.title || chat.username || `Chat ${chat.id}`}」的記錄嗎？`,
+                                '刪除群組記錄',
+                                '刪除',
+                                '取消'
+                              )
+                              
+                              if (confirmed) {
+                                deleteChatFromHistory(chat.id)
+                                if (selectedChat?.id === chat.id) {
+                                  setSelectedChat(null)
+                                }
                               }
                             }}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             title="刪除記錄"
                           >
                             <Trash2 size={16} className="text-red-400" />
