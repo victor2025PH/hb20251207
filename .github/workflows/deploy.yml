@@ -165,9 +165,9 @@ jobs:
               # 将检查结果存储到变量中，避免在 if 条件中直接使用 ls
               set +e  # 临时禁用 set -e，允许命令失败
               ls "$VENV_DIR/bin/activate" >/dev/null 2>&1
-              VENV_EXISTS=$?
+              LS_EXIT_CODE=$?
               set -e  # 重新启用 set -e
-              if [ "$VENV_EXISTS" = "0" ]; then
+              if [ "$LS_EXIT_CODE" = "0" ]; then
                 VENV_EXISTS=1
               else
                 VENV_EXISTS=0
