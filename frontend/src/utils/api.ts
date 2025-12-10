@@ -335,24 +335,39 @@ export async function sendRedPacket(params: SendRedPacketParams): Promise<RedPac
 }
 
 export async function claimRedPacket(id: string): Promise<{ success: boolean; amount: number; is_luckiest: boolean; message: string }> {
-  const response = await api.post(`/v1/redpackets/${id}/claim`)
-  // Axios 返回的是 AxiosResponse，需要访问 data 属性
-  const result = response.data as any
-  // 確保返回格式正確
-  if (result && typeof result === 'object') {
-    return {
-      success: result.success ?? true,
-      amount: result.amount ?? 0,
-      is_luckiest: result.is_luckiest ?? false,
-      message: result.message || '領取成功'
+  try {
+    console.log('[claimRedPacket] 開始搶紅包:', id)
+    const response = await api.post(`/v1/redpackets/${id}/claim`)
+    console.log('[claimRedPacket] API 響應:', response)
+    
+    // Axios 返回的是 AxiosResponse，需要访问 data 属性
+    const result = response.data as any
+    console.log('[claimRedPacket] 解析後的結果:', result)
+    
+    // 確保返回格式正確
+    if (result && typeof result === 'object') {
+      const claimResult = {
+        success: result.success ?? true,
+        amount: result.amount ?? 0,
+        is_luckiest: result.is_luckiest ?? false,
+        message: result.message || '領取成功'
+      }
+      console.log('[claimRedPacket] 最終返回:', claimResult)
+      return claimResult
     }
-  }
-  // 如果返回格式不對，返回默認值
-  return {
-    success: false,
-    amount: 0,
-    is_luckiest: false,
-    message: '領取失敗：返回數據格式錯誤'
+    
+    // 如果返回格式不對，返回默認值
+    console.error('[claimRedPacket] 返回格式錯誤:', result)
+    return {
+      success: false,
+      amount: 0,
+      is_luckiest: false,
+      message: '領取失敗：返回數據格式錯誤'
+    }
+  } catch (error: any) {
+    console.error('[claimRedPacket] 搶紅包失敗:', error)
+    // 重新拋出錯誤，讓上層處理
+    throw error
   }
 }
 
