@@ -156,46 +156,40 @@ jobs:
             echo "✅ python3-venv 模块检查完成"
             
             # 创建虚拟环境的函数
+            # 完全避免条件判断，直接尝试操作，使用 || true 确保不会因失败退出
             create_venv_if_needed() {
               local VENV_DIR=$1
               local VENV_NAME=$2
               
               echo "🔍 检查 $VENV_NAME 虚拟环境..."
               
-              # 1. 安全检测状态
-              # 使用 && 和 || 结构。无论文件是否存在，这行命令最终都会返回 0 (True)。
-              # 这样就不会触发 set -e 或 runner 的报错。
-              local STATE="missing"
-              [ -f "$VENV_DIR/bin/activate" ] && STATE="found" || STATE="missing"
+              # 直接尝试激活，如果成功说明已存在
+              source "$VENV_DIR/bin/activate" 2>/dev/null && {
+                echo "✅ $VENV_NAME 虚拟环境已存在且完整"
+                deactivate 2>/dev/null || true
+                return 0
+              } || true
               
-              # 2. 使用 case 语句进行分支 (这是唯一能绕过 Runner 检查的方法)
-              # 绝对不要用 if [ ... ]，因为 False 结果会导致脚本崩溃。
-              case "$STATE" in
-                "found")
-                  echo "✅ $VENV_NAME 虚拟环境已存在且完整"
-                  ;;
-                *)
-                  echo "⚠️  $VENV_NAME 虚拟环境缺失 ($STATE)，准备重新创建..."
-                  
-                  # 清理旧目录
-                  sudo rm -rf "$VENV_DIR"
-                  
-                  # 确保父目录
-                  mkdir -p "$(dirname "$VENV_DIR")"
-                  sudo chown -R $USER:$USER "$(dirname "$VENV_DIR")"
-                  
-                  # 创建环境
-                  if python3 -m venv "$VENV_DIR"; then
-                    echo "✅ venv 创建成功"
-                  else
-                    echo "❌ 创建失败"
-                    exit 1
-                  fi
-                  
-                  # 修复权限
-                  sudo chown -R $USER:$USER "$VENV_DIR"
-                  ;;
-              esac
+              # 如果激活失败，说明不存在，需要创建
+              echo "⚠️  $VENV_NAME 虚拟环境缺失，准备重新创建..."
+              
+              # 清理旧目录（如果存在）
+              sudo rm -rf "$VENV_DIR" || true
+              
+              # 确保父目录存在
+              mkdir -p "$(dirname "$VENV_DIR")" || true
+              sudo chown -R $USER:$USER "$(dirname "$VENV_DIR")" || true
+              
+              # 创建环境（如果失败则退出）
+              python3 -m venv "$VENV_DIR" || {
+                echo "❌ 创建失败"
+                exit 1
+              }
+              
+              # 修复权限
+              sudo chown -R $USER:$USER "$VENV_DIR" || true
+              
+              echo "✅ $VENV_NAME 虚拟环境创建成功"
             }
             
             # 创建 API 虚拟环境
