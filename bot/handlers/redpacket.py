@@ -108,25 +108,53 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理搶紅包回調"""
     query = update.callback_query
+    if not query:
+        logger.error("[CLAIM_CALLBACK] No callback_query in update")
+        return
+    
     user = query.from_user
+    user_id = user.id if user else None
+    callback_data = query.data if query.data else "[無數據]"
+    
+    # 立即記錄日誌
+    logger.info(f"[CLAIM_CALLBACK] Received callback: '{callback_data}' from user {user_id}")
+    
+    # 立即響應回調（避免 Telegram 超時）
+    try:
+        await query.answer("處理中...", cache_time=0)
+    except Exception as e:
+        logger.error(f"[CLAIM_CALLBACK] Error answering query: {e}")
+        # 繼續處理，即使 answer 失敗
     
     # 解析紅包 UUID
     try:
         packet_uuid = query.data.split(":")[1]
-    except (IndexError, AttributeError):
-        await query.answer("無效的紅包鏈接", show_alert=True)
+        logger.info(f"[CLAIM_CALLBACK] Parsed packet_uuid: {packet_uuid}")
+    except (IndexError, AttributeError) as e:
+        logger.error(f"[CLAIM_CALLBACK] Invalid callback data: {callback_data}, error: {e}")
+        try:
+            await query.answer("無效的紅包鏈接", show_alert=True)
+        except:
+            pass
         return
     
     # 先快速檢查是否已領取（避免重複搶包時只顯示"處理中"）
     packet_id = None
     user_id = None
+    logger.info(f"[CLAIM_CALLBACK] Opening database session to check packet {packet_uuid}")
     with get_db() as db:
         # 查找紅包
         packet = db.query(RedPacket).filter(RedPacket.uuid == packet_uuid).first()
         
         if not packet:
-            await query.answer("紅包不存在", show_alert=True)
+            logger.error(f"[CLAIM_CALLBACK] Packet not found: {packet_uuid}")
+            try:
+                await query.answer("紅包不存在", show_alert=True)
+            except:
+                pass
             return
+        
+        logger.info(f"[CLAIM_CALLBACK] Packet found: id={packet.id}, status={packet.status}, amount={packet.total_amount}, count={packet.total_count}")
         
         # 在會話內保存 ID（避免 DetachedInstanceError）
         packet_id = packet.id
@@ -135,22 +163,34 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         packet_currency = packet.currency
         
         if packet_status_check != RedPacketStatus.ACTIVE:
-            await query.answer("紅包已被搶完或已過期", show_alert=True)
+            logger.warning(f"[CLAIM_CALLBACK] Packet is not active: status={packet_status_check}")
+            try:
+                await query.answer("紅包已被搶完或已過期", show_alert=True)
+            except:
+                pass
             return
         
         if packet_expires_at and packet_expires_at < datetime.utcnow():
+            logger.warning(f"[CLAIM_CALLBACK] Packet expired: expires_at={packet_expires_at}")
             packet.status = RedPacketStatus.EXPIRED
             db.commit()
-            await query.answer("紅包已過期", show_alert=True)
+            try:
+                await query.answer("紅包已過期", show_alert=True)
+            except:
+                pass
             return
         
         # 查找用戶
+        logger.info(f"[CLAIM_CALLBACK] Looking up user: tg_id={user.id}")
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user:
+            logger.info(f"[CLAIM_CALLBACK] User not found, creating new user: tg_id={user.id}, username={user.username}")
             db_user = User(tg_id=user.id, username=user.username, first_name=user.first_name)
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
+        else:
+            logger.info(f"[CLAIM_CALLBACK] User found: id={db_user.id}, tg_id={db_user.tg_id}")
         
         # 在會話內保存 user_id
         user_id = db_user.id
