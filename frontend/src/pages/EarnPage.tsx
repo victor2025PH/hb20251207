@@ -279,11 +279,22 @@ export default function EarnPage() {
                 </div>
 
                 <motion.button
-                  onClick={() => checkInMutation.mutate()}
-                  disabled={checkInStatus?.checked_today || checkInMutation.isPending}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  whileHover={{ scale: checkInStatus?.checked_today ? 1 : 1.02 }}
-                  whileTap={{ scale: checkInStatus?.checked_today ? 1 : 0.98 }}
+                  onClick={() => {
+                    // 如果已簽到，顯示提示
+                    if (checkInStatus?.checked_today) {
+                      showAlert('今天已簽到，請明天再來', 'info')
+                      return
+                    }
+                    // 如果正在簽到中，不執行
+                    if (checkInMutation.isPending) {
+                      return
+                    }
+                    checkInMutation.mutate()
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-sm shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ opacity: checkInStatus?.checked_today || checkInMutation.isPending ? 0.5 : 1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Sparkles size={16} className="fill-white" />
                   {checkInStatus?.checked_today ? t('checked_in') : checkInMutation.isPending ? t('checking_in') : t('checkin_points')}
