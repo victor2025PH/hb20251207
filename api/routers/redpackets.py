@@ -1,7 +1,8 @@
 """
 Lucky Red - 紅包路由
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, asc
 from pydantic import BaseModel, Field, field_validator
@@ -394,20 +395,58 @@ async def create_red_packet(
 @router.post("/{packet_uuid}/claim", response_model=ClaimResult)
 async def claim_red_packet(
     packet_uuid: str,
-    claimer_tg_id: Optional[int] = Depends(get_tg_id_from_header),
+    request: Request,
     db: AsyncSession = Depends(get_db_session)
 ):
-    """領取紅包（支持Redis高并发）"""
+    """領取紅包（支持Redis高并发，支持 Telegram 和 JWT Token 認證）"""
+    from api.routers.auth import get_current_user_from_token
+    from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
     
-    if claimer_tg_id is None:
-        raise HTTPException(status_code=401, detail="Telegram user ID is required")
-    
-    # 查找領取者
-    result = await db.execute(select(User).where(User.tg_id == claimer_tg_id))
-    claimer = result.scalar_one_or_none()
+    # 尝试通过 JWT Token 或 Telegram initData 获取用户
+    claimer = None
+    try:
+        security = HTTPBearer(auto_error=False)
+        credentials: Optional[HTTPAuthorizationCredentials] = None
+        try:
+            credentials = await security(request)
+        except:
+            pass  # 如果没有 Bearer token，继续尝试 Telegram initData
+        
+        claimer = await get_current_user_from_token(
+            request=request,
+            credentials=credentials,
+            x_telegram_init_data=request.headers.get("X-Telegram-Init-Data"),
+            db=db
+        )
+    except HTTPException as e:
+        # 如果认证失败，尝试回退到 Telegram initData（仅通过 header）
+        claimer_tg_id = get_tg_id_from_header(
+            x_telegram_init_data=request.headers.get("X-Telegram-Init-Data")
+        )
+        if claimer_tg_id is None:
+            raise HTTPException(
+                status_code=401, 
+                detail="需要登錄才能搶紅包。請通過 Telegram MiniApp 訪問或先登錄。"
+            )
+        
+        # 查找領取者
+        result = await db.execute(select(User).where(User.tg_id == claimer_tg_id))
+        claimer = result.scalar_one_or_none()
+        
+        if not claimer:
+            raise HTTPException(status_code=404, detail="User not found")
+    except Exception as e:
+        logger.error(f"認證錯誤: {e}")
+        raise HTTPException(
+            status_code=401, 
+            detail="需要登錄才能搶紅包。請通過 Telegram MiniApp 訪問或先登錄。"
+        )
     
     if not claimer:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=401, 
+            detail="需要登錄才能搶紅包。請通過 Telegram MiniApp 訪問或先登錄。"
+        )
     
     # 尝试使用Redis高并发抢红包
     from api.services.redis_claim_service import RedisClaimService

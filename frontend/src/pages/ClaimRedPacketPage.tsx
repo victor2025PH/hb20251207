@@ -4,8 +4,10 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { useSound } from '../hooks/useSound'
+import { useAuth } from '../utils/auth/useAuth'
 import { claimRedPacket, getRedPacket, type RedPacket } from '../utils/api'
 import { showAlert } from '../utils/telegram'
+import { isInTelegram } from '../utils/platform'
 import ResultModal from '../components/ResultModal'
 import Loading from '../components/Loading'
 
@@ -13,10 +15,12 @@ export default function ClaimRedPacketPage() {
   const { uuid } = useParams<{ uuid: string }>()
   const navigate = useNavigate()
   const { playSound } = useSound()
+  const { isAuthenticated, loading: authLoading } = useAuth()
   const [showResultModal, setShowResultModal] = useState(false)
   const [claimAmount, setClaimAmount] = useState(0)
   const [claimMessage, setClaimMessage] = useState('')
   const [packetInfo, setPacketInfo] = useState<RedPacket | null>(null)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
 
   // 获取红包信息
   const { data: packet, isLoading: isLoadingPacket, isError, error } = useQuery<RedPacket>({
@@ -108,24 +112,70 @@ export default function ClaimRedPacketPage() {
     frame()
   }
 
-  // 自动抢红包
+  // 检查认证状态
   useEffect(() => {
-    if (uuid && packet && !claimMutation.isPending && !showResultModal) {
+    if (!authLoading && !isAuthenticated) {
+      // 如果未认证，显示提示
+      setShowAuthPrompt(true)
+    }
+  }, [authLoading, isAuthenticated])
+
+  // 自动抢红包（仅在已认证时）
+  useEffect(() => {
+    if (uuid && packet && isAuthenticated && !claimMutation.isPending && !showResultModal && !showAuthPrompt) {
       // 延迟一下再抢，让用户看到页面
       const timer = setTimeout(() => {
         claimMutation.mutate(uuid)
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [uuid, packet, claimMutation, showResultModal])
+  }, [uuid, packet, isAuthenticated, claimMutation, showResultModal, showAuthPrompt])
 
-  if (isLoadingPacket || claimMutation.isPending) {
+  if (authLoading || isLoadingPacket || claimMutation.isPending) {
     return (
       <div className="fixed inset-0 bg-brand-dark flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400">正在搶紅包...</p>
         </div>
+      </div>
+    )
+  }
+
+  // 未认证提示
+  if (showAuthPrompt && !isAuthenticated) {
+    const isTelegram = isInTelegram()
+    return (
+      <div className="fixed inset-0 bg-brand-dark flex items-center justify-center p-6">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-[#1C1C1E] border border-orange-500/30 rounded-3xl p-6 max-w-md w-full text-center"
+        >
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-2xl font-bold text-white mb-4">需要登錄</h2>
+          <p className="text-gray-400 mb-6">
+            {isTelegram 
+              ? '請確保您已通過 Telegram 登錄' 
+              : '搶紅包需要登錄。請通過 Telegram MiniApp 訪問或先登錄。'}
+          </p>
+          <div className="flex flex-col gap-3">
+            {!isTelegram && (
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl font-bold"
+              >
+                前往登錄
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/packets')}
+              className="w-full py-3 bg-[#2C2C2E] text-gray-300 rounded-xl font-bold"
+            >
+              返回紅包列表
+            </button>
+          </div>
+        </motion.div>
       </div>
     )
   }
