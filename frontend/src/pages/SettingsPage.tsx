@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X, Globe, Bell, Moon, Sun, Volume2, VolumeX, Languages } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../providers/I18nProvider'
-import { getNotificationSettings, updateNotificationSettings } from '../utils/api'
+import { getNotificationSettings, updateNotificationSettings, type NotificationSettings } from '../utils/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { showAlert } from '../utils/telegram'
 import PageTransition from '../components/PageTransition'
@@ -42,7 +42,7 @@ export default function SettingsPage() {
     showAlert('語言已切換', 'success')
   }
 
-  const handleNotificationToggle = (key: keyof typeof notificationSettings, value: boolean) => {
+  const handleNotificationToggle = (key: keyof NotificationSettings, value: boolean) => {
     if (notificationSettings) {
       updateMutation.mutate({ [key]: value })
     }
