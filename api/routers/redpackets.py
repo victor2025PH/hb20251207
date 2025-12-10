@@ -244,17 +244,27 @@ async def create_red_packet(
     # 發送紅包消息到群組（如果指定了群組）
     message_sent = False
     share_link = None
+    
+    # 確保 chat_id 是整數類型
+    chat_id = None
     if request.chat_id:
-        logger.info(f"📤 準備發送紅包消息到群組 {request.chat_id}")
+        try:
+            chat_id = int(request.chat_id)
+            logger.info(f"📤 準備發送紅包消息到群組 {chat_id} (原始值: {request.chat_id}, 類型: {type(request.chat_id).__name__})")
+        except (ValueError, TypeError) as e:
+            logger.error(f"❌ chat_id 轉換失敗: {request.chat_id} (類型: {type(request.chat_id).__name__}), 錯誤: {e}")
+            chat_id = None
+    
+    if chat_id:
         try:
             # 檢查機器人是否在群組中
             bot_info = await bot.get_me()
             logger.info(f"🤖 機器人信息: ID={bot_info.id}, Username=@{bot_info.username}")
             
             try:
-                bot_member = await bot.get_chat_member(request.chat_id, bot_info.id)
+                bot_member = await bot.get_chat_member(chat_id, bot_info.id)
                 bot_status = bot_member.status
-                logger.info(f"👥 機器人在群組 {request.chat_id} 中的狀態: {bot_status}")
+                logger.info(f"👥 機器人在群組 {chat_id} 中的狀態: {bot_status}")
                 
                 if bot_status not in ['left', 'kicked']:
                     # 機器人在群組中，檢查是否有發送消息的權限
@@ -266,7 +276,7 @@ async def create_red_packet(
                         can_send = True
                     
                     if not can_send:
-                        logger.warning(f"⚠️  機器人在群組 {request.chat_id} 中但沒有發送消息的權限")
+                        logger.warning(f"⚠️  機器人在群組 {chat_id} 中但沒有發送消息的權限")
                         share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                     else:
                         # 機器人在群組中且有權限，發送紅包消息
@@ -294,44 +304,45 @@ async def create_red_packet(
                                 )
                             ]]
                             
-                            logger.info(f"📨 正在發送消息到群組 {request.chat_id}...")
+                            logger.info(f"📨 正在發送消息到群組 {chat_id} (類型: {type(chat_id).__name__})...")
                             sent_message = await bot.send_message(
-                                chat_id=request.chat_id,
+                                chat_id=chat_id,
                                 text=group_message,
                                 parse_mode="Markdown",
                                 reply_markup=InlineKeyboardMarkup(claim_keyboard)
                             )
                             message_sent = True
-                            logger.info(f"✅ 紅包消息已成功發送到群組 {request.chat_id}, 消息ID: {sent_message.message_id}")
+                            logger.info(f"✅ 紅包消息已成功發送到群組 {chat_id}, 消息ID: {sent_message.message_id}")
                         except TelegramError as tg_error:
                             error_msg = str(tg_error).lower()
-                            logger.error(f"❌ 發送紅包消息到群組 {request.chat_id} 失敗: {type(tg_error).__name__}: {str(tg_error)}")
+                            logger.error(f"❌ 發送紅包消息到群組 {chat_id} 失敗: {type(tg_error).__name__}: {str(tg_error)}")
                             logger.exception(tg_error)  # 記錄完整的堆棧跟踪
                             
                             # 檢查是否是權限問題
                             if "not enough rights" in error_msg or "can't send messages" in error_msg or "forbidden" in error_msg:
-                                logger.warning(f"⚠️  機器人沒有發送消息的權限（群組 {request.chat_id}）")
+                                logger.warning(f"⚠️  機器人沒有發送消息的權限（群組 {chat_id}）")
                             # 發送失敗，返回分享鏈接
                             share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                         except Exception as e:
-                            logger.error(f"❌ 發送紅包消息到群組 {request.chat_id} 時發生未預期的錯誤: {type(e).__name__}: {str(e)}")
+                            logger.error(f"❌ 發送紅包消息到群組 {chat_id} 時發生未預期的錯誤: {type(e).__name__}: {str(e)}")
                             logger.exception(e)  # 記錄完整的堆棧跟踪
                             # 發送失敗，返回分享鏈接
                             share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                 else:
                     # 機器人不在群組中，返回分享鏈接
-                    logger.warning(f"⚠️  機器人不在群組 {request.chat_id} 中（狀態: {bot_status}），返回分享鏈接")
+                    logger.warning(f"⚠️  機器人不在群組 {chat_id} 中（狀態: {bot_status}），返回分享鏈接")
                     share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
             except TelegramError as member_error:
                 error_msg = str(member_error).lower()
                 logger.warning(f"⚠️  檢查機器人群組成員狀態失敗: {error_msg}")
+                logger.exception(member_error)  # 記錄完整的堆棧跟踪
                 if "chat not found" in error_msg or "not enough rights" in error_msg or "forbidden" in error_msg:
                     # 機器人不在群組中，返回分享鏈接
-                    logger.warning(f"⚠️  機器人無法訪問群組 {request.chat_id}，返回分享鏈接")
+                    logger.warning(f"⚠️  機器人無法訪問群組 {chat_id}，返回分享鏈接")
                     share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                 else:
                     # 其他錯誤，嘗試直接發送
-                    logger.info(f"🔄 嘗試直接發送消息到群組 {request.chat_id}...")
+                    logger.info(f"🔄 嘗試直接發送消息到群組 {chat_id}...")
                     try:
                         packet_type_str = get_enum_value(request.packet_type)
                         currency_str = get_enum_value(packet.currency)
@@ -353,8 +364,9 @@ async def create_red_packet(
                             )
                         ]]
                         
+                        logger.info(f"📨 直接發送消息到群組 {chat_id}...")
                         sent_message = await bot.send_message(
-                            chat_id=request.chat_id,
+                            chat_id=chat_id,
                             text=group_message,
                             parse_mode="Markdown",
                             reply_markup=InlineKeyboardMarkup(claim_keyboard)
