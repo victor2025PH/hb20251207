@@ -161,10 +161,17 @@ jobs:
               local VENV_NAME=$2
               
               echo "🔍 检查 $VENV_NAME 虚拟环境关键文件: $VENV_DIR/bin/activate"
-              # 使用 ls 命令检查文件是否存在，使用 || true 避免 ssh-action 检测到非零退出码
+              # 使用 ls 命令检查文件是否存在，使用 set +e 临时禁用错误退出
               # 将检查结果存储到变量中，避免在 if 条件中直接使用 ls
-              VENV_EXISTS=0
-              (ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && VENV_EXISTS=1) || VENV_EXISTS=0 || true
+              set +e  # 临时禁用 set -e，允许命令失败
+              ls "$VENV_DIR/bin/activate" >/dev/null 2>&1
+              VENV_EXISTS=$?
+              set -e  # 重新启用 set -e
+              if [ "$VENV_EXISTS" = "0" ]; then
+                VENV_EXISTS=1
+              else
+                VENV_EXISTS=0
+              fi
               
               if [ "$VENV_EXISTS" = "1" ]; then
                 echo "✅ $VENV_NAME 虚拟环境已存在且完整（activate 文件存在）"
