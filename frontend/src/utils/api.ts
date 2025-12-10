@@ -268,6 +268,7 @@ export interface RedPacket {
   expires_at: string
   message_sent?: boolean  // 消息是否成功發送到群組
   share_link?: string  // 分享鏈接（如果機器人不在群組中）
+  is_claimed?: boolean  // 當前用戶是否已領取
 }
 
 export interface SendRedPacketParams {

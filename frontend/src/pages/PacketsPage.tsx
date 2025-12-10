@@ -29,6 +29,7 @@ interface PacketDisplay {
   isFromGameGroup?: boolean
   isBomb?: boolean
   uuid?: string
+  is_claimed?: boolean  // 當前用戶是否已領取
 }
 
 // 將 API 紅包轉換為顯示格式
@@ -53,6 +54,7 @@ function convertToDisplay(packet: RedPacket): PacketDisplay {
     chatTitle: (packet as any).chat_title,
     isFromGameGroup: !!(packet as any).chat_id,
     isBomb,
+    is_claimed: packet.is_claimed,  // 當前用戶是否已領取
   }
 }
 
@@ -208,6 +210,12 @@ export default function PacketsPage() {
   }
 
   const handleGrab = async (e: React.MouseEvent, packet: PacketDisplay) => {
+    // 如果已領取，不允許再次領取
+    if (packet.is_claimed) {
+      showAlert('您已經領取過這個紅包了', 'info')
+      return
+    }
+    
     if (packet.remainingQuantity <= 0 || packet.status !== 'active') return
 
     e.stopPropagation()
@@ -458,11 +466,11 @@ export default function PacketsPage() {
                     {/* 領取按鈕 */}
                     <button
                       onClick={(e) => handleGrab(e, packet)}
-                      disabled={loadingId === packet.id || isGrabbed}
+                      disabled={loadingId === packet.id || isGrabbed || packet.is_claimed}
                       className={`
                         text-sm font-bold py-2 px-4 rounded-lg shadow-lg transform transition-all flex items-center justify-center w-[90px]
                         ${
-                          isGrabbed
+                          isGrabbed || packet.is_claimed
                             ? 'bg-[#2C2C2E] text-gray-500 cursor-not-allowed border border-white/5'
                             : packet.isBomb
                             ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white active:scale-95 shadow-red-900/20'
@@ -472,8 +480,8 @@ export default function PacketsPage() {
                     >
                       {loadingId === packet.id ? (
                         <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : isGrabbed ? (
-                        packet.status === 'expired' ? t('expired') : t('grabbed')
+                      ) : isGrabbed || packet.is_claimed ? (
+                        packet.status === 'expired' ? t('expired') : '已領取'
                       ) : (
                         t('grab')
                       )}

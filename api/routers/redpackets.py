@@ -93,6 +93,7 @@ class RedPacketResponse(BaseModel):
     created_at: datetime
     message_sent: bool = False  # 消息是否成功發送到群組
     share_link: Optional[str] = None  # 分享鏈接（如果機器人不在群組中）
+    is_claimed: Optional[bool] = None  # 當前用戶是否已領取（需要認證）
     
     class Config:
         from_attributes = True
@@ -871,6 +872,7 @@ async def claim_red_packet(
 @router.get("/list", response_model=List[RedPacketResponse])
 @router.get("", response_model=List[RedPacketResponse])  # 兼容 /api/redpackets 路径
 async def list_red_packets(
+    request: Request,
     status: Optional[RedPacketStatus] = None,
     chat_id: Optional[int] = None,
     limit: int = 20,
@@ -885,6 +887,27 @@ async def list_red_packets(
     - 任務紅包（需要完成任務才能領取）
     - 獎勵紅包（系統獎勵、活動獎勵等）
     """
+    # 尝试获取当前用户（可选，不强制认证）
+    current_user = None
+    try:
+        from api.routers.auth import get_current_user_from_token
+        from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+        security = HTTPBearer(auto_error=False)
+        credentials: Optional[HTTPAuthorizationCredentials] = None
+        try:
+            credentials = await security(request)
+        except:
+            pass
+        current_user = await get_current_user_from_token(
+            request=request,
+            credentials=credentials,
+            x_telegram_init_data=request.headers.get("X-Telegram-Init-Data"),
+            db=db
+        )
+    except:
+        # 未认证用户，继续执行但不检查领取状态
+        pass
+    
     # 默认只返回活跃红包
     if status is None:
         status = RedPacketStatus.ACTIVE
@@ -910,11 +933,31 @@ async def list_red_packets(
     result = await db.execute(query)
     packets = result.scalars().all()
     
+    # 如果用户已认证，检查每个红包是否已领取
+    if current_user:
+        packet_ids = [p.id for p in packets]
+        if packet_ids:
+            # 批量查询用户已领取的红包
+            claims_result = await db.execute(
+                select(RedPacketClaim.red_packet_id).where(
+                    and_(
+                        RedPacketClaim.red_packet_id.in_(packet_ids),
+                        RedPacketClaim.user_id == current_user.id
+                    )
+                )
+            )
+            claimed_packet_ids = {row[0] for row in claims_result.all()}
+            
+            # 为每个红包设置 is_claimed 字段
+            for packet in packets:
+                packet.is_claimed = packet.id in claimed_packet_ids
+    
     return packets
 
 
 @router.get("/recommended", response_model=List[RedPacketResponse])
 async def get_recommended_packets(
+    request: Request,
     tg_id: Optional[int] = Depends(get_tg_id_from_header),
     limit: int = 10,
     db: AsyncSession = Depends(get_db_session)
@@ -922,8 +965,30 @@ async def get_recommended_packets(
     """獲取推薦紅包（根據用戶活躍度）"""
     from sqlalchemy import case, func as sql_func
     
+    # 尝试获取当前用户（可选，不强制认证）
+    current_user = None
+    try:
+        from api.routers.auth import get_current_user_from_token
+        from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+        security = HTTPBearer(auto_error=False)
+        credentials: Optional[HTTPAuthorizationCredentials] = None
+        try:
+            credentials = await security(request)
+        except:
+            pass
+        current_user = await get_current_user_from_token(
+            request=request,
+            credentials=credentials,
+            x_telegram_init_data=request.headers.get("X-Telegram-Init-Data"),
+            db=db
+        )
+    except:
+        # 未认证用户，继续执行但不检查领取状态
+        pass
+    
     # 計算用戶活躍度
     activity_score = 0
+    user = None
     if tg_id:
         result = await db.execute(select(User).where(User.tg_id == tg_id))
         user = result.scalar_one_or_none()
@@ -974,9 +1039,26 @@ async def get_recommended_packets(
     result = await db.execute(query.limit(limit))
     packets = result.scalars().all()
     
+    # 如果用户已认证，检查每个红包是否已领取
+    claimed_packet_ids = set()
+    if current_user:
+        packet_ids = [p.id for p in packets]
+        if packet_ids:
+            # 批量查询用户已领取的红包
+            claims_result = await db.execute(
+                select(RedPacketClaim.red_packet_id).where(
+                    and_(
+                        RedPacketClaim.red_packet_id.in_(packet_ids),
+                        RedPacketClaim.user_id == current_user.id
+                    )
+                )
+            )
+            claimed_packet_ids = {row[0] for row in claims_result.all()}
+    
     # 轉換為響應格式
     responses = []
     for packet in packets:
+        is_claimed = packet.id in claimed_packet_ids if current_user else None
         responses.append(RedPacketResponse(
             id=packet.id,
             uuid=packet.uuid,
@@ -990,7 +1072,8 @@ async def get_recommended_packets(
             status=packet.status.value,
             created_at=packet.created_at,
             message_sent=False,
-            share_link=None
+            share_link=None,
+            is_claimed=is_claimed
         ))
     
     return responses
@@ -998,6 +1081,7 @@ async def get_recommended_packets(
 
 @router.get("/{packet_uuid}", response_model=RedPacketResponse)
 async def get_red_packet(
+    request: Request,
     packet_uuid: str,
     db: AsyncSession = Depends(get_db_session)
 ):
@@ -1005,6 +1089,27 @@ async def get_red_packet(
     獲取單個紅包信息（支持 UUID 或 ID）
     注意：此路由必須放在所有具體路徑（如 /list, /recommended）之後
     """
+    # 尝试获取当前用户（可选，不强制认证）
+    current_user = None
+    try:
+        from api.routers.auth import get_current_user_from_token
+        from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+        security = HTTPBearer(auto_error=False)
+        credentials: Optional[HTTPAuthorizationCredentials] = None
+        try:
+            credentials = await security(request)
+        except:
+            pass
+        current_user = await get_current_user_from_token(
+            request=request,
+            credentials=credentials,
+            x_telegram_init_data=request.headers.get("X-Telegram-Init-Data"),
+            db=db
+        )
+    except:
+        # 未认证用户，继续执行但不检查领取状态
+        pass
+    
     # 先嘗試用 uuid 查找
     result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
     packet = result.scalar_one_or_none()
@@ -1021,5 +1126,34 @@ async def get_red_packet(
         logger.error(f"❌ 紅包不存在: packet_uuid={packet_uuid}")
         raise HTTPException(status_code=404, detail="Red packet not found")
     
-    return packet
+    # 检查用户是否已领取
+    is_claimed = None
+    if current_user:
+        claim_result = await db.execute(
+            select(RedPacketClaim).where(
+                and_(
+                    RedPacketClaim.red_packet_id == packet.id,
+                    RedPacketClaim.user_id == current_user.id
+                )
+            )
+        )
+        is_claimed = claim_result.scalar_one_or_none() is not None
+    
+    # 转换为响应格式
+    return RedPacketResponse(
+        id=packet.id,
+        uuid=packet.uuid,
+        currency=packet.currency.value,
+        packet_type=packet.packet_type.value,
+        total_amount=float(packet.total_amount),
+        total_count=packet.total_count,
+        claimed_amount=float(packet.claimed_amount),
+        claimed_count=packet.claimed_count,
+        message=packet.message,
+        status=packet.status.value,
+        created_at=packet.created_at,
+        message_sent=False,
+        share_link=None,
+        is_claimed=is_claimed
+    )
 
