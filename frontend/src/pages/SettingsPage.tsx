@@ -19,7 +19,7 @@ export default function SettingsPage() {
   })
 
   // 更新通知設置
-  const updateMutation = useMutation({
+  const updateMutation = useMutation<NotificationSettings, Error, Partial<NotificationSettings>>({
     mutationFn: updateNotificationSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification-settings'] })
