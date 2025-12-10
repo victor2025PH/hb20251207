@@ -59,7 +59,7 @@ export default function ClaimRedPacketPage() {
       // 顯示結果
       setClaimAmount(result.amount)
       setClaimMessage(result.message || `恭喜獲得 ${result.amount} ${packet?.currency || 'USDT'}！`)
-      setPacketInfo(packet)
+      setPacketInfo(packet || null)
       setShowResultModal(true)
       
       // 成功動畫
