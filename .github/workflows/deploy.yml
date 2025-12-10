@@ -33,12 +33,16 @@ jobs:
             
             # 硬编码的服务器配置
             PROJECT_DIR="/opt/luckyred"
-            SERVICE_NAME="luckyred-api"
-            VENV_DIR="/opt/luckyred/api/.venv"
+            API_SERVICE_NAME="luckyred-api"
+            BOT_SERVICE_NAME="luckyred-bot"
+            API_VENV_DIR="/opt/luckyred/api/.venv"
+            BOT_VENV_DIR="/opt/luckyred/bot/.venv"
             
             echo "📁 项目目录: $PROJECT_DIR"
-            echo "🔧 服务名称: $SERVICE_NAME"
-            echo "🐍 虚拟环境: $VENV_DIR"
+            echo "🔧 API 服务名称: $API_SERVICE_NAME"
+            echo "🤖 Bot 服务名称: $BOT_SERVICE_NAME"
+            echo "🐍 API 虚拟环境: $API_VENV_DIR"
+            echo "🐍 Bot 虚拟环境: $BOT_VENV_DIR"
             echo "👤 当前用户: $(whoami)"
             echo "📂 当前目录: $(pwd)"
             echo "🐍 Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
@@ -131,11 +135,15 @@ jobs:
             echo "步骤 2: 检查并创建虚拟环境"
             echo "=========================================="
             
-            # 确保 api 目录存在
-            echo "📂 确保 api 目录存在..."
+            # 确保 api 和 bot 目录存在
+            echo "📂 确保 api 和 bot 目录存在..."
             mkdir -p "$PROJECT_DIR/api"
+            mkdir -p "$PROJECT_DIR/bot"
             sudo chown -R $USER:$USER "$PROJECT_DIR/api" || {
               echo "⚠️  无法修复 api 目录权限，继续..."
+            }
+            sudo chown -R $USER:$USER "$PROJECT_DIR/bot" || {
+              echo "⚠️  无法修复 bot 目录权限，继续..."
             }
             
             # 确保安装了 python3-venv 模块
@@ -147,66 +155,66 @@ jobs:
             }
             echo "✅ python3-venv 模块检查完成"
             
-            # 关键修复：检查 activate 文件是否存在，而不是检查目录
-            echo "🔍 检查虚拟环境关键文件: $VENV_DIR/bin/activate"
-            # 使用 test -f 检查文件，使用 && 和 || 处理结果
-            test -f "$VENV_DIR/bin/activate" 2>/dev/null && {
-              echo "✅ 虚拟环境已存在且完整（activate 文件存在）"
-            } || {
-              echo "⚠️  虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
+            # 创建虚拟环境的函数
+            create_venv_if_needed() {
+              local VENV_DIR=$1
+              local VENV_NAME=$2
               
-              # 暴力清理旧的（可能是空的）目录
-              if [ -d "$VENV_DIR" ] || [ -e "$VENV_DIR" ]; then
-                echo "🗑️  删除损坏的虚拟环境目录..."
-                sudo rm -rf "$VENV_DIR" || {
-                  echo "⚠️  删除旧目录失败，尝试继续..."
+              echo "🔍 检查 $VENV_NAME 虚拟环境关键文件: $VENV_DIR/bin/activate"
+              # 使用 test -f 检查文件，使用 && 和 || 处理结果
+              test -f "$VENV_DIR/bin/activate" 2>/dev/null && {
+                echo "✅ $VENV_NAME 虚拟环境已存在且完整（activate 文件存在）"
+              } || {
+                echo "⚠️  $VENV_NAME 虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
+                
+                # 暴力清理旧的（可能是空的）目录
+                if [ -d "$VENV_DIR" ] || [ -e "$VENV_DIR" ]; then
+                  echo "🗑️  删除损坏的 $VENV_NAME 虚拟环境目录..."
+                  sudo rm -rf "$VENV_DIR" || {
+                    echo "⚠️  删除旧目录失败，尝试继续..."
+                  }
+                fi
+                
+                # 确保父目录存在且有权限
+                VENV_PARENT_DIR=$(dirname "$VENV_DIR")
+                mkdir -p "$VENV_PARENT_DIR"
+                sudo chown -R $USER:$USER "$VENV_PARENT_DIR" || {
+                  echo "⚠️  无法修复父目录权限，继续..."
                 }
-              fi
-              
-              # 确保父目录存在且有权限
-              VENV_PARENT_DIR=$(dirname "$VENV_DIR")
-              mkdir -p "$VENV_PARENT_DIR"
-              sudo chown -R $USER:$USER "$VENV_PARENT_DIR" || {
-                echo "⚠️  无法修复父目录权限，继续..."
+                
+                # 重新创建虚拟环境
+                echo "🐍 创建新的 $VENV_NAME 虚拟环境: $VENV_DIR"
+                python3 -m venv "$VENV_DIR" || {
+                  echo "❌ 创建 $VENV_NAME 虚拟环境失败"
+                  echo "💡 调试信息:"
+                  echo "  - Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
+                  echo "  - Python3 版本: $(python3 --version 2>&1 || echo '无法获取版本')"
+                  echo "  - 目标目录: $VENV_DIR"
+                  exit 1
+                }
+                
+                # 验证创建结果
+                test -f "$VENV_DIR/bin/activate" 2>/dev/null || {
+                  echo "❌ 错误: $VENV_NAME 虚拟环境创建后 activate 文件仍不存在"
+                  exit 1
+                }
+                
+                echo "✅ $VENV_NAME 虚拟环境创建成功"
+                
+                # 修复权限
+                echo "🔧 修复 $VENV_NAME 虚拟环境权限..."
+                sudo chown -R $USER:$USER "$VENV_DIR" || {
+                  echo "⚠️  无法修复虚拟环境权限，继续..."
+                }
+                echo "✅ $VENV_NAME 虚拟环境权限已修复"
               }
-              
-              # 重新创建虚拟环境
-              echo "🐍 创建新的虚拟环境: $VENV_DIR"
-              python3 -m venv "$VENV_DIR" || {
-                echo "❌ 创建虚拟环境失败"
-                echo "💡 调试信息:"
-                echo "  - Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
-                echo "  - Python3 版本: $(python3 --version 2>&1 || echo '无法获取版本')"
-                echo "  - 目标目录: $VENV_DIR"
-                exit 1
-              }
-              
-              # 验证创建结果
-              test -f "$VENV_DIR/bin/activate" 2>/dev/null || {
-                echo "❌ 错误: 虚拟环境创建后 activate 文件仍不存在"
-                echo "💡 调试信息:"
-                echo "  - 虚拟环境目录是否存在: $([ -d "$VENV_DIR" ] && echo '是' || echo '否')"
-                [ -d "$VENV_DIR" ] && {
-                  echo "  - 虚拟环境目录内容:"
-                  ls -la "$VENV_DIR" || true
-                  echo "  - bin 目录是否存在: $([ -d "$VENV_DIR/bin" ] && echo '是' || echo '否')"
-                  [ -d "$VENV_DIR/bin" ] && {
-                    echo "  - bin 目录内容:"
-                    ls -la "$VENV_DIR/bin" || true
-                  } || true
-                } || true
-                exit 1
-              }
-              
-              echo "✅ 虚拟环境创建成功"
-              
-              # 修复权限
-              echo "🔧 修复虚拟环境权限..."
-              sudo chown -R $USER:$USER "$VENV_DIR" || {
-                echo "⚠️  无法修复虚拟环境权限，继续..."
-              }
-              echo "✅ 虚拟环境权限已修复"
             }
+            
+            # 创建 API 虚拟环境
+            create_venv_if_needed "$API_VENV_DIR" "API"
+            
+            # 创建 Bot 虚拟环境
+            create_venv_if_needed "$BOT_VENV_DIR" "Bot"
             
             # ==========================================
             # 步骤 3: 激活虚拟环境
@@ -237,20 +245,20 @@ jobs:
               echo "⚠️  无法读取 activate 脚本内容，但文件存在，继续尝试激活..."
             }
             
-            # 激活虚拟环境
-            echo "🔌 执行: source $VENV_DIR/bin/activate"
-            source "$VENV_DIR/bin/activate" || {
-              echo "❌ 激活虚拟环境失败"
+            # 激活 API 虚拟环境
+            echo "🔌 执行: source $API_VENV_DIR/bin/activate"
+            source "$API_VENV_DIR/bin/activate" || {
+              echo "❌ 激活 API 虚拟环境失败"
               echo "💡 调试信息:"
-              echo "  - activate 脚本路径: $VENV_DIR/bin/activate"
-              echo "  - 脚本是否存在: $([ -f "$VENV_DIR/bin/activate" ] && echo '是' || echo '否')"
-              echo "  - 脚本权限: $(ls -l "$VENV_DIR/bin/activate" 2>/dev/null || echo '无法读取')"
+              echo "  - activate 脚本路径: $API_VENV_DIR/bin/activate"
+              echo "  - 脚本是否存在: $([ -f "$API_VENV_DIR/bin/activate" ] && echo '是' || echo '否')"
+              echo "  - 脚本权限: $(ls -l "$API_VENV_DIR/bin/activate" 2>/dev/null || echo '无法读取')"
               echo "  - 当前 shell: $SHELL"
               echo "  - 当前目录: $(pwd)"
               exit 1
             }
             
-            echo "✅ 虚拟环境已激活"
+            echo "✅ API 虚拟环境已激活"
             echo "🐍 Python 版本: $(python --version)"
             echo "🐍 Python 路径: $(which python)"
             echo "📦 pip 版本: $(pip --version)"
@@ -269,29 +277,62 @@ jobs:
               echo "⚠️  pip 升级失败，继续..."
             }
             
-            echo "📦 安装 Python 依赖..."
+            echo "📦 安装 API Python 依赖..."
             if [ -f "$PROJECT_DIR/api/requirements.txt" ]; then
               echo "📄 使用 requirements 文件: $PROJECT_DIR/api/requirements.txt"
               pip install -r "$PROJECT_DIR/api/requirements.txt" || {
                 echo "⚠️  依赖安装失败，尝试使用 --no-cache-dir..."
                 pip install -r "$PROJECT_DIR/api/requirements.txt" --no-cache-dir || {
-                  echo "❌ 依赖安装失败"
+                  echo "❌ API 依赖安装失败"
                   exit 1
                 }
               }
-              echo "✅ Python 依赖安装完成"
+              echo "✅ API Python 依赖安装完成"
             elif [ -f "$PROJECT_DIR/requirements.txt" ]; then
               echo "📄 使用 requirements 文件: $PROJECT_DIR/requirements.txt"
               pip install -r "$PROJECT_DIR/requirements.txt" || {
                 echo "⚠️  依赖安装失败，尝试使用 --no-cache-dir..."
                 pip install -r "$PROJECT_DIR/requirements.txt" --no-cache-dir || {
-                  echo "❌ 依赖安装失败"
+                  echo "❌ API 依赖安装失败"
                   exit 1
                 }
               }
-              echo "✅ Python 依赖安装完成"
+              echo "✅ API Python 依赖安装完成"
             else
-              echo "⚠️  未找到 requirements.txt，跳过依赖安装"
+              echo "⚠️  未找到 API requirements.txt，跳过依赖安装"
+            fi
+            
+            # 安装 Bot Python 依赖
+            echo ""
+            echo "📦 安装 Bot Python 依赖..."
+            deactivate 2>/dev/null || true
+            source "$BOT_VENV_DIR/bin/activate" || {
+              echo "❌ 激活 Bot 虚拟环境失败"
+              exit 1
+            }
+            
+            if [ -f "$PROJECT_DIR/bot/requirements.txt" ]; then
+              echo "📄 使用 requirements 文件: $PROJECT_DIR/bot/requirements.txt"
+              pip install -r "$PROJECT_DIR/bot/requirements.txt" || {
+                echo "⚠️  依赖安装失败，尝试使用 --no-cache-dir..."
+                pip install -r "$PROJECT_DIR/bot/requirements.txt" --no-cache-dir || {
+                  echo "❌ Bot 依赖安装失败"
+                  exit 1
+                }
+              }
+              echo "✅ Bot Python 依赖安装完成"
+            elif [ -f "$PROJECT_DIR/requirements.txt" ]; then
+              echo "📄 使用 requirements 文件: $PROJECT_DIR/requirements.txt"
+              pip install -r "$PROJECT_DIR/requirements.txt" || {
+                echo "⚠️  依赖安装失败，尝试使用 --no-cache-dir..."
+                pip install -r "$PROJECT_DIR/requirements.txt" --no-cache-dir || {
+                  echo "❌ Bot 依赖安装失败"
+                  exit 1
+                }
+              }
+              echo "✅ Bot Python 依赖安装完成"
+            else
+              echo "⚠️  未找到 Bot requirements.txt，跳过依赖安装"
             fi
             
             # ==========================================
@@ -347,13 +388,22 @@ jobs:
             echo "=========================================="
             echo "步骤 6: 重启服务"
             echo "=========================================="
-            echo "🔄 尝试重启服务..."
+            echo "🔄 尝试重启 API 服务..."
             
             # 直接尝试重启。如果成功则打印成功；如果失败（服务不存在），则打印警告但不要退出。
             # 注意：必须写在同一行，不要使用反斜杠换行，避免语法错误。
-            sudo systemctl restart "${SERVICE_NAME}" && echo "✅ 服务重启成功" || echo "⚠️ 服务未运行或不存在，请手动检查 (代码已成功部署)"
+            sudo systemctl restart "${API_SERVICE_NAME}" && echo "✅ API 服务重启成功" || echo "⚠️ API 服务未运行或不存在，请手动检查 (代码已成功部署)"
+            
+            echo ""
+            echo "🔄 尝试重启 Bot 服务..."
+            sudo systemctl restart "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务重启成功" || echo "⚠️ Bot 服务未运行或不存在，请手动检查 (代码已成功部署)"
             
             echo ""
             echo "=========================================="
             echo "🎉 部署全部完成！"
             echo "=========================================="
+            echo ""
+            echo "📊 服务状态："
+            sudo systemctl status "${API_SERVICE_NAME}" --no-pager -l | head -5 || echo "⚠️ 无法获取 API 服务状态"
+            echo ""
+            sudo systemctl status "${BOT_SERVICE_NAME}" --no-pager -l | head -5 || echo "⚠️ 无法获取 Bot 服务状态"
