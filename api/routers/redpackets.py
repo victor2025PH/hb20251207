@@ -326,12 +326,31 @@ async def create_red_packet(
                             logger.info(f"📝 消息內容預覽: {group_message[:100]}...")
                             logger.info(f"🔘 按鈕數據: {claim_keyboard}")
                             
-                            sent_message = await bot.send_message(
-                                chat_id=chat_id,
-                                text=group_message,
-                                parse_mode="Markdown",
-                                reply_markup=InlineKeyboardMarkup(claim_keyboard)
-                            )
+                            # 尝试发送消息，如果 Markdown 解析失败，使用 HTML 或纯文本
+                            try:
+                                sent_message = await bot.send_message(
+                                    chat_id=chat_id,
+                                    text=group_message,
+                                    parse_mode="Markdown",
+                                    reply_markup=InlineKeyboardMarkup(claim_keyboard)
+                                )
+                            except TelegramError as parse_error:
+                                # Markdown 解析失败，尝试使用 HTML
+                                error_msg = str(parse_error).lower()
+                                if "can't parse" in error_msg or "parse" in error_msg:
+                                    logger.warning(f"⚠️  Markdown 解析失败，尝试使用 HTML: {parse_error}")
+                                    # 转换 Markdown 到 HTML
+                                    html_message = group_message.replace("*", "<b>").replace("*", "</b>")
+                                    html_message = html_message.replace("_", "<i>").replace("_", "</i>")
+                                    sent_message = await bot.send_message(
+                                        chat_id=chat_id,
+                                        text=html_message,
+                                        parse_mode="HTML",
+                                        reply_markup=InlineKeyboardMarkup(claim_keyboard)
+                                    )
+                                else:
+                                    # 其他错误，重新抛出
+                                    raise
                             message_sent = True
                             logger.info(f"✅ 紅包消息已成功發送到群組 {chat_id}, 消息ID: {sent_message.message_id}, 時間: {sent_message.date}")
                         except TelegramError as tg_error:
