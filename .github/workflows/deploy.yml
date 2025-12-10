@@ -162,10 +162,9 @@ jobs:
               
               echo "🔍 检查 $VENV_NAME 虚拟环境..."
               
-              # 【核心修改】直接在 if 条件中执行 ls。
-              # 原理：在 if 条件中，即使 ls 返回失败（找不到文件），set -e 也不会触发退出。
-              # 这是最简单、最稳健的写法，绝对没有语法错误风险。
-              if ls "$VENV_DIR/bin/activate" >/dev/null 2>&1; then
+              # 使用 test -f 检查文件是否存在，这是最安全可靠的方法
+              # test 命令在 if 条件中不会触发 set -e 退出
+              if test -f "$VENV_DIR/bin/activate"; then
                 echo "✅ $VENV_NAME 虚拟环境已存在且完整"
               else
                 echo "⚠️  $VENV_NAME 虚拟环境缺失，准备重新创建..."
