@@ -783,23 +783,6 @@ async def list_red_packets(
     return packets
 
 
-@router.get("/{packet_uuid}", response_model=RedPacketResponse)
-async def get_red_packet(
-    packet_uuid: str,
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    獲取單個紅包信息（通過 UUID）
-    """
-    result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
-    packet = result.scalar_one_or_none()
-    
-    if not packet:
-        raise HTTPException(status_code=404, detail="Red packet not found")
-    
-    return packet
-
-
 @router.get("/recommended", response_model=List[RedPacketResponse])
 async def get_recommended_packets(
     tg_id: Optional[int] = Depends(get_tg_id_from_header),
