@@ -47,7 +47,9 @@ export default function SettingsPage() {
     value: boolean
   ) => {
     if (notificationSettings) {
-      updateMutation.mutate({ [key]: value } as Partial<NotificationSettings>)
+      const updateData: Partial<NotificationSettings> = {}
+      updateData[key] = value
+      updateMutation.mutate(updateData)
     }
   }
 
