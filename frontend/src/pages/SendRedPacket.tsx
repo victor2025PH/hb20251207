@@ -20,6 +20,7 @@ export default function SendRedPacket() {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false)
   const [dontShowCurrencyModal, setDontShowCurrencyModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [chatHistoryKey, setChatHistoryKey] = useState(0)  // 用于强制刷新历史记录
   
   // 獲取 Telegram 用戶 ID（用於搜索）
   // 優先從 Telegram WebApp 獲取，如果沒有則使用本地存儲的測試 ID
@@ -307,12 +308,29 @@ export default function SendRedPacket() {
   const deleteChatFromHistory = (chatId: number) => {
     if (typeof window === 'undefined') return
     
-    const storageKey = `redpacket_chat_history_${tgId || 'default'}`
-    const historyStr = localStorage.getItem(storageKey)
-    let history: ChatInfo[] = historyStr ? JSON.parse(historyStr) : []
-    
-    history = history.filter((c: ChatInfo) => c.id !== chatId)
-    localStorage.setItem(storageKey, JSON.stringify(history))
+    try {
+      const storageKey = `redpacket_chat_history_${tgId || 'default'}`
+      const historyStr = localStorage.getItem(storageKey)
+      let history: ChatInfo[] = historyStr ? JSON.parse(historyStr) : []
+      
+      const beforeCount = history.length
+      history = history.filter((c: ChatInfo) => c.id !== chatId)
+      const afterCount = history.length
+      
+      if (beforeCount !== afterCount) {
+        localStorage.setItem(storageKey, JSON.stringify(history))
+        // 觸發 UI 更新
+        setChatHistoryKey(prev => prev + 1)
+        haptic('light')
+        showAlert('已刪除', 'success')
+        console.log('[deleteChatFromHistory] Deleted chat from history:', { chatId, beforeCount, afterCount })
+      } else {
+        console.warn('[deleteChatFromHistory] Chat not found in history:', chatId)
+      }
+    } catch (error) {
+      console.error('[deleteChatFromHistory] Error deleting chat history:', error)
+      showAlert('刪除失敗', 'error')
+    }
   }
 
   // 發送紅包
@@ -328,17 +346,24 @@ export default function SendRedPacket() {
         saveChatToHistory(selectedChat)
       }
       
-      // 如果機器人不在群組中，顯示分享鏈接
-      if (!data.message_sent && data.share_link) {
-        const telegram = window.Telegram?.WebApp
-        const shouldShare = await showConfirm(
-          t('bot_not_in_group') + '\n\n' + t('share_red_packet_link'),
-          undefined,
-          '分享',
-          '取消'
-        )
-        if (shouldShare && telegram) {
-          telegram.openLink(data.share_link)
+      // 檢查消息是否成功發送到群組
+      if (selectedChat && !sendToPublic) {
+        if (data.message_sent) {
+          showAlert('紅包已成功發送到群組！', 'success')
+        } else if (data.share_link) {
+          // 機器人不在群組中，顯示分享鏈接
+          const telegram = window.Telegram?.WebApp
+          const shouldShare = await showConfirm(
+            '機器人不在群組中，無法直接發送紅包消息。\n\n是否分享紅包鏈接？',
+            undefined,
+            '分享',
+            '取消'
+          )
+          if (shouldShare && telegram) {
+            telegram.openLink(data.share_link)
+          }
+        } else {
+          showAlert('紅包創建成功，但未能發送到群組，請檢查機器人是否在群組中', 'warning')
         }
       } else {
         showAlert(t('success'), 'success')
@@ -692,6 +717,8 @@ export default function SendRedPacket() {
               {/* 顯示歷史記錄（當沒有搜索時） */}
               {searchQuery.length === 0 && (() => {
                 const chatHistory = getChatHistory()
+                // 使用 chatHistoryKey 來強制重新渲染
+                const _ = chatHistoryKey
                 return chatHistory.length > 0 ? (
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">

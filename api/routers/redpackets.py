@@ -256,15 +256,27 @@ async def create_red_packet(
                 logger.info(f"👥 機器人在群組 {request.chat_id} 中的狀態: {bot_status}")
                 
                 if bot_status not in ['left', 'kicked']:
-                    # 機器人在群組中，發送紅包消息
-                    try:
-                        # 安全獲取 packet_type 和 currency 的值
-                        packet_type_str = get_enum_value(request.packet_type)
-                        currency_str = get_enum_value(packet.currency)
-                        
-                        # 構建群組中的紅包消息
-                        type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
-                        group_message = f"""
+                    # 機器人在群組中，檢查是否有發送消息的權限
+                    can_send = True
+                    if hasattr(bot_member, 'can_send_messages'):
+                        can_send = bot_member.can_send_messages
+                    elif hasattr(bot_member, 'status') and bot_member.status == 'administrator':
+                        # 管理員通常有發送消息的權限
+                        can_send = True
+                    
+                    if not can_send:
+                        logger.warning(f"⚠️  機器人在群組 {request.chat_id} 中但沒有發送消息的權限")
+                        share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
+                    else:
+                        # 機器人在群組中且有權限，發送紅包消息
+                        try:
+                            # 安全獲取 packet_type 和 currency 的值
+                            packet_type_str = get_enum_value(request.packet_type)
+                            currency_str = get_enum_value(packet.currency)
+                            
+                            # 構建群組中的紅包消息
+                            type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
+                            group_message = f"""
 🧧 *{packet.message}*
 
 {type_text}
@@ -273,28 +285,38 @@ async def create_red_packet(
 
 🎁 點擊下方按鈕搶紅包！
 """
-                        # 構建搶紅包按鈕
-                        claim_keyboard = [[
-                            InlineKeyboardButton(
-                                "🧧 搶紅包",
-                                callback_data=f"claim:{packet.uuid}"
+                            # 構建搶紅包按鈕
+                            claim_keyboard = [[
+                                InlineKeyboardButton(
+                                    "🧧 搶紅包",
+                                    callback_data=f"claim:{packet.uuid}"
+                                )
+                            ]]
+                            
+                            logger.info(f"📨 正在發送消息到群組 {request.chat_id}...")
+                            sent_message = await bot.send_message(
+                                chat_id=request.chat_id,
+                                text=group_message,
+                                parse_mode="Markdown",
+                                reply_markup=InlineKeyboardMarkup(claim_keyboard)
                             )
-                        ]]
-                        
-                        logger.info(f"📨 正在發送消息到群組 {request.chat_id}...")
-                        sent_message = await bot.send_message(
-                            chat_id=request.chat_id,
-                            text=group_message,
-                            parse_mode="Markdown",
-                            reply_markup=InlineKeyboardMarkup(claim_keyboard)
-                        )
-                        message_sent = True
-                        logger.info(f"✅ 紅包消息已成功發送到群組 {request.chat_id}, 消息ID: {sent_message.message_id}")
-                    except Exception as e:
-                        logger.error(f"❌ 發送紅包消息到群組 {request.chat_id} 失敗: {type(e).__name__}: {str(e)}")
-                        logger.exception(e)  # 記錄完整的堆棧跟踪
-                        # 發送失敗，返回分享鏈接
-                        share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
+                            message_sent = True
+                            logger.info(f"✅ 紅包消息已成功發送到群組 {request.chat_id}, 消息ID: {sent_message.message_id}")
+                        except TelegramError as tg_error:
+                            error_msg = str(tg_error).lower()
+                            logger.error(f"❌ 發送紅包消息到群組 {request.chat_id} 失敗: {type(tg_error).__name__}: {str(tg_error)}")
+                            logger.exception(tg_error)  # 記錄完整的堆棧跟踪
+                            
+                            # 檢查是否是權限問題
+                            if "not enough rights" in error_msg or "can't send messages" in error_msg or "forbidden" in error_msg:
+                                logger.warning(f"⚠️  機器人沒有發送消息的權限（群組 {request.chat_id}）")
+                            # 發送失敗，返回分享鏈接
+                            share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
+                        except Exception as e:
+                            logger.error(f"❌ 發送紅包消息到群組 {request.chat_id} 時發生未預期的錯誤: {type(e).__name__}: {str(e)}")
+                            logger.exception(e)  # 記錄完整的堆棧跟踪
+                            # 發送失敗，返回分享鏈接
+                            share_link = f"{settings.MINIAPP_URL}/claim/{packet.uuid}"
                 else:
                     # 機器人不在群組中，返回分享鏈接
                     logger.warning(f"⚠️  機器人不在群組 {request.chat_id} 中（狀態: {bot_status}），返回分享鏈接")
