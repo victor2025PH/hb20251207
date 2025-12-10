@@ -357,13 +357,13 @@ jobs:
                 echo "⚠️  systemctl daemon-reload 失败，继续..."
               }
               sudo systemctl restart "$SERVICE_NAME" || {
-                echo "⚠️  服务重启失败，打印最近 20 行日志:"
+                echo "⚠️  服务重启命令返回错误，打印最近 20 行日志:"
                 sudo journalctl -u "$SERVICE_NAME" --no-pager -n 20 || true
               }
               echo "✅ 重启命令执行完毕"
             else
               echo "⚠️  注意: 服务 $SERVICE_NAME 尚未创建"
-              echo "💡 代码已部署，但服务未启动。请登录服务器创建 systemd 服务文件。"
+              echo "💡 代码已部署，但服务未启动。请登录服务器创建 Systemd 服务文件。"
             fi
             
             echo ""
