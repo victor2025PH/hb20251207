@@ -1002,13 +1002,23 @@ async def get_red_packet(
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    獲取單個紅包信息（通過 UUID）
+    獲取單個紅包信息（支持 UUID 或 ID）
     注意：此路由必須放在所有具體路徑（如 /list, /recommended）之後
     """
+    # 先嘗試用 uuid 查找
     result = await db.execute(select(RedPacket).where(RedPacket.uuid == packet_uuid))
     packet = result.scalar_one_or_none()
     
+    # 如果找不到，嘗試用 id 查找（如果 packet_uuid 是數字）
+    if not packet and packet_uuid.isdigit():
+        packet_id = int(packet_uuid)
+        result = await db.execute(select(RedPacket).where(RedPacket.id == packet_id))
+        packet = result.scalar_one_or_none()
+        if packet:
+            logger.info(f"🔄 使用 ID 找到紅包: id={packet_id}, uuid={packet.uuid}")
+    
     if not packet:
+        logger.error(f"❌ 紅包不存在: packet_uuid={packet_uuid}")
         raise HTTPException(status_code=404, detail="Red packet not found")
     
     return packet
