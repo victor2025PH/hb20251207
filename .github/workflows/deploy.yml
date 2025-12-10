@@ -168,8 +168,8 @@ jobs:
               
               # 2. 单行检测文件。
               # 如果文件存在，变量设为 found；如果不存在，变量设为 missing。
-              # 关键点：整个这一行命令的最终退出码永远是 0，Runner 不会报错。
-              [ -f "$VENV_DIR/bin/activate" ] && VENV_STATUS="found" || VENV_STATUS="missing"
+              # 关键点：使用 || true 确保整个表达式的退出码永远是 0，Runner 不会报错。
+              ([ -f "$VENV_DIR/bin/activate" ] && VENV_STATUS="found" || VENV_STATUS="missing") || true
               
               # 3. 根据变量状态进行处理（这里只判断字符串，绝对安全）
               if [ "$VENV_STATUS" = "found" ]; then
@@ -195,8 +195,15 @@ jobs:
                 # 修复权限
                 sudo chown -R $USER:$USER "$VENV_DIR"
                 
-                # 二次确认（同样使用单行安全写法）
-                [ -f "$VENV_DIR/bin/activate" ] && echo "✅ 验证通过" || { echo "❌ 验证失败"; exit 1; }
+                # 二次确认（使用变量标记法，避免 Runner 检查）
+                local VERIFY_STATUS="failed"
+                ([ -f "$VENV_DIR/bin/activate" ] && VERIFY_STATUS="ok" || VERIFY_STATUS="failed") || true
+                if [ "$VERIFY_STATUS" = "ok" ]; then
+                  echo "✅ 验证通过"
+                else
+                  echo "❌ 验证失败"
+                  exit 1
+                fi
               fi
             }
             
