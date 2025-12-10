@@ -526,35 +526,44 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text += f"📝 {packet_message}\n\n"
     
-    # 顯示所有已搶紅包的用戶和金額（排行榜，按金額排序）
-    if claimers_info_sorted:
-        text += "📊 搶包排行榜：\n"
-        for idx, claimer in enumerate(claimers_info_sorted, 1):
-            # 構建顯示文本
-            rank_icon = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
-            name_text = claimer['name']
-            
-            # 添加最佳手氣標記（僅手氣最佳類型且已搶完）
-            if claimer['is_luckiest'] and packet_type == RedPacketType.RANDOM and packet_status == RedPacketStatus.COMPLETED:
-                name_text = f"🏆 {name_text} (最佳手氣)"
-            
-            # 添加踩雷標記
-            if claimer['is_bomb'] and claimer['penalty']:
-                text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}，💣 踩雷了！需賠付 {claimer['penalty']:.2f} {currency_symbol}\n"
-            else:
-                text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}！\n"
-        text += "\n"
-        
-        # 如果紅包已搶完且是手氣最佳類型，顯示最佳手氣提示
-        if packet_status == RedPacketStatus.COMPLETED and packet_type == RedPacketType.RANDOM:
-            luckiest_claimer = next((c for c in claimers_info_sorted if c['is_luckiest']), None)
-            if luckiest_claimer:
-                text += f"🏆 *{luckiest_claimer['name']}* 是本次最佳手氣！\n"
-    
+    # 根據紅包是否完成，顯示不同的信息
     if packet_status == RedPacketStatus.COMPLETED:
+        # 紅包已搶完：顯示完整的排行榜和金額
+        if claimers_info_sorted:
+            text += "📊 搶包排行榜：\n"
+            for idx, claimer in enumerate(claimers_info_sorted, 1):
+                # 構建顯示文本
+                rank_icon = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+                name_text = claimer['name']
+                
+                # 添加最佳手氣標記（僅手氣最佳類型）
+                if claimer['is_luckiest'] and packet_type == RedPacketType.RANDOM:
+                    name_text = f"🏆 {name_text} (最佳手氣)"
+                
+                # 添加踩雷標記
+                if claimer['is_bomb'] and claimer['penalty']:
+                    text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}，💣 踩雷了！需賠付 {claimer['penalty']:.2f} {currency_symbol}\n"
+                else:
+                    text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}！\n"
+            text += "\n"
+            
+            # 如果紅包已搶完且是手氣最佳類型，顯示最佳手氣提示
+            if packet_type == RedPacketType.RANDOM:
+                luckiest_claimer = next((c for c in claimers_info_sorted if c['is_luckiest']), None)
+                if luckiest_claimer:
+                    text += f"🏆 *{luckiest_claimer['name']}* 是本次最佳手氣！\n"
+        
         text += "✅ 紅包已搶完"
         keyboard = []
     else:
+        # 紅包未完成：只顯示誰搶到了紅包，不顯示金額
+        if claimers_info_sorted:
+            text += "📋 已搶包：\n"
+            for claimer in claimers_info_sorted:
+                # 只顯示名字，不顯示金額
+                text += f"🧧 {claimer['name']} 搶到了紅包\n"
+            text += "\n"
+        
         remaining = total_count - claimed_count
         keyboard = [[InlineKeyboardButton(f"🧧 搶紅包 ({remaining} 份剩餘)", callback_data=f"claim:{packet_uuid}")]]
     
