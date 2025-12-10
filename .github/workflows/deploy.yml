@@ -160,64 +160,41 @@ jobs:
               local VENV_DIR=$1
               local VENV_NAME=$2
               
-              echo "🔍 检查 $VENV_NAME 虚拟环境关键文件: $VENV_DIR/bin/activate"
-              # 使用 $() 捕获输出，无论 ls 成功与否，echo 都会保证整行命令返回 0
-              VENV_EXISTS=$(ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && echo "1" || echo "0")
+              echo "🔍 检查 $VENV_NAME 虚拟环境..."
               
-              # 2. 使用 case 语句处理逻辑
-              case "$VENV_EXISTS" in
-              1)
-                echo "✅ $VENV_NAME 虚拟环境已存在且完整（activate 文件存在）"
-                ;;
-              *)
-                echo "⚠️  $VENV_NAME 虚拟环境缺失或损坏（activate 文件不存在），准备重新创建..."
+              # 【核心修改】直接在 if 条件中执行 ls。
+              # 原理：在 if 条件中，即使 ls 返回失败（找不到文件），set -e 也不会触发退出。
+              # 这是最简单、最稳健的写法，绝对没有语法错误风险。
+              if ls "$VENV_DIR/bin/activate" >/dev/null 2>&1; then
+                echo "✅ $VENV_NAME 虚拟环境已存在且完整"
+              else
+                echo "⚠️  $VENV_NAME 虚拟环境缺失，准备重新创建..."
                 
-                # 暴力清理旧的（可能是空的）目录
-                if [ -d "$VENV_DIR" ] || [ -e "$VENV_DIR" ]; then
-                  echo "🗑️  删除损坏的 $VENV_NAME 虚拟环境目录..."
-                  sudo rm -rf "$VENV_DIR" || {
-                    echo "⚠️  删除旧目录失败，尝试继续..."
-                  }
+                # 1. 清理旧目录（即使不存在也没关系，加 -f 避免报错）
+                sudo rm -rf "$VENV_DIR"
+                
+                # 2. 确保父目录存在
+                mkdir -p "$(dirname "$VENV_DIR")"
+                sudo chown -R $USER:$USER "$(dirname "$VENV_DIR")"
+                
+                # 3. 创建虚拟环境
+                if python3 -m venv "$VENV_DIR"; then
+                  echo "✅ venv 命令执行成功"
+                else
+                  echo "❌ 创建失败"
+                  exit 1
                 fi
                 
-                # 确保父目录存在且有权限
-                VENV_PARENT_DIR=$(dirname "$VENV_DIR")
-                mkdir -p "$VENV_PARENT_DIR"
-                sudo chown -R $USER:$USER "$VENV_PARENT_DIR" || {
-                  echo "⚠️  无法修复父目录权限，继续..."
-                }
-                
-                # 重新创建虚拟环境
-                echo "🐍 创建新的 $VENV_NAME 虚拟环境: $VENV_DIR"
-                python3 -m venv "$VENV_DIR" || {
-                  echo "❌ 创建 $VENV_NAME 虚拟环境失败"
-                  echo "💡 调试信息:"
-                  echo "  - Python3 路径: $(which python3 2>/dev/null || echo '未找到')"
-                  echo "  - Python3 版本: $(python3 --version 2>&1 || echo '无法获取版本')"
-                  echo "  - 目标目录: $VENV_DIR"
+                # 4. 再次验证
+                if [ -f "$VENV_DIR/bin/activate" ]; then
+                  echo "✅ 验证通过：文件已生成"
+                  # 修复权限
+                  sudo chown -R $USER:$USER "$VENV_DIR"
+                else
+                  echo "❌ 严重错误：虚拟环境创建后文件仍不存在"
                   exit 1
-                }
-                
-                # 验证创建结果
-                ls "$VENV_DIR/bin/activate" >/dev/null 2>&1 && VENV_CHECK=1 || VENV_CHECK=0
-                case "$VENV_CHECK" in
-                1)
-                  echo "✅ $VENV_NAME 虚拟环境创建成功"
-                  ;;
-                *)
-                  echo "❌ 错误: $VENV_NAME 虚拟环境创建后 activate 文件仍不存在"
-                  exit 1
-                  ;;
-                esac
-                
-                # 修复权限
-                echo "🔧 修复 $VENV_NAME 虚拟环境权限..."
-                sudo chown -R $USER:$USER "$VENV_DIR" || {
-                  echo "⚠️  无法修复虚拟环境权限，继续..."
-                }
-                echo "✅ $VENV_NAME 虚拟环境权限已修复"
-                ;;
-              esac
+                fi
+              fi
             }
             
             # 创建 API 虚拟环境
