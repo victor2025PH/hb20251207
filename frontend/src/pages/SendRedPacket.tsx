@@ -782,7 +782,7 @@ export default function SendRedPacket() {
                                 showAlert('更新失敗，請重試', 'error')
                               }
                             }}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 hover:bg-white/5 active:bg-white/10 rounded-lg transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             title="更新群組信息"
                           >
                             <RefreshCw size={16} className="text-gray-400" />
