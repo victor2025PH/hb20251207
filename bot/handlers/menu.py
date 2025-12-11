@@ -216,7 +216,7 @@ async def show_packets_menu(query, db_user):
         # 在会话内访问所有需要的属性
         _ = user.id
         _ = user.tg_id
-        _ = user.language
+        _ = user.language_code  # 注意：User 模型使用 language_code，不是 language
         _ = user.interaction_mode
         
         # 在会话内获取翻译文本
