@@ -27,28 +27,29 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         current_lang = get_user_language(user=db_user)
     
+    # 使用i18n获取文本
     text = f"""
-🧧 *歡迎來到 Lucky Red！*
+*{t('welcome_to_lucky_red', user=db_user)}*
 
 Hi {user.first_name}！
 
-請先選擇您的語言，然後選擇您喜歡的交互方式：
+{t('please_select_language_first', user=db_user)}
 
-*🌐 語言選擇*
-請選擇界面語言：
+*{t('language_selection', user=db_user)}*
+{t('please_select_interface_language', user=db_user)}
 
-*⌨️ 交互方式*
-• ⌨️ 底部鍵盤 - 傳統 bot 體驗，在群組中也能使用
-• 🔘 內聯按鈕 - 流暢交互，點擊消息中的按鈕
-• 📱 MiniApp - 最豐富的功能，最佳體驗（僅私聊）
-• 🔄 自動 - 根據上下文自動選擇最佳模式
+*{t('interaction_method', user=db_user)}*
+• {t('mode_keyboard', user=db_user)} - {t('mode_keyboard_desc', user=db_user)}
+• {t('mode_inline', user=db_user)} - {t('mode_inline_desc', user=db_user)}
+• {t('mode_miniapp', user=db_user)} - {t('mode_miniapp_desc', user=db_user)}
+• {t('mode_auto', user=db_user)} - {t('mode_auto_desc', user=db_user)}
 
-💡 您可以隨時在主菜單中切換語言和模式
+{t('you_can_switch_language_mode', user=db_user)}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += "\n⚠️ 注意：MiniApp 模式在群組中不可用"
+        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
     
     keyboard = get_initial_setup_keyboard(current_lang)
     
@@ -97,8 +98,16 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
     user_id = update.effective_user.id if update.effective_user else None
     logger.info(f"[SETUP] User {user_id} selecting language, callback_data: {query.data}")
     
+    # 获取用户以使用正确的语言
+    with get_db() as db:
+        temp_user = db.query(User).filter(User.tg_id == user_id).first()
+        if temp_user:
+            answer_text = t('setting_language', user=temp_user)
+        else:
+            answer_text = "正在設置語言..."
+    
     try:
-        await query.answer("正在設置語言...")
+        await query.answer(answer_text)
     except Exception as e:
         logger.error(f"Error answering query: {e}")
     
@@ -148,19 +157,19 @@ async def show_mode_selection_after_lang(query, db_user, chat_type: str):
 
 {t('select_operation', user=db_user)}
 
-*⌨️ {t('mode_keyboard', user=db_user)}* - 傳統 bot 體驗，在群組中也能使用
-*🔘 {t('mode_inline', user=db_user)}* - 流暢交互，點擊消息中的按鈕
-*📱 {t('mode_miniapp', user=db_user)}* - 最豐富的功能，最佳體驗（僅私聊）
-*🔄 {t('mode_auto', user=db_user)}* - 根據上下文自動選擇最佳模式
+*{t('mode_keyboard', user=db_user)}* - {t('mode_keyboard_desc', user=db_user)}
+*{t('mode_inline', user=db_user)}* - {t('mode_inline_desc', user=db_user)}
+*{t('mode_miniapp', user=db_user)}* - {t('mode_miniapp_desc', user=db_user)}
+*{t('mode_auto', user=db_user)}* - {t('mode_auto_desc', user=db_user)}
 
-💡 您可以隨時在主菜單中切換模式
+{t('you_can_switch_mode', user=db_user)}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += "\n⚠️ 注意：MiniApp 模式在群組中不可用"
+        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
     
-    keyboard = get_mode_selection_keyboard()
+    keyboard = get_mode_selection_keyboard(db_user)
     
     try:
         await query.edit_message_text(
@@ -180,8 +189,26 @@ async def show_mode_selection_after_lang(query, db_user, chat_type: str):
             logger.error(f"Error sending new message: {e2}", exc_info=True)
 
 
-def get_mode_selection_keyboard():
+def get_mode_selection_keyboard(db_user=None):
     """获取键盘模式选择键盘"""
     from bot.keyboards.unified import get_mode_selection_keyboard as get_unified_mode_keyboard
-    keyboard = get_unified_mode_keyboard()
-    return keyboard
+    from bot.utils.i18n import t
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    
+    if db_user:
+        # 使用i18n获取按钮文本
+        keyboard = [
+            [
+                InlineKeyboardButton(t('mode_keyboard', user=db_user), callback_data="set_mode:keyboard"),
+                InlineKeyboardButton(t('mode_inline', user=db_user), callback_data="set_mode:inline"),
+            ],
+            [
+                InlineKeyboardButton(t('mode_miniapp', user=db_user), callback_data="set_mode:miniapp"),
+                InlineKeyboardButton(t('mode_auto', user=db_user), callback_data="set_mode:auto"),
+            ],
+        ]
+        return InlineKeyboardMarkup(keyboard)
+    else:
+        # 回退到旧的实现
+        keyboard = get_unified_mode_keyboard()
+        return keyboard

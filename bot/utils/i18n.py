@@ -26,9 +26,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mode_inline": "🔘 內聯按鈕",
         "mode_miniapp": "📱 MiniApp",
         "mode_auto": "🔄 自動",
+        "mode_keyboard_desc": "傳統 bot 體驗，在群組中也能使用",
+        "mode_inline_desc": "流暢交互，點擊消息中的按鈕",
+        "mode_miniapp_desc": "最豐富的功能，最佳體驗（僅私聊）",
+        "mode_auto_desc": "根據上下文自動選擇最佳模式",
         "switch_mode": "🔄 切換模式",
         "mode_set": "✅ 已設置為 {mode}",
         "mode_switched": "✅ 已切換到 {mode}",
+        "you_can_switch_mode": "💡 您可以隨時在主菜單中切換模式",
+        "miniapp_not_available_in_group": "⚠️ 注意：MiniApp 模式在群組中不可用",
         
         # 紅包
         "packets_center": "🧧 紅包中心",
@@ -124,6 +130,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "lang_zh_cn": "简体中文",
         "lang_en": "English",
         "lang_changed": "✅ 语言已切换为 {lang}",
+        # 初始设置
+        "welcome_to_lucky_red": "🧧 歡迎來到 Lucky Red！",
+        "please_select_language_first": "請先選擇您的語言，然後選擇您喜歡的交互方式：",
+        "language_selection": "🌐 語言選擇",
+        "please_select_interface_language": "請選擇界面語言：",
+        "interaction_method": "⌨️ 交互方式",
+        "you_can_switch_language_mode": "💡 您可以隨時在主菜單中切換語言和模式",
+        "setting_language": "正在設置語言...",
     },
     "en": {
         # 通用
@@ -142,9 +156,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mode_inline": "🔘 Inline Buttons",
         "mode_miniapp": "📱 MiniApp",
         "mode_auto": "🔄 Auto",
+        "mode_keyboard_desc": "Traditional bot experience, can also be used in groups",
+        "mode_inline_desc": "Smooth interaction, click buttons in messages",
+        "mode_miniapp_desc": "Richest features, best experience (private chat only)",
+        "mode_auto_desc": "Automatically select the best mode based on context",
         "switch_mode": "🔄 Switch Mode",
         "mode_set": "✅ Set to {mode}",
         "mode_switched": "✅ Switched to {mode}",
+        "you_can_switch_mode": "💡 You can switch modes anytime in the main menu",
+        "miniapp_not_available_in_group": "⚠️ Note: MiniApp mode is not available in groups",
         
         # 红包
         "packets_center": "🧧 Red Packet Center",
@@ -183,6 +203,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "lang_zh_cn": "简体中文",
         "lang_en": "English",
         "lang_changed": "✅ Language changed to {lang}",
+        # 初始设置
+        "welcome_to_lucky_red": "🧧 Welcome to Lucky Red!",
+        "please_select_language_first": "Please select your language first, then choose your preferred interaction method:",
+        "language_selection": "🌐 Language Selection",
+        "please_select_interface_language": "Please select interface language:",
+        "interaction_method": "⌨️ Interaction Method",
+        "you_can_switch_language_mode": "💡 You can switch language and mode anytime in the main menu",
+        "setting_language": "Setting language...",
     },
 }
 
