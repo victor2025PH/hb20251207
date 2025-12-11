@@ -245,6 +245,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "packet_failed": "❌ Send failed",
         "insufficient_balance": "❌ Insufficient balance",
         "balance_warning": "⚠️ Note: Your {currency} balance is `{balance:.4f}`, please recharge before sending!",
+        "enter_blessing_optional": "Please enter a blessing (optional):",
+        "blessing_hint": "Send a message directly as a blessing, or click to use the default blessing",
+        "use_default_blessing": "✅ Use Default Blessing",
+        "enter_blessing": "📝 Enter Blessing",
+        "amount_label": "Amount:",
+        "quantity_label": "Quantity:",
+        "bomb_number_label": "Bomb Number:",
+        "shares": "shares",
         
         # 语言
         "language": "🌐 Language",
