@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut, MessageSquare } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const { t } = useTranslation()
   const tgUser = getTelegramUser()
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const menuContainerRef = useRef<HTMLDivElement>(null)
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -25,6 +26,19 @@ export default function ProfilePage() {
 
   const displayName = profile?.first_name || tgUser?.first_name || 'User'
   const username = profile?.username || tgUser?.username
+
+  // 确保菜单按钮可以点击
+  useEffect(() => {
+    if (menuContainerRef.current) {
+      const buttons = menuContainerRef.current.querySelectorAll('button[data-testid^="menu-link"]')
+      buttons.forEach((btn) => {
+        // 确保按钮可以接收点击
+        btn.style.pointerEvents = 'auto'
+        btn.style.zIndex = '1000'
+        btn.style.position = 'relative'
+      })
+    }
+  }, [])
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 10 }}>
@@ -64,11 +78,13 @@ export default function ProfilePage() {
 
       {/* 菜單列表 */}
       <div 
+        ref={menuContainerRef}
         className="space-y-2 relative" 
         style={{ 
           zIndex: 1000,
           position: 'relative',
-          pointerEvents: 'auto'
+          pointerEvents: 'auto',
+          isolation: 'isolate'
         }}
         onMouseEnter={() => console.log('[ProfilePage] 🟢 Menu container mouse enter')}
         onMouseLeave={() => console.log('[ProfilePage] 🔴 Menu container mouse leave')}
@@ -123,41 +139,71 @@ function MenuLink({ icon: Icon, title, to, navigate }: {
   to: string
   navigate: (path: string) => void
 }) {
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
-    console.log('[MenuLink] 🔵 Event details:', {
-      type: e.type,
-      target: e.target,
-      currentTarget: e.currentTarget,
-      button: e.button,
-      bubbles: e.bubbles,
-      cancelable: e.cancelable
-    })
-    
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // 使用多种事件确保点击能触发
+  const handleNavigation = () => {
+    console.log('[MenuLink] 🚀 Navigating to:', to)
     try {
-      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
       navigate(to)
-      console.log('[MenuLink] ✅ Navigation executed successfully')
+      console.log('[MenuLink] ✅ Navigation successful')
     } catch (error) {
       console.error('[MenuLink] ❌ Navigation error:', error)
-      // 备用方案：使用 window.location
-      console.log('[MenuLink] 🔄 Trying window.location fallback')
+      // 备用方案
       window.location.href = to
     }
   }
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[MenuLink] 🔵 onClick:', title)
+    handleNavigation()
+  }
+
   const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
-    console.log('[MenuLink] 🟢 MouseDown event:', title)
+    // 不阻止默认行为，让点击更自然
+    console.log('[MenuLink] 🟢 MouseDown:', title)
   }
 
   const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
-    console.log('[MenuLink] 🟡 TouchStart event:', title)
+    console.log('[MenuLink] 🟡 TouchStart:', title)
+    // 移动端立即导航
+    e.preventDefault()
+    handleNavigation()
   }
+
+  // 确保按钮可以点击
+  useEffect(() => {
+    if (buttonRef.current) {
+      const btn = buttonRef.current
+      btn.style.pointerEvents = 'auto'
+      btn.style.zIndex = '1000'
+      btn.style.position = 'relative'
+      
+      // 添加全局点击监听作为备用
+      const handleGlobalClick = (e: MouseEvent) => {
+        if (e.target === btn || btn.contains(e.target as Node)) {
+          console.log('[MenuLink] 🌐 Global click detected:', title)
+          try {
+            navigate(to)
+          } catch (error) {
+            window.location.href = to
+          }
+        }
+      }
+      
+      btn.addEventListener('click', handleGlobalClick, true)
+      
+      return () => {
+        btn.removeEventListener('click', handleGlobalClick, true)
+      }
+    }
+  }, [title, to, navigate])
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={handleClick}
       onMouseDown={handleMouseDown}
@@ -169,15 +215,17 @@ function MenuLink({ icon: Icon, title, to, navigate }: {
         zIndex: 1000,
         isolation: 'isolate',
         WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation'
+        touchAction: 'manipulation',
+        userSelect: 'none'
       }}
       data-testid={`menu-link-${to.replace('/', '')}`}
+      data-nav-to={to}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pointer-events-none">
         <Icon size={20} className="text-gray-400" />
         <span className="text-white">{title}</span>
       </div>
-      <ChevronRight size={18} className="text-gray-500" />
+      <ChevronRight size={18} className="text-gray-500 pointer-events-none" />
     </button>
   )
 }
