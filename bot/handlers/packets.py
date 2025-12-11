@@ -683,7 +683,7 @@ async def confirm_and_send_from_message(update, db_user, context):
                 f"• 祝福語：{message}\n\n"
                 f"紅包已發送到群組！",
                 parse_mode="Markdown",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
         
         # 清理状态
@@ -741,7 +741,7 @@ async def confirm_and_send_from_message(update, db_user, context):
             await update.message.reply_text(
                 f"❌ *發送失敗*\n\n{error_msg}",
                 parse_mode="Markdown",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
     
     # 清除臨時數據
@@ -2335,7 +2335,7 @@ async def confirm_and_send_packet(query, db_user, context):
                 await query.message.reply_text(
                     text,
                     parse_mode="Markdown",
-                    reply_markup=get_packets_reply_keyboard(),
+                    reply_markup=get_packets_reply_keyboard(user=db_user),
                 )
             else:
                 # 如果无法发送新消息，尝试编辑
@@ -2413,7 +2413,7 @@ async def confirm_and_send_packet(query, db_user, context):
             await query.message.reply_text(
                 text,
                 parse_mode="Markdown",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
         else:
             # 如果无法发送新消息，尝试编辑

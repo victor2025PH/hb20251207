@@ -55,13 +55,13 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         db_user = await get_user_from_update(update, context)
         if not db_user:
             logger.warning(f"User {user_id} not found in database")
-            await update.message.reply_text("請先使用 /start 註冊", reply_markup=get_main_reply_keyboard())
+            await update.message.reply_text("請先使用 /start 註冊", reply_markup=get_main_reply_keyboard(user=None))
             return
     except Exception as e:
         logger.error(f"Error in handle_reply_keyboard (initial): {e}", exc_info=True)
         try:
             if update.message:
-                await update.message.reply_text("發生錯誤，請稍後再試", reply_markup=get_main_reply_keyboard())
+                await update.message.reply_text("發生錯誤，請稍後再試", reply_markup=get_main_reply_keyboard(user=None))
         except:
             pass
         return
@@ -125,7 +125,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 "選擇操作：",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=user),
             )
         except Exception as e:
             logger.error(f"Error handling '🧧 紅包' button for user {user_id}: {e}", exc_info=True)
@@ -224,7 +224,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         await show_main_menu(query, db_user)
         await update.message.reply_text(
             "已返回主菜單：",
-            reply_markup=get_main_reply_keyboard(),
+            reply_markup=get_main_reply_keyboard(user=db_user),
         )
         return
     
@@ -334,7 +334,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             
             await update.message.reply_text(
                 "選擇操作：",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=user),
             )
         except Exception as e:
             logger.error(f"Error handling '🎁 我的紅包' button for user {user_id}: {e}", exc_info=True)
@@ -504,7 +504,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
                 f"• 點擊「💰 錢包」→「💵 充值」\n"
                 f"• 或使用 miniapp 進行充值",
                 parse_mode="Markdown",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
             return
         
@@ -870,13 +870,13 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             context.user_data.pop('send_packet_step', None)
             await update.message.reply_text(
                 "已返回紅包菜單：",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
         except Exception as e:
             logger.error(f"Error in confirm_and_send_from_message: {e}", exc_info=True)
             await update.message.reply_text(
                 f"發送失敗：{str(e)}",
-                reply_markup=get_packets_reply_keyboard(),
+                reply_markup=get_packets_reply_keyboard(user=db_user),
             )
         return
     
@@ -933,7 +933,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             from bot.utils.i18n import t
             await update.message.reply_text(
                 t("unrecognized", user=db_user),
-                reply_markup=get_main_reply_keyboard(),
+                reply_markup=get_main_reply_keyboard(user=db_user),
             )
             from bot.handlers.menu import show_main_menu
             query = create_mock_query(update)
@@ -944,7 +944,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
                 from bot.utils.i18n import t
                 await update.message.reply_text(
                     t("restart", user=db_user),
-                    reply_markup=get_main_reply_keyboard(),
+                    reply_markup=get_main_reply_keyboard(user=db_user),
                 )
             except:
                 pass
