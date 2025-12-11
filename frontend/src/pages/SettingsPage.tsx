@@ -58,8 +58,15 @@ export default function SettingsPage() {
       <div className="h-full flex flex-col bg-brand-dark">
         {/* 頂部導航 */}
         <div className="flex items-center justify-between p-4 border-b border-white/5">
-          <button onClick={() => navigate(-1)} className="p-2">
-            <X size={24} />
+          <button 
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              navigate('/profile')
+            }} 
+            className="p-2"
+          >
+            <X size={24} className="text-white" />
           </button>
           <h1 className="text-lg font-bold">{t('settings')}</h1>
           <div className="w-10" />

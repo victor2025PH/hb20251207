@@ -122,11 +122,8 @@ function MenuItem({ icon: Icon, title, onClick }: {
     e.stopPropagation()
     console.log('[MenuItem] Button clicked:', title)
     try {
-      // 使用 setTimeout 确保导航在下一个事件循环中执行
-      setTimeout(() => {
-        onClick()
-        console.log('[MenuItem] onClick handler executed successfully')
-      }, 0)
+      onClick()
+      console.log('[MenuItem] onClick handler executed successfully')
     } catch (error) {
       console.error('[MenuItem] Error in onClick handler:', error)
     }
@@ -136,8 +133,8 @@ function MenuItem({ icon: Icon, title, onClick }: {
     <button
       type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer relative z-10"
-      style={{ pointerEvents: 'auto' }}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer relative z-50"
+      style={{ pointerEvents: 'auto', position: 'relative' }}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
