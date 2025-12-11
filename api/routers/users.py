@@ -80,7 +80,7 @@ async def debug_initdata(
     request: Request,
     db: AsyncSession = Depends(get_db_session)
 ):
-    """调试端点：检查 initData 是否正确传递"""
+    """调试端点：检查 initData 是否正确传递（无需认证）"""
     from api.utils.telegram_auth import parse_telegram_init_data, check_auth_date_validity
     from shared.config.settings import get_settings
     
@@ -97,6 +97,9 @@ async def debug_initdata(
         "telegram_headers": {k: v[:100] + "..." if len(v) > 100 else v 
                             for k, v in headers.items() 
                             if "telegram" in k.lower() or "init" in k.lower()},
+        "request_method": request.method,
+        "request_url": str(request.url),
+        "client_host": request.client.host if request.client else None,
     }
     
     if init_data_header:
@@ -112,8 +115,21 @@ async def debug_initdata(
             "bot_token_configured": bool(settings.BOT_TOKEN),
             "bot_token_length": len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0,
         })
+        
+        # 如果 auth_date 无效，计算时间差
+        if not auth_date_valid and auth_date:
+            from datetime import datetime
+            current_time = int(datetime.utcnow().timestamp())
+            time_diff = current_time - auth_date
+            result["auth_date_time_diff_seconds"] = time_diff
+            result["auth_date_time_diff_hours"] = time_diff / 3600
     else:
         result["error"] = "No X-Telegram-Init-Data header found"
+        result["suggestions"] = [
+            "检查前端是否正确发送了 X-Telegram-Init-Data 请求头",
+            "检查是否有代理或中间件移除了请求头",
+            "检查 CORS 配置是否允许该请求头"
+        ]
     
     return result
 
