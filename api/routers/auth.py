@@ -169,26 +169,51 @@ async def get_current_user_from_token(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    # 嘗試從請求頭直接獲取（處理大小寫問題）
+    init_data_from_header = request.headers.get("X-Telegram-Init-Data") or request.headers.get("x-telegram-init-data")
+    
     # 如果有 initData，就允許嘗試 Telegram 認證（不管 host 是什麼）
     # 因為 Telegram Desktop 等客戶端的 host 可能不在允許列表中
-    has_initData = bool(x_telegram_init_data)
+    has_initData = bool(x_telegram_init_data) or bool(init_data_from_header)
     has_jwt_token = credentials is not None and credentials.credentials
     
+    # 如果 Header 依賴注入失敗，但請求頭存在，使用請求頭的值
+    if not x_telegram_init_data and init_data_from_header:
+        x_telegram_init_data = init_data_from_header
+        logger.warning(
+            f"[Auth] ⚠️ Header 依賴注入失敗，但從請求頭直接獲取到 initData，長度: {len(init_data_from_header)}"
+        )
+    
+    # 記錄所有相關的請求頭（用於調試）
+    all_headers = dict(request.headers)
+    telegram_headers = {k: v[:50] + "..." if len(v) > 50 else v 
+                       for k, v in all_headers.items() 
+                       if "telegram" in k.lower() or "init" in k.lower()}
+    
     # 記錄認證策略檢查結果（用於調試）
+    logger.info(
+        f"[Auth] 認證請求 - has_initData: {has_initData}, has_jwt_token: {has_jwt_token}, "
+        f"initData長度: {len(x_telegram_init_data) if x_telegram_init_data else 0}, "
+        f"host: {request.headers.get('host', 'unknown')}, "
+        f"相關請求頭: {telegram_headers}"
+    )
+    
     if x_telegram_init_data:
         telegram_auth_allowed = should_allow_telegram_auth(request)
-        logger.debug(
+        logger.info(
             f"[Auth] Telegram initData 存在，認證策略檢查: {telegram_auth_allowed}, "
-            f"host: {request.headers.get('host', 'unknown')}"
+            f"initData預覽: {x_telegram_init_data[:100]}..."
+        )
+    else:
+        logger.error(
+            f"[Auth] ❌ 沒有收到 Telegram initData - 檢查請求頭 'X-Telegram-Init-Data'。"
+            f"所有請求頭: {list(all_headers.keys())}"
         )
 
     # Step 1: 嘗試 Telegram 認證（如果有 initData）
     if has_initData:
-        logger.debug(
-            f"[Auth] Attempting Telegram authentication - initData length: {len(x_telegram_init_data)}"
-        )
-        logger.debug(
-            f"[Auth] initData 預覽: {x_telegram_init_data[:100]}..."
+        logger.info(
+            f"[Auth] 🔐 開始 Telegram 認證 - initData length: {len(x_telegram_init_data)}"
         )
         try:
             from api.utils.telegram_auth import (
@@ -197,7 +222,7 @@ async def get_current_user_from_token(
             )
             from api.services.identity_service import IdentityService
 
-            logger.debug(
+            logger.info(
                 f"[Auth] 開始處理 Telegram initData，長度: {len(x_telegram_init_data)}"
             )
 
@@ -335,7 +360,14 @@ async def get_current_user_from_token(
 
     # 如果兩種認證方式都失敗，拋出異常
     if not user:
-        logger.error("[Auth] Both Telegram and JWT authentication failed")
+        logger.error(
+            f"[Auth] ❌ 所有認證方式都失敗 - has_initData: {has_initData}, "
+            f"has_jwt_token: {has_jwt_token}, initData長度: {len(x_telegram_init_data) if x_telegram_init_data else 0}"
+        )
+        if has_initData:
+            logger.error(
+                f"[Auth] ❌ Telegram 認證失敗 - 請檢查服務器日誌以獲取詳細錯誤信息"
+            )
         raise credentials_exception
 
     if user.is_banned:
