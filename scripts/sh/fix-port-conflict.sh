@@ -17,28 +17,61 @@ if [ -n "$PROCESSES" ]; then
     echo "$PROCESSES"
     echo ""
     
-    # 检查是否有监听 0.0.0.0:8080 的进程（应该只监听 127.0.0.1）
-    OLD_PROCESS=$(echo "$PROCESSES" | grep "0.0.0.0:8080" || true)
+    # 停止所有非 systemd 管理的 uvicorn 进程
+    echo "[2/4] 检查并停止所有旧进程..."
     
-    if [ -n "$OLD_PROCESS" ]; then
-        echo "[2/4] 发现旧进程监听 0.0.0.0:8080，需要停止..."
-        OLD_PID=$(echo "$OLD_PROCESS" | awk '{print $2}')
-        echo "旧进程 PID: $OLD_PID"
-        
-        # 停止旧进程
-        echo "正在停止旧进程..."
-        kill -TERM $OLD_PID 2>/dev/null || true
-        sleep 2
-        
-        # 如果还在运行，强制杀死
-        if ps -p $OLD_PID > /dev/null 2>&1; then
-            echo "强制停止进程..."
-            kill -9 $OLD_PID 2>/dev/null || true
+    # 获取 systemd 服务的主进程 PID
+    SYSTEMD_PID=$(sudo systemctl show luckyred-api --property=MainPID --value 2>/dev/null || echo "")
+    
+    # 停止所有 uvicorn 进程（除了 systemd 管理的）
+    STOPPED_COUNT=0
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
+            PID=$(echo "$line" | awk '{print $2}')
+            # 跳过 systemd 管理的进程
+            if [ -n "$SYSTEMD_PID" ] && [ "$PID" = "$SYSTEMD_PID" ]; then
+                continue
+            fi
+            # 检查是否是 systemd 服务的子进程
+            IS_SYSTEMD_CHILD=false
+            if [ -n "$SYSTEMD_PID" ]; then
+                # 检查进程的父进程是否是 systemd 服务的主进程
+                PPID=$(ps -o ppid= -p $PID 2>/dev/null | tr -d ' ')
+                if [ "$PPID" = "$SYSTEMD_PID" ]; then
+                    IS_SYSTEMD_CHILD=true
+                fi
+            fi
+            
+            if [ "$IS_SYSTEMD_CHILD" = "false" ]; then
+                echo "发现旧进程 PID: $PID，正在停止..."
+                kill -TERM $PID 2>/dev/null || true
+                STOPPED_COUNT=$((STOPPED_COUNT + 1))
+            fi
         fi
+    done <<< "$PROCESSES"
+    
+    # 等待进程停止
+    if [ $STOPPED_COUNT -gt 0 ]; then
+        echo "等待进程停止..."
+        sleep 3
         
-        echo "✅ 旧进程已停止"
+        # 强制杀死仍在运行的进程
+        while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                PID=$(echo "$line" | awk '{print $2}')
+                if [ -n "$SYSTEMD_PID" ] && [ "$PID" = "$SYSTEMD_PID" ]; then
+                    continue
+                fi
+                if ps -p $PID > /dev/null 2>&1; then
+                    echo "强制停止进程 PID: $PID..."
+                    kill -9 $PID 2>/dev/null || true
+                fi
+            fi
+        done <<< "$PROCESSES"
+        
+        echo "✅ 已停止 $STOPPED_COUNT 个旧进程"
     else
-        echo "[2/4] ✅ 没有发现冲突的旧进程"
+        echo "[2/4] ✅ 没有发现需要停止的旧进程"
     fi
 else
     echo "[2/4] ⚠️ 没有找到 uvicorn 进程"
@@ -65,7 +98,8 @@ echo ""
 
 # 验证端口监听
 echo "[4/4] 验证端口监听状态..."
-sleep 2
+echo "等待服务完全启动..."
+sleep 5
 LISTENING=$(sudo ss -tlnp | grep ":8080" || true)
 
 if [ -n "$LISTENING" ]; then
