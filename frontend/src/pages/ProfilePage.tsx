@@ -90,25 +90,21 @@ export default function ProfilePage() {
           icon={Settings}
           title={t('settings')}
           to="/settings"
-          navigate={navigate}
         />
         <MenuLink
           icon={Shield}
           title={t('security_settings')}
           to="/security"
-          navigate={navigate}
         />
         <MenuLink
           icon={HelpCircle}
           title={t('help_center')}
           to="/help"
-          navigate={navigate}
         />
         <MenuLink
           icon={FileText}
           title={t('user_agreement')}
           to="/agreement"
-          navigate={navigate}
         />
         <MenuItem
           icon={MessageSquare}
@@ -129,39 +125,27 @@ export default function ProfilePage() {
   )
 }
 
-// 使用按钮 + navigate 的菜单项（用于导航，简化版本，与 MenuItem 保持一致）
-function MenuLink({ icon: Icon, title, to, navigate }: {
+// 使用 Link 组件的菜单项（用于导航，最可靠的方式）
+function MenuLink({ icon: Icon, title, to }: {
   icon: React.ElementType
   title: string
   to: string
-  navigate: (path: string) => void
 }) {
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
-    try {
-      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
-      navigate(to)
-      console.log('[MenuLink] ✅ Navigation executed successfully')
-    } catch (error) {
-      console.error('[MenuLink] ❌ Navigation error:', error)
-      // 备用方案：使用 window.location
-      console.log('[MenuLink] 🔄 Trying window.location fallback')
-      window.location.href = to
-    }
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    console.log('[MenuLink] 🔵 Link clicked:', title, 'to:', to)
   }
 
   return (
-    <button
-      type="button"
+    <Link
+      to={to}
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10 block"
       style={{ 
         pointerEvents: 'auto', 
         position: 'relative',
         zIndex: 100,
-        isolation: 'isolate'
+        isolation: 'isolate',
+        textDecoration: 'none'
       }}
       data-testid={`menu-link-${to.replace('/', '')}`}
     >
@@ -170,7 +154,7 @@ function MenuLink({ icon: Icon, title, to, navigate }: {
         <span className="text-white">{title}</span>
       </div>
       <ChevronRight size={18} className="text-gray-500" />
-    </button>
+    </Link>
   )
 }
 
