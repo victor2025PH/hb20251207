@@ -27,8 +27,18 @@ export default function ProfilePage() {
   const username = profile?.username || tgUser?.username
 
 
+  // 添加页面加载时的调试日志
+  console.log('[ProfilePage] Component rendered')
+  console.log('[ProfilePage] Menu items should be clickable')
+
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 10 }}>
+    <div 
+      className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" 
+      style={{ zIndex: 10 }}
+      onClick={(e) => {
+        console.log('[ProfilePage] 🎯 Container clicked:', e.target)
+      }}
+    >
       {/* 用戶卡片 */}
       <div className="bg-gradient-to-br from-brand-red/20 via-brand-darker to-orange-500/20 border border-brand-red/30 rounded-2xl p-4">
         <div className="flex items-center gap-4 mb-4">
@@ -64,7 +74,15 @@ export default function ProfilePage() {
       </div>
 
       {/* 菜單列表 */}
-      <div className="space-y-2 relative">
+      <div 
+        className="space-y-2 relative"
+        onClick={(e) => {
+          console.log('[ProfilePage] 🎯 Menu container clicked:', e.target)
+        }}
+        onMouseDown={(e) => {
+          console.log('[ProfilePage] 🟢 Menu container mouseDown:', e.target)
+        }}
+      >
         <MenuItem
           icon={Settings}
           title={t('settings')}
@@ -122,29 +140,49 @@ function MenuItem({ icon: Icon, title, onClick }: {
   title: string
   onClick: () => void
 }) {
+  // 组件渲染时输出日志
+  console.log('[MenuItem] Rendering:', title)
+
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[MenuItem] 🎯 handleClick called for:', title)
+    console.log('[MenuItem] 🎯 Event target:', e.target)
+    console.log('[MenuItem] 🎯 Event currentTarget:', e.currentTarget)
     e.preventDefault()
     e.stopPropagation()
-    console.log('[MenuItem] Button clicked:', title)
+    console.log('[MenuItem] ✅ Button clicked:', title)
     try {
+      console.log('[MenuItem] 🔵 Calling onClick handler for:', title)
       onClick()
-      console.log('[MenuItem] onClick handler executed successfully')
+      console.log('[MenuItem] ✅ onClick handler executed successfully for:', title)
     } catch (error) {
-      console.error('[MenuItem] Error in onClick handler:', error)
+      console.error('[MenuItem] ❌ Error in onClick handler for', title, ':', error)
     }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[MenuItem] 🟢 MouseDown on:', title, 'target:', e.target)
+  }
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[MenuItem] 🟡 MouseUp on:', title, 'target:', e.target)
   }
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer"
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
       style={{ 
         pointerEvents: 'auto', 
         position: 'relative',
-        zIndex: 100,
-        isolation: 'isolate'
+        zIndex: 9999,
+        isolation: 'isolate',
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation'
       }}
+      data-menu-title={title}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
