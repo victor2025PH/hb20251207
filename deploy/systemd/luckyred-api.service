@@ -7,13 +7,13 @@ Wants=postgresql.service
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/luckyred/api
-Environment="PATH=/opt/luckyred/api/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-Environment="PYTHONPATH=/opt/luckyred"
-EnvironmentFile=/opt/luckyred/.env
+WorkingDirectory=/home/ubuntu/hbgm001/api
+Environment="PATH=/home/ubuntu/hbgm001/api/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/ubuntu/hbgm001"
+EnvironmentFile=/home/ubuntu/hbgm001/.env
 
 # 启动命令
-ExecStart=/opt/luckyred/api/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080 --workers 4
+ExecStart=/home/ubuntu/hbgm001/api/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080 --workers 4
 
 # 重启策略
 Restart=always
@@ -31,7 +31,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/luckyred
+ReadWritePaths=/home/ubuntu/hbgm001
 
 [Install]
 WantedBy=multi-user.target

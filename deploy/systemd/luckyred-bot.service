@@ -6,10 +6,10 @@ After=network.target postgresql.service
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/luckyred/bot
-Environment="PATH=/opt/luckyred/bot/.venv/bin"
-EnvironmentFile=/opt/luckyred/.env
-ExecStart=/opt/luckyred/bot/.venv/bin/python main.py
+WorkingDirectory=/home/ubuntu/hbgm001/bot
+Environment="PATH=/home/ubuntu/hbgm001/bot/.venv/bin"
+EnvironmentFile=/home/ubuntu/hbgm001/.env
+ExecStart=/home/ubuntu/hbgm001/bot/.venv/bin/python main.py
 Restart=always
 RestartSec=5
 
