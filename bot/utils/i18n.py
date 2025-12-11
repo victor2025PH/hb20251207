@@ -39,8 +39,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # 紅包
         "packets_center": "🧧 紅包中心",
         "view_packets": "📋 查看紅包",
+        "view_packets_desc": "瀏覽可搶的紅包",
         "send_packet": "➕ 發紅包",
+        "send_packet_desc": "在群組中發送紅包",
         "my_packets": "🎁 我的紅包",
+        "my_packets_desc": "查看我發送的紅包",
         "send_packet_title": "➕ 發紅包",
         "current_balance": "當前餘額：",
         "select_currency": "請選擇紅包幣種：",
@@ -118,8 +121,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         # 红包
         "packets_center": "🧧 红包中心",
         "view_packets": "📋 查看红包",
+        "view_packets_desc": "浏览可抢的红包",
         "send_packet": "➕ 发红包",
+        "send_packet_desc": "在群组中发送红包",
         "my_packets": "🎁 我的红包",
+        "my_packets_desc": "查看我发送的红包",
         "send_packet_title": "➕ 发红包",
         "current_balance": "当前余额：",
         "select_currency": "请选择红包币种：",

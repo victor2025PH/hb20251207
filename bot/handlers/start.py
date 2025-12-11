@@ -263,26 +263,11 @@ Hi {user.first_name}！
         effective_mode = get_effective_mode(db_user_refreshed, update.effective_chat.type)
         chat_type = update.effective_chat.type
         
-        # 在 /start 后，同时显示内联按钮和底部键盘，让用户选择
+        # 根据用户选择的模式决定显示方式
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
         
-        # 创建底部键盘（主菜单）- 使用翻译
-        from bot.utils.i18n import t
-        reply_keyboard = [
-            [
-                KeyboardButton(t("menu_wallet", user=db_user_refreshed)),
-                KeyboardButton(t("menu_packets", user=db_user_refreshed)),
-            ],
-            [
-                KeyboardButton(t("menu_earn", user=db_user_refreshed)),
-                KeyboardButton(t("menu_game", user=db_user_refreshed)),
-            ],
-            [
-                KeyboardButton(t("menu_profile", user=db_user_refreshed)),
-            ],
-        ]
-        
         # 创建内联按钮（主菜单 + 切换模式）- 使用翻译
+        from bot.utils.i18n import t
         inline_keyboard = [
             [
                 InlineKeyboardButton(t("menu_wallet", user=db_user_refreshed), callback_data="menu:wallet"),
@@ -301,19 +286,44 @@ Hi {user.first_name}！
         ]
         
         try:
-            # 同时发送欢迎消息（带内联按钮）和底部键盘
-            result = await update.message.reply_text(
-                welcome_text,
-                parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            )
-            logger.info(f"✓ Inline keyboard sent successfully to user {user.id}")
-            
-            # 发送底部键盘
-            await update.message.reply_text(
-                t("you_can_use_inline_or_keyboard", user=db_user_refreshed) if t("you_can_use_inline_or_keyboard", user=db_user_refreshed) != "you_can_use_inline_or_keyboard" else "💡 您可以使用內聯按鈕或底部鍵盤進行操作：",
-                reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True),
-            )
+            # 根据模式决定是否显示底部键盘
+            if effective_mode == "keyboard":
+                # 键盘模式：显示底部键盘和内联按钮
+                reply_keyboard = [
+                    [
+                        KeyboardButton(t("menu_wallet", user=db_user_refreshed)),
+                        KeyboardButton(t("menu_packets", user=db_user_refreshed)),
+                    ],
+                    [
+                        KeyboardButton(t("menu_earn", user=db_user_refreshed)),
+                        KeyboardButton(t("menu_game", user=db_user_refreshed)),
+                    ],
+                    [
+                        KeyboardButton(t("menu_profile", user=db_user_refreshed)),
+                    ],
+                ]
+                
+                # 发送欢迎消息（带内联按钮）
+                result = await update.message.reply_text(
+                    welcome_text,
+                    parse_mode=None,  # 不使用 Markdown，避免解析错误
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                )
+                logger.info(f"✓ Inline keyboard sent successfully to user {user.id}")
+                
+                # 发送底部键盘
+                await update.message.reply_text(
+                    t("please_use_bottom_keyboard", user=db_user_refreshed),
+                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True),
+                )
+            else:
+                # 内联按钮模式或 MiniApp 模式：只显示内联按钮，不显示底部键盘
+                result = await update.message.reply_text(
+                    welcome_text,
+                    parse_mode=None,  # 不使用 Markdown，避免解析错误
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                )
+                logger.info(f"✓ Inline keyboard sent successfully to user {user.id} (inline mode, no bottom keyboard)")
             logger.info(f"✓ Reply keyboard sent successfully to user {user.id}")
         except Exception as e:
             logger.error(f"✗ Error sending keyboard to user {user.id}: {e}", exc_info=True)
