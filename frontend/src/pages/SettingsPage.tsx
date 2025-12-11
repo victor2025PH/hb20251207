@@ -5,12 +5,14 @@ import { useTranslation } from '../providers/I18nProvider'
 import { getNotificationSettings, updateNotificationSettings, type NotificationSettings } from '../utils/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { showAlert } from '../utils/telegram'
-import PageTransition from '../components/PageTransition'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { t, language, setLanguage } = useTranslation()
   const queryClient = useQueryClient()
+
+  // 调试日志
+  console.log('[SettingsPage] Component rendered')
 
   // 獲取通知設置
   const { data: notificationSettings } = useQuery({
@@ -53,9 +55,10 @@ export default function SettingsPage() {
     }
   }
 
+  console.log('[SettingsPage] Rendering content')
+
   return (
-    <PageTransition>
-      <div className="h-full flex flex-col bg-brand-dark">
+    <div className="h-full flex flex-col bg-brand-dark">
         {/* 頂部導航 */}
         <div className="flex items-center justify-between p-4 border-b border-white/5">
           <button 
@@ -154,7 +157,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </PageTransition>
+    </div>
   )
 }
 
