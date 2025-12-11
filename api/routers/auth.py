@@ -204,35 +204,48 @@ async def get_current_user_from_token(
             # 驗證 initData 的 hash（如果 BOT_TOKEN 配置了則驗證）
             # 如果 BOT_TOKEN 未配置，跳過驗證（僅用於開發環境）
             should_verify = bool(settings.BOT_TOKEN)
-            logger.debug(
+            logger.info(
                 f"[Auth] BOT_TOKEN 配置狀態: {should_verify}, BOT_TOKEN 長度: {len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0}"
             )
 
+            # 首先檢查 auth_date 有效性（無論是否配置 BOT_TOKEN）
+            from api.utils.telegram_auth import check_auth_date_validity
+            auth_date_valid, auth_date = check_auth_date_validity(x_telegram_init_data)
+            if not auth_date_valid:
+                logger.error(
+                    f"[Auth] Telegram initData auth_date 驗證失敗 - auth_date: {auth_date}, "
+                    f"initData可能已過期或無效"
+                )
+                logger.error(f"[Auth] initData 預覽: {x_telegram_init_data[:200]}...")
+                user = None
+            else:
+                logger.info(f"[Auth] auth_date 驗證通過: {auth_date}")
+
             hash_valid = True  # 默認值：如果不需要驗證，則認為有效
-            if should_verify:
+            if auth_date_valid and should_verify:
                 hash_valid = verify_telegram_init_data(x_telegram_init_data)
                 if not hash_valid:
-                    logger.warning(
+                    logger.error(
                         f"[Auth] Telegram initData hash 驗證失敗 - initData可能無效或已過期"
                     )
-                    logger.warning(f"[Auth] initData 預覽: {x_telegram_init_data[:200]}...")
-                    logger.warning(
+                    logger.error(f"[Auth] initData 預覽: {x_telegram_init_data[:200]}...")
+                    logger.error(
                         f"[Auth] 請檢查：1. BOT_TOKEN 是否正確 2. initData 是否已過期 3. initData 是否被篡改"
                     )
                     user = None
                 else:
-                    logger.debug(f"[Auth] Telegram initData hash 驗證成功")
-            else:
-                logger.debug(f"[Auth] 跳過 initData hash 驗證（BOT_TOKEN 未配置）- 僅用於開發環境")
+                    logger.info(f"[Auth] Telegram initData hash 驗證成功")
+            elif not should_verify:
+                logger.info(f"[Auth] 跳過 initData hash 驗證（BOT_TOKEN 未配置）- 僅用於開發環境")
 
-            # 只有在 hash 驗證通過（或跳過驗證）時才解析用戶數據
-            if hash_valid:
+            # 只有在 hash 驗證通過（或跳過驗證）且 auth_date 有效時才解析用戶數據
+            if hash_valid and auth_date_valid:
                 user_data = parse_telegram_init_data(x_telegram_init_data)
-                logger.debug(f"[Auth] 解析後的用戶數據: {user_data}")
+                logger.info(f"[Auth] 解析後的用戶數據: {user_data}")
 
                 if user_data and "id" in user_data:
                     tg_id = int(user_data["id"])
-                    logger.debug(f"[Auth] 從 initData 中提取到 tg_id: {tg_id}")
+                    logger.info(f"[Auth] 從 initData 中提取到 tg_id: {tg_id}")
 
                     try:
                         user = await IdentityService.get_or_create_user_by_identity(
@@ -257,22 +270,22 @@ async def get_current_user_from_token(
                             )
 
                         logger.info(
-                            f"[Auth] Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}, username={user.username}"
+                            f"[Auth] ✅ Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}, username={user.username}"
                         )
                     except Exception as identity_error:
                         logger.error(
-                            f"[Auth] IdentityService 創建/獲取用戶失敗: {identity_error}",
+                            f"[Auth] ❌ IdentityService 創建/獲取用戶失敗: {identity_error}",
                             exc_info=True,
                         )
                         user = None
                 else:
-                    logger.warning(
-                        f"[Auth] Telegram initData 中沒有用戶信息 - user_data: {user_data}"
+                    logger.error(
+                        f"[Auth] ❌ Telegram initData 中沒有用戶信息 - user_data: {user_data}"
                     )
                     user = None
             else:
-                logger.warning(
-                    f"[Auth] 由於 hash 驗證失敗，跳過用戶數據解析"
+                logger.error(
+                    f"[Auth] ❌ 由於 hash 或 auth_date 驗證失敗，跳過用戶數據解析 - hash_valid: {hash_valid}, auth_date_valid: {auth_date_valid}"
                 )
         except Exception as e:
             logger.error(f"[Auth] Telegram initData 認證失敗: {e}", exc_info=True)
