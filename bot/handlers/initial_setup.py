@@ -26,37 +26,59 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
         
         current_lang = get_user_language(user=db_user)
+        
+        # 在会话内预先加载所有需要的属性
+        _ = db_user.id
+        _ = db_user.tg_id
+        _ = db_user.language_code
+        
+        # 在会话内获取所有翻译文本
+        welcome_to_lucky_red_text = t('welcome_to_lucky_red', user=db_user)
+        please_select_language_first_text = t('please_select_language_first', user=db_user)
+        language_selection_text = t('language_selection', user=db_user)
+        please_select_interface_language_text = t('please_select_interface_language', user=db_user)
+        interaction_method_text = t('interaction_method', user=db_user)
+        mode_keyboard_text = t('mode_keyboard', user=db_user)
+        mode_keyboard_desc_text = t('mode_keyboard_desc', user=db_user)
+        mode_inline_text = t('mode_inline', user=db_user)
+        mode_inline_desc_text = t('mode_inline_desc', user=db_user)
+        mode_miniapp_text = t('mode_miniapp', user=db_user)
+        mode_miniapp_desc_text = t('mode_miniapp_desc', user=db_user)
+        mode_auto_text = t('mode_auto', user=db_user)
+        mode_auto_desc_text = t('mode_auto_desc', user=db_user)
+        you_can_switch_language_mode_text = t('you_can_switch_language_mode', user=db_user)
+        miniapp_not_available_text = t('miniapp_not_available_in_group', user=db_user)
+        
+        keyboard = get_initial_setup_keyboard(current_lang)
     
-    # 使用i18n获取文本
+    # 在会话外构建文本（使用预先获取的翻译）
     text = f"""
-*{t('welcome_to_lucky_red', user=db_user)}*
+{welcome_to_lucky_red_text}
 
 Hi {user.first_name}！
 
-{t('please_select_language_first', user=db_user)}
+{please_select_language_first_text}
 
-*{t('language_selection', user=db_user)}*
-{t('please_select_interface_language', user=db_user)}
+{language_selection_text}
+{please_select_interface_language_text}
 
-*{t('interaction_method', user=db_user)}*
-• {t('mode_keyboard', user=db_user)} - {t('mode_keyboard_desc', user=db_user)}
-• {t('mode_inline', user=db_user)} - {t('mode_inline_desc', user=db_user)}
-• {t('mode_miniapp', user=db_user)} - {t('mode_miniapp_desc', user=db_user)}
-• {t('mode_auto', user=db_user)} - {t('mode_auto_desc', user=db_user)}
+{interaction_method_text}
+• {mode_keyboard_text} - {mode_keyboard_desc_text}
+• {mode_inline_text} - {mode_inline_desc_text}
+• {mode_miniapp_text} - {mode_miniapp_desc_text}
+• {mode_auto_text} - {mode_auto_desc_text}
 
-{t('you_can_switch_language_mode', user=db_user)}
+{you_can_switch_language_mode_text}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
-    
-    keyboard = get_initial_setup_keyboard(current_lang)
+        text += f"\n{miniapp_not_available_text}"
     
     try:
         await update.message.reply_text(
             text,
-            parse_mode="Markdown",
+            parse_mode=None,  # 不使用 Markdown，避免解析错误
             reply_markup=keyboard
         )
     except Exception as e:
@@ -137,44 +159,61 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
             await query.message.reply_text("發生錯誤，請稍後再試")
             return
         
-        # 显示键盘模式选择
-        await show_mode_selection_after_lang(query, user, update.effective_chat.type)
-
-
-async def show_mode_selection_after_lang(query, db_user, chat_type: str):
-    """在语言选择后显示键盘模式选择"""
-    lang_names = {
-        "zh-TW": "繁體中文",
-        "zh-CN": "简体中文",
-        "en": "English",
-    }
-    current_lang = get_user_language(user=db_user)
-    lang_name = lang_names.get(current_lang, "繁體中文")
+        # 在会话内预先加载所有需要的属性，并获取语言相关的文本
+        # 这样即使会话关闭，我们也能使用这些值
+        current_lang = get_user_language(user=user)
+        lang_names = {
+            "zh-TW": "繁體中文",
+            "zh-CN": "简体中文",
+            "en": "English",
+        }
+        lang_name = lang_names.get(current_lang, "繁體中文")
+        
+        # 在会话内获取所有需要的翻译文本
+        lang_changed_text = t('lang_changed', user=user, lang=lang_name)
+        select_operation_text = t('select_operation', user=user)
+        mode_keyboard_text = t('mode_keyboard', user=user)
+        mode_keyboard_desc_text = t('mode_keyboard_desc', user=user)
+        mode_inline_text = t('mode_inline', user=user)
+        mode_inline_desc_text = t('mode_inline_desc', user=user)
+        mode_miniapp_text = t('mode_miniapp', user=user)
+        mode_miniapp_desc_text = t('mode_miniapp_desc', user=user)
+        mode_auto_text = t('mode_auto', user=user)
+        mode_auto_desc_text = t('mode_auto_desc', user=user)
+        you_can_switch_mode_text = t('you_can_switch_mode', user=user)
+        miniapp_not_available_text = t('miniapp_not_available_in_group', user=user)
+        
+        # 预先访问用户属性，确保它们被加载
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        # 创建键盘（在会话内）
+        keyboard = get_mode_selection_keyboard(user)
     
-    # 使用i18n获取文本
+    # 在会话外构建文本（使用预先获取的翻译）
     text = f"""
-✅ *{t('lang_changed', user=db_user, lang=lang_name)}*
+✅ {lang_changed_text}
 
-{t('select_operation', user=db_user)}
+{select_operation_text}
 
-*{t('mode_keyboard', user=db_user)}* - {t('mode_keyboard_desc', user=db_user)}
-*{t('mode_inline', user=db_user)}* - {t('mode_inline_desc', user=db_user)}
-*{t('mode_miniapp', user=db_user)}* - {t('mode_miniapp_desc', user=db_user)}
-*{t('mode_auto', user=db_user)}* - {t('mode_auto_desc', user=db_user)}
+{mode_keyboard_text} - {mode_keyboard_desc_text}
+{mode_inline_text} - {mode_inline_desc_text}
+{mode_miniapp_text} - {mode_miniapp_desc_text}
+{mode_auto_text} - {mode_auto_desc_text}
 
-{t('you_can_switch_mode', user=db_user)}
+{you_can_switch_mode_text}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
-    if chat_type in ["group", "supergroup"]:
-        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
+    if update.effective_chat.type in ["group", "supergroup"]:
+        text += f"\n{miniapp_not_available_text}"
     
-    keyboard = get_mode_selection_keyboard(db_user)
-    
+    # 在会话外发送消息
     try:
         await query.edit_message_text(
             text,
-            parse_mode="Markdown",
+            parse_mode=None,  # 不使用 Markdown，避免解析错误
             reply_markup=keyboard
         )
     except Exception as e:
@@ -182,11 +221,14 @@ async def show_mode_selection_after_lang(query, db_user, chat_type: str):
         try:
             await query.message.reply_text(
                 text,
-                parse_mode="Markdown",
+                parse_mode=None,  # 不使用 Markdown，避免解析错误
                 reply_markup=keyboard
             )
         except Exception as e2:
             logger.error(f"Error sending new message: {e2}", exc_info=True)
+
+
+# 这个函数已经被移除，逻辑移到了 setup_language_callback 中
 
 
 def get_mode_selection_keyboard(db_user=None):
@@ -196,15 +238,29 @@ def get_mode_selection_keyboard(db_user=None):
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     
     if db_user:
+        # 注意：这个函数应该在会话内调用，或者 db_user 的属性已经被预先加载
         # 使用i18n获取按钮文本
+        try:
+            mode_keyboard_text = t('mode_keyboard', user=db_user)
+            mode_inline_text = t('mode_inline', user=db_user)
+            mode_miniapp_text = t('mode_miniapp', user=db_user)
+            mode_auto_text = t('mode_auto', user=db_user)
+        except Exception as e:
+            logger.warning(f"Error getting translations for keyboard, using fallback: {e}")
+            # 回退到默认文本
+            mode_keyboard_text = "⌨️ 底部键盘"
+            mode_inline_text = "🔘 内联按钮"
+            mode_miniapp_text = "📱 MiniApp"
+            mode_auto_text = "🔄 自动"
+        
         keyboard = [
             [
-                InlineKeyboardButton(t('mode_keyboard', user=db_user), callback_data="set_mode:keyboard"),
-                InlineKeyboardButton(t('mode_inline', user=db_user), callback_data="set_mode:inline"),
+                InlineKeyboardButton(mode_keyboard_text, callback_data="set_mode:keyboard"),
+                InlineKeyboardButton(mode_inline_text, callback_data="set_mode:inline"),
             ],
             [
-                InlineKeyboardButton(t('mode_miniapp', user=db_user), callback_data="set_mode:miniapp"),
-                InlineKeyboardButton(t('mode_auto', user=db_user), callback_data="set_mode:auto"),
+                InlineKeyboardButton(mode_miniapp_text, callback_data="set_mode:miniapp"),
+                InlineKeyboardButton(mode_auto_text, callback_data="set_mode:auto"),
             ],
         ]
         return InlineKeyboardMarkup(keyboard)

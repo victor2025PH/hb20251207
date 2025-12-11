@@ -211,21 +211,39 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if should_reset or not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto" or (has_set_mode and not invite_code):
             # 如果用户要求重置或重新启动（已设置过模式但没有邀请码），先清除现有设置
             if should_reset or (has_set_mode and not invite_code):
+                old_mode = db_user_refreshed.interaction_mode
                 db_user_refreshed.interaction_mode = None
                 db.commit()
                 if should_reset:
                     logger.info(f"User {user.id} requested reset, cleared interaction_mode")
                 else:
-                    logger.info(f"User {user.id} restarted bot (had mode {db_user_refreshed.interaction_mode}), resetting to show initial setup")
+                    logger.info(f"User {user.id} restarted bot (had mode {old_mode}), resetting to show initial setup")
             
+            # 在会话内预先加载用户属性，确保后续访问不会出错
+            _ = db_user_refreshed.id
+            _ = db_user_refreshed.tg_id
+            _ = db_user_refreshed.language_code
+            _ = db_user_refreshed.interaction_mode
+        
+        # 会话在这里结束，但我们已经预先加载了需要的属性
+        # 现在可以安全地调用 show_initial_setup
+        if should_reset or not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto" or (has_set_mode and not invite_code):
             from bot.handlers.initial_setup import show_initial_setup
             await show_initial_setup(update, context)
             return
         
-        # 使用i18n获取欢迎消息（根据用户语言环境）
+        # 在会话内预先加载所有需要的属性，并获取翻译文本
+        _ = db_user_refreshed.id
+        _ = db_user_refreshed.tg_id
+        _ = db_user_refreshed.language_code
+        _ = db_user_refreshed.interaction_mode
+        
+        # 在会话内获取翻译文本
         from bot.utils.i18n import t
+        welcome_msg = t('welcome', user=db_user_refreshed)
+        
         welcome_text = f"""
-🧧 *{t('welcome', user=db_user_refreshed)}*
+🧧 {welcome_msg}
 
 Hi {user.first_name}！
 
@@ -238,7 +256,7 @@ Hi {user.first_name}！
 快來試試吧！👇
 """
         
-        # 获取用户的有效模式
+        # 获取用户的有效模式（在会话内）
         from bot.utils.mode_helper import get_effective_mode
         from bot.keyboards.unified import get_unified_keyboard
         
