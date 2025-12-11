@@ -1165,16 +1165,23 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
     """
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
     # 注意：User 已在文件頂部導入，不再重複導入
+    from bot.utils.i18n import t
+    
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
             # 如果查询失败，使用传入的db_user（可能已脱离会话，但至少可以显示错误）
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                error_text = t("error", user=db_user)
+                await query.edit_message_text(error_text)
             except:
                 # 如果edit失败，尝试reply_text
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    try:
+                        error_text = t("error", user=db_user)
+                        await query.message.reply_text(error_text)
+                    except:
+                        await query.message.reply_text("發生錯誤，請稍後再試")
             return
         
         # 在会话内访问所有需要的属性
@@ -1187,6 +1194,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
         current_balance = t('current_balance', user=user)
         select_currency = t('select_currency', user=user)
         return_main = t("return_main", user=user)
+        energy_text = t("energy", user=user)
         
         text = f"""
 ➕ *{send_packet_title}*
@@ -1194,7 +1202,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
 *{current_balance}*
 • USDT: `{usdt_balance:.4f}`
 • TON: `{ton_balance:.4f}`
-• 能量: `{points_balance}`
+• {energy_text}: `{points_balance}`
 
 {select_currency}
 """
@@ -1207,7 +1215,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
                     InlineKeyboardButton("TON", callback_data="packets:send:type:ton"),
                 ],
                 [
-                    InlineKeyboardButton("能量", callback_data="packets:send:type:points"),
+                    InlineKeyboardButton(energy_text, callback_data="packets:send:type:points"),
                 ],
                 [
                     InlineKeyboardButton(return_main, callback_data="menu:packets"),
