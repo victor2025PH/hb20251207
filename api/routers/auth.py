@@ -15,8 +15,8 @@ from loguru import logger
 
 from shared.config.settings import get_settings
 from shared.database.connection import get_db_session
-from shared.database.models import User
-from sqlalchemy import select
+from shared.database.models import User, UserIdentity
+from sqlalchemy import select, and_
 from api.utils.auth_utils import create_access_token, TokenResponse, UserResponse
 from api.utils.auth_strategy import (
     get_auth_strategy,
@@ -269,39 +269,95 @@ async def get_current_user_from_token(
                 logger.info(f"[Auth] 解析後的用戶數據: {user_data}")
 
                 if user_data and "id" in user_data:
-                    tg_id = int(user_data["id"])
-                    logger.info(f"[Auth] 從 initData 中提取到 tg_id: {tg_id}")
-
                     try:
-                        user = await IdentityService.get_or_create_user_by_identity(
-                            db=db,
-                            provider="telegram",
-                            provider_user_id=str(tg_id),
-                            provider_data={
-                                "id": tg_id,
-                                "username": user_data.get("username"),
-                                "first_name": user_data.get("first_name"),
-                                "last_name": user_data.get("last_name"),
-                                "language_code": user_data.get(
-                                    "language_code", "zh-TW"
-                                ),
-                            },
-                        )
-                        try:
-                            await db.refresh(user)
-                        except Exception as refresh_error:
-                            logger.warning(
-                                f"[Auth] 刷新用户数据失败（不影响使用）: {refresh_error}"
-                            )
+                        tg_id = int(user_data["id"])
+                        logger.info(f"[Auth] 從 initData 中提取到 tg_id: {tg_id}")
 
-                        logger.info(
-                            f"[Auth] ✅ Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}, username={user.username}"
-                        )
-                    except Exception as identity_error:
-                        logger.error(
-                            f"[Auth] ❌ IdentityService 創建/獲取用戶失敗: {identity_error}",
-                            exc_info=True,
-                        )
+                        try:
+                            user = await IdentityService.get_or_create_user_by_identity(
+                                db=db,
+                                provider="telegram",
+                                provider_user_id=str(tg_id),
+                                provider_data={
+                                    "id": tg_id,
+                                    "username": user_data.get("username"),
+                                    "first_name": user_data.get("first_name"),
+                                    "last_name": user_data.get("last_name"),
+                                    "language_code": user_data.get(
+                                        "language_code", "zh-TW"
+                                    ),
+                                },
+                            )
+                            try:
+                                await db.refresh(user)
+                            except Exception as refresh_error:
+                                logger.warning(
+                                    f"[Auth] 刷新用户数据失败（不影响使用）: {refresh_error}"
+                                )
+
+                            logger.info(
+                                f"[Auth] ✅ Telegram 用戶認證成功: tg_id={tg_id}, user_id={user.id}, username={user.username}"
+                            )
+                        except Exception as identity_error:
+                            error_msg = str(identity_error)
+                            logger.error(
+                                f"[Auth] ❌ IdentityService 創建/獲取用戶失敗: {error_msg}",
+                                exc_info=True,
+                            )
+                            # 如果是唯一约束错误，尝试通过 tg_id 直接查找用户
+                            if "UNIQUE constraint" in error_msg or "IntegrityError" in error_msg:
+                                logger.info(f"[Auth] 檢測到唯一約束錯誤，嘗試通過 tg_id={tg_id} 直接查找用戶")
+                                try:
+                                    result = await db.execute(select(User).where(User.tg_id == tg_id))
+                                    existing_user = result.scalar_one_or_none()
+                                    if existing_user:
+                                        logger.info(
+                                            f"[Auth] ✅ 找到現有用戶: tg_id={tg_id}, user_id={existing_user.id}, "
+                                            f"嘗試創建 UserIdentity 記錄"
+                                        )
+                                        # 檢查是否已有 UserIdentity
+                                        identity_result = await db.execute(
+                                            select(UserIdentity).where(
+                                                and_(
+                                                    UserIdentity.provider == "telegram",
+                                                    UserIdentity.provider_user_id == str(tg_id)
+                                                )
+                                            )
+                                        )
+                                        existing_identity = identity_result.scalar_one_or_none()
+                                        if not existing_identity:
+                                            # 創建 UserIdentity 記錄
+                                            new_identity = UserIdentity(
+                                                user_id=existing_user.id,
+                                                provider="telegram",
+                                                provider_user_id=str(tg_id),
+                                                provider_data={
+                                                    "id": tg_id,
+                                                    "username": user_data.get("username"),
+                                                    "first_name": user_data.get("first_name"),
+                                                    "last_name": user_data.get("last_name"),
+                                                    "language_code": user_data.get("language_code", "zh-TW"),
+                                                },
+                                                is_primary=True,
+                                                verified_at=datetime.utcnow()
+                                            )
+                                            db.add(new_identity)
+                                            await db.commit()
+                                            logger.info(f"[Auth] ✅ 成功創建 UserIdentity 記錄")
+                                        user = existing_user
+                                    else:
+                                        logger.error(f"[Auth] ❌ 未找到 tg_id={tg_id} 的用戶")
+                                        user = None
+                                except Exception as recovery_error:
+                                    logger.error(
+                                        f"[Auth] ❌ 恢復嘗試失敗: {recovery_error}",
+                                        exc_info=True,
+                                    )
+                                    user = None
+                            else:
+                                user = None
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"[Auth] ❌ 無法解析 tg_id: {e}, user_data: {user_data}")
                         user = None
                 else:
                     logger.error(
