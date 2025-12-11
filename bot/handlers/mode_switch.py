@@ -49,8 +49,17 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id if update.effective_user else None
     logger.info(f"[SET_MODE] User {user_id} selecting mode, callback_data: {query.data}")
     
+    # 获取用户以使用正确的语言
+    from bot.utils.user_helpers import get_or_create_user
+    from bot.utils.i18n import t
+    db_user = await get_or_create_user(
+        tg_id=user_id,
+        username=update.effective_user.username if update.effective_user else None,
+        first_name=update.effective_user.first_name if update.effective_user else None,
+    )
+    
     try:
-        await query.answer("正在設置模式...")
+        await query.answer(t("setting_mode", user=db_user))
     except Exception as e:
         logger.error(f"Error answering query: {e}")
     
@@ -67,7 +76,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 检查模式是否可用
     if mode == "miniapp" and chat_type in ["group", "supergroup"]:
         await query.message.reply_text(
-            "⚠️ MiniApp 模式在群組中不可用，已自動切換到內聯按鈕模式。"
+            t("miniapp_not_available_in_group_auto_switch", user=db_user)
         )
         mode = "inline"
     
@@ -79,8 +88,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"[SET_MODE] Failed to update user {user_id} mode")
         try:
             await query.message.reply_text(
-                "❌ 設置模式失敗，請稍後再試\n\n"
-                "如果問題持續，請聯繫管理員。"
+                t("mode_set_failed", user=db_user)
             )
         except Exception as e:
             logger.error(f"Error sending error message: {e}")
@@ -88,13 +96,14 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"[SET_MODE] Successfully updated user {user_id} mode to {mode}")
     
-    # 获取模式名称和描述
-    mode_name = get_mode_name(mode)
-    mode_desc = get_mode_description(mode)
+    # 获取模式名称和描述（使用i18n）
+    from bot.utils.i18n import t
+    mode_name = t(f"mode_{mode}", user=db_user) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_name(mode)
+    mode_desc = t(f"mode_{mode}_desc", user=db_user) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_description(mode)
     
     # 更新消息
     try:
-        keyboard = get_unified_keyboard(mode, "main", chat_type)
+        keyboard = get_unified_keyboard(mode, "main", chat_type, user=db_user)
         
         # 根据键盘类型处理
         from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
@@ -103,17 +112,17 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # 底部键盘模式：先编辑消息显示确认（不带键盘），然后发送新消息带键盘
             try:
                 await query.edit_message_text(
-                    f"✅ 已設置為 {mode_name}\n\n"
+                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}\n\n"
-                    f"請使用底部鍵盤進行操作。\n"
-                    f"您可以隨時在主菜單中切換模式。"
+                    + t("please_use_bottom_keyboard", user=db_user) + "\n"
+                    + t("you_can_switch_mode_in_main_menu", user=db_user)
                 )
             except Exception as edit_e:
                 logger.warning(f"Could not edit message: {edit_e}, sending new message")
             
             # 发送新消息带回复键盘（不能编辑消息添加 ReplyKeyboardMarkup）
             await query.message.reply_text(
-                "⌨️ 請使用底部鍵盤進行操作：",
+                t("please_use_bottom_keyboard_colon", user=db_user),
                 reply_markup=keyboard
             )
             logger.info(f"[SET_MODE] Sent ReplyKeyboardMarkup for user {user_id}")
@@ -121,16 +130,16 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif isinstance(keyboard, InlineKeyboardMarkup):
             # 内联按钮模式：直接编辑消息
             await query.edit_message_text(
-                f"✅ 已設置為 {mode_name}\n\n"
+                t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
                 f"💡 {mode_desc}\n\n"
-                f"您可以隨時在主菜單中切換模式。",
+                + t("you_can_switch_mode_in_main_menu", user=db_user),
                 reply_markup=keyboard
             )
             logger.info(f"[SET_MODE] Updated message with InlineKeyboardMarkup for user {user_id}")
         else:
             # 其他情况：尝试编辑消息
             await query.edit_message_text(
-                f"✅ 已設置為 {mode_name}\n\n"
+                t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
                 f"💡 {mode_desc}",
                 reply_markup=keyboard
             )
@@ -140,25 +149,25 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error updating message: {e}", exc_info=True)
         try:
             # 如果编辑失败，发送新消息
-            keyboard = get_unified_keyboard(mode, "main", chat_type)
+            keyboard = get_unified_keyboard(mode, "main", chat_type, user=db_user)
             from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
             
             if isinstance(keyboard, ReplyKeyboardMarkup):
                 await query.message.reply_text(
-                    f"✅ 已設置為 {mode_name}\n\n"
+                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}\n\n"
-                    f"⌨️ 請使用底部鍵盤進行操作：",
+                    + t("please_use_bottom_keyboard_colon", user=db_user),
                     reply_markup=keyboard
                 )
             else:
                 await query.message.reply_text(
-                    f"✅ 已設置為 {mode_name}\n\n"
+                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}",
                     reply_markup=keyboard
                 )
         except Exception as e2:
             logger.error(f"Error sending fallback message: {e2}", exc_info=True)
-            await query.message.reply_text(f"✅ 已設置為 {mode_name}")
+            await query.message.reply_text(t("mode_set_to", user=db_user, mode=mode_name))
 
 
 async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -208,16 +217,16 @@ async def show_mode_selection_from_keyboard(update: Update, context: ContextType
 
 {t('select_operation', user=db_user)}
 
-*{t('mode_inline', user=db_user)}* - 流暢交互，點擊消息中的按鈕
-*{t('mode_keyboard', user=db_user)}* - 傳統 bot 體驗，在群組中也能使用
-*{t('mode_miniapp', user=db_user)}* - 最豐富的功能，最佳體驗（僅私聊）
+*{t('mode_inline', user=db_user)}* - {t('mode_inline_desc', user=db_user)}
+*{t('mode_keyboard', user=db_user)}* - {t('mode_keyboard_desc', user=db_user)}
+*{t('mode_miniapp', user=db_user)}* - {t('mode_miniapp_desc', user=db_user)}
 
-💡 選擇您喜歡的交互方式：
+{t('choose_your_preferred_interaction', user=db_user)}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += "\n⚠️ 注意：MiniApp 模式在群組中不可用，將自動切換到內聯按鈕模式"
+        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
     
     # 创建三种模式选择键盘（只显示三种主要模式，不包括auto）- 按钮中包含图标
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup

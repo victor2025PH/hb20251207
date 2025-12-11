@@ -162,13 +162,18 @@ async def show_main_menu(query, db_user):
             # 在会话内获取翻译文本
             select_operation = t('select_operation', user=user)
             
+            # 在会话内获取更多翻译文本
+            lucky_red_text = t('lucky_red_red_packet', user=user)
+            total_assets_text = t('total_assets', user=user)
+            energy_text = t('energy', user=user)
+            
             text = f"""
-🧧 *Lucky Red 搶紅包*
+{lucky_red_text}
 
-💰 *總資產*
+{total_assets_text}
 • USDT: `{usdt:.4f}`
 • TON: `{ton:.4f}`
-• 能量: `{points}`
+• {energy_text}: `{points}`
 
 {select_operation}:
 """

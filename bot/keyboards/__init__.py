@@ -14,15 +14,15 @@ def get_main_menu(user=None):
     
     keyboard = [
         [
-            InlineKeyboardButton("💰 錢包", callback_data="menu:wallet"),
-            InlineKeyboardButton("🧧 紅包", callback_data="menu:packets"),
+            InlineKeyboardButton(t("menu_wallet", user=user), callback_data="menu:wallet"),
+            InlineKeyboardButton(t("menu_packets", user=user), callback_data="menu:packets"),
         ],
         [
-            InlineKeyboardButton("📈 賺取", callback_data="menu:earn"),
-            InlineKeyboardButton("🎮 遊戲", callback_data="menu:game"),
+            InlineKeyboardButton(t("menu_earn", user=user), callback_data="menu:earn"),
+            InlineKeyboardButton(t("menu_game", user=user), callback_data="menu:game"),
         ],
         [
-            InlineKeyboardButton("👤 我的", callback_data="menu:profile"),
+            InlineKeyboardButton(t("menu_profile", user=user), callback_data="menu:profile"),
         ],
         [
             InlineKeyboardButton(t("language", user=user), callback_data="menu:language"),

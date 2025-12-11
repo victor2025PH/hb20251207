@@ -73,6 +73,26 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "lang_zh_cn": "簡體中文",
         "lang_en": "English",
         "lang_changed": "✅ 語言已切換為 {lang}",
+        # 主菜單
+        "menu_wallet": "💰 錢包",
+        "menu_packets": "🧧 紅包",
+        "menu_earn": "📈 賺取",
+        "menu_game": "🎮 遊戲",
+        "menu_profile": "👤 我的",
+        "menu_switch_mode": "🔄 切換模式",
+        # 主菜單文本
+        "lucky_red_red_packet": "🧧 Lucky Red 搶紅包",
+        "total_assets": "💰 總資產",
+        "energy": "能量",
+        # 模式設置消息
+        "mode_set_to": "✅ 已設置為 {mode}",
+        "please_use_bottom_keyboard": "請使用底部鍵盤進行操作。",
+        "you_can_switch_mode_in_main_menu": "您可以隨時在主菜單中切換模式。",
+        "please_use_bottom_keyboard_colon": "⌨️ 請使用底部鍵盤進行操作：",
+        "setting_mode": "正在設置模式...",
+        "mode_set_failed": "❌ 設置模式失敗，請稍後再試\n\n如果問題持續，請聯繫管理員。",
+        "miniapp_not_available_in_group_auto_switch": "⚠️ MiniApp 模式在群組中不可用，已自動切換到內聯按鈕模式。",
+        "choose_your_preferred_interaction": "💡 選擇您喜歡的交互方式：",
     },
     "zh-CN": {
         # 通用
@@ -203,6 +223,26 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "lang_zh_cn": "简体中文",
         "lang_en": "English",
         "lang_changed": "✅ Language changed to {lang}",
+        # 主菜单
+        "menu_wallet": "💰 Wallet",
+        "menu_packets": "🧧 Red Packet",
+        "menu_earn": "📈 Earn",
+        "menu_game": "🎮 Game",
+        "menu_profile": "👤 My",
+        "menu_switch_mode": "🔄 Switch Mode",
+        # 主菜单文本
+        "lucky_red_red_packet": "🧧 Lucky Red Red Packet",
+        "total_assets": "💰 Total Assets",
+        "energy": "Energy",
+        # 模式设置消息
+        "mode_set_to": "✅ Set to {mode}",
+        "please_use_bottom_keyboard": "Please use the bottom keyboard to operate.",
+        "you_can_switch_mode_in_main_menu": "You can switch modes anytime in the main menu.",
+        "please_use_bottom_keyboard_colon": "⌨️ Please use the bottom keyboard to operate:",
+        "setting_mode": "Setting mode...",
+        "mode_set_failed": "❌ Failed to set mode, please try again later\n\nIf the problem persists, please contact the administrator.",
+        "miniapp_not_available_in_group_auto_switch": "⚠️ MiniApp mode is not available in groups, automatically switched to inline button mode.",
+        "choose_your_preferred_interaction": "💡 Choose your preferred interaction method:",
         # 初始设置
         "welcome_to_lucky_red": "🧧 Welcome to Lucky Red!",
         "please_select_language_first": "Please select your language first, then choose your preferred interaction method:",

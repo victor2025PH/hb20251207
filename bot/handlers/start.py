@@ -266,36 +266,37 @@ Hi {user.first_name}！
         # 在 /start 后，同时显示内联按钮和底部键盘，让用户选择
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
         
-        # 创建底部键盘（主菜单）
+        # 创建底部键盘（主菜单）- 使用翻译
+        from bot.utils.i18n import t
         reply_keyboard = [
             [
-                KeyboardButton("💰 錢包"),
-                KeyboardButton("🧧 紅包"),
+                KeyboardButton(t("menu_wallet", user=db_user_refreshed)),
+                KeyboardButton(t("menu_packets", user=db_user_refreshed)),
             ],
             [
-                KeyboardButton("📈 賺取"),
-                KeyboardButton("🎮 遊戲"),
+                KeyboardButton(t("menu_earn", user=db_user_refreshed)),
+                KeyboardButton(t("menu_game", user=db_user_refreshed)),
             ],
             [
-                KeyboardButton("👤 我的"),
+                KeyboardButton(t("menu_profile", user=db_user_refreshed)),
             ],
         ]
         
-        # 创建内联按钮（主菜单 + 切换模式）
+        # 创建内联按钮（主菜单 + 切换模式）- 使用翻译
         inline_keyboard = [
             [
-                InlineKeyboardButton("💰 錢包", callback_data="menu:wallet"),
-                InlineKeyboardButton("🧧 紅包", callback_data="menu:packets"),
+                InlineKeyboardButton(t("menu_wallet", user=db_user_refreshed), callback_data="menu:wallet"),
+                InlineKeyboardButton(t("menu_packets", user=db_user_refreshed), callback_data="menu:packets"),
             ],
             [
-                InlineKeyboardButton("📈 賺取", callback_data="menu:earn"),
-                InlineKeyboardButton("🎮 遊戲", callback_data="menu:game"),
+                InlineKeyboardButton(t("menu_earn", user=db_user_refreshed), callback_data="menu:earn"),
+                InlineKeyboardButton(t("menu_game", user=db_user_refreshed), callback_data="menu:game"),
             ],
             [
-                InlineKeyboardButton("👤 我的", callback_data="menu:profile"),
+                InlineKeyboardButton(t("menu_profile", user=db_user_refreshed), callback_data="menu:profile"),
             ],
             [
-                InlineKeyboardButton("🔄 切換模式", callback_data="switch_mode"),
+                InlineKeyboardButton(t("menu_switch_mode", user=db_user_refreshed), callback_data="switch_mode"),
             ],
         ]
         
@@ -310,7 +311,7 @@ Hi {user.first_name}！
             
             # 发送底部键盘
             await update.message.reply_text(
-                "💡 您可以使用內聯按鈕或底部鍵盤進行操作：",
+                t("you_can_use_inline_or_keyboard", user=db_user_refreshed) if t("you_can_use_inline_or_keyboard", user=db_user_refreshed) != "you_can_use_inline_or_keyboard" else "💡 您可以使用內聯按鈕或底部鍵盤進行操作：",
                 reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True),
             )
             logger.info(f"✓ Reply keyboard sent successfully to user {user.id}")
