@@ -932,8 +932,9 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 if not sub_action:
                     from telegram import ReplyKeyboardRemove
                     try:
+                        from bot.utils.i18n import t
                         await query.message.reply_text(
-                            "使用內聯按鈕進行操作 👇",
+                            t("using_inline_buttons", user=db_user),
                             reply_markup=ReplyKeyboardRemove()
                         )
                     except Exception:

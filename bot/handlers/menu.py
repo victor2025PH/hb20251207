@@ -55,7 +55,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard_message = ""
             
             if action == "main":
-                reply_keyboard = get_main_reply_keyboard()
+                reply_keyboard = get_main_reply_keyboard(user=db_user)
                 keyboard_message = t("main_menu", user=db_user) if t("main_menu", user=db_user) != "main_menu" else "主菜單"
             elif action == "profile":
                 reply_keyboard = get_profile_reply_keyboard()

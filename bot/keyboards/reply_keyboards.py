@@ -8,25 +8,28 @@ from shared.config.settings import get_settings
 settings = get_settings()
 
 
-def get_main_reply_keyboard():
+def get_main_reply_keyboard(user=None):
     """主回覆鍵盤 - 一級菜單（對應 miniapp 底部導航），所有按鈕在機器人中完成"""
+    from bot.utils.i18n import t
+    
     keyboard = [
         [
-            KeyboardButton("💰 錢包"),
-            KeyboardButton("🧧 紅包"),
+            KeyboardButton(t("menu_wallet", user=user)),
+            KeyboardButton(t("menu_packets", user=user)),
         ],
         [
-            KeyboardButton("📈 賺取"),
-            KeyboardButton("🎮 遊戲"),
+            KeyboardButton(t("menu_earn", user=user)),
+            KeyboardButton(t("menu_game", user=user)),
         ],
         [
-            KeyboardButton("👤 我的"),
+            KeyboardButton(t("menu_profile", user=user)),
         ],
     ]
+    placeholder = t("select_function_or_command", user=user) if t("select_function_or_command", user=user) != "select_function_or_command" else "選擇功能或輸入命令..."
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,
-        input_field_placeholder="選擇功能或輸入命令..."
+        input_field_placeholder=placeholder
     )
 
 
@@ -52,24 +55,27 @@ def get_wallet_reply_keyboard():
     )
 
 
-def get_packets_reply_keyboard():
+def get_packets_reply_keyboard(user=None):
     """紅包回覆鍵盤 - 二級菜單，所有按鈕在機器人中完成"""
+    from bot.utils.i18n import t
+    
     keyboard = [
         [
-            KeyboardButton("📋 查看紅包"),
-            KeyboardButton("➕ 發紅包"),
+            KeyboardButton(t("view_packets", user=user)),
+            KeyboardButton(t("send_packet", user=user)),
         ],
         [
-            KeyboardButton("🎁 我的紅包"),
+            KeyboardButton(t("my_packets", user=user)),
         ],
         [
-            KeyboardButton("◀️ 返回主菜單"),
+            KeyboardButton(t("return_main", user=user)),
         ],
     ]
+    placeholder = t("select_packet_operation", user=user) if t("select_packet_operation", user=user) != "select_packet_operation" else "選擇紅包操作..."
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,
-        input_field_placeholder="選擇紅包操作..."
+        input_field_placeholder=placeholder
     )
 
 

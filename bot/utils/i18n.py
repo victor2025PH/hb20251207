@@ -96,6 +96,9 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mode_set_failed": "❌ 設置模式失敗，請稍後再試\n\n如果問題持續，請聯繫管理員。",
         "miniapp_not_available_in_group_auto_switch": "⚠️ MiniApp 模式在群組中不可用，已自動切換到內聯按鈕模式。",
         "choose_your_preferred_interaction": "💡 選擇您喜歡的交互方式：",
+        "using_inline_buttons": "使用內聯按鈕進行操作 👇",
+        "select_function_or_command": "選擇功能或輸入命令...",
+        "select_packet_operation": "選擇紅包操作...",
     },
     "zh-CN": {
         # 通用
@@ -249,6 +252,9 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "mode_set_failed": "❌ Failed to set mode, please try again later\n\nIf the problem persists, please contact the administrator.",
         "miniapp_not_available_in_group_auto_switch": "⚠️ MiniApp mode is not available in groups, automatically switched to inline button mode.",
         "choose_your_preferred_interaction": "💡 Choose your preferred interaction method:",
+        "using_inline_buttons": "Using inline buttons 👇",
+        "select_function_or_command": "Select function or enter command...",
+        "select_packet_operation": "Select red packet operation...",
         # 初始设置
         "welcome_to_lucky_red": "🧧 Welcome to Lucky Red!",
         "please_select_language_first": "Please select your language first, then choose your preferred interaction method:",
