@@ -65,7 +65,49 @@ class IdentityService:
             logger.info(f"Found existing identity: {provider}:{provider_user_id} -> user_id={user.id}")
             return user
         
-        # 身份不存在，创建新用户和身份
+        # 身份不存在，检查是否已有用户（兼容旧代码，可能用户是通过旧方式创建的）
+        # 对于 Telegram，检查 User 表中是否已有相同的 tg_id
+        if provider == 'telegram':
+            try:
+                tg_id = int(provider_user_id)
+                result = await db.execute(select(User).where(User.tg_id == tg_id))
+                existing_user = result.scalar_one_or_none()
+                
+                if existing_user:
+                    # 用户已存在但没有 UserIdentity 记录，创建身份链接
+                    logger.info(
+                        f"Found existing user by tg_id: {tg_id} -> user_id={existing_user.id}, "
+                        f"creating UserIdentity record"
+                    )
+                    
+                    # 更新用户信息
+                    if provider_data:
+                        existing_user.username = provider_data.get('username') or existing_user.username
+                        existing_user.first_name = provider_data.get('first_name') or existing_user.first_name
+                        existing_user.last_name = provider_data.get('last_name') or existing_user.last_name
+                        existing_user.language_code = provider_data.get('language_code', existing_user.language_code or 'zh-TW')
+                    
+                    # 创建身份记录
+                    identity = UserIdentity(
+                        user_id=existing_user.id,
+                        provider=provider,
+                        provider_user_id=str(provider_user_id),
+                        provider_data=provider_data,
+                        is_primary=True,
+                        verified_at=datetime.utcnow()
+                    )
+                    db.add(identity)
+                    await db.commit()
+                    await db.refresh(existing_user)
+                    
+                    logger.info(
+                        f"Linked existing user to identity: {provider}:{provider_user_id} -> user_id={existing_user.id}"
+                    )
+                    return existing_user
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse tg_id from provider_user_id {provider_user_id}: {e}")
+        
+        # 身份不存在且用户也不存在，创建新用户和身份
         # 生成UUID（如果还没有）
         user_uuid = str(uuid_lib.uuid4())
         
