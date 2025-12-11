@@ -4,8 +4,8 @@
 
 set -e
 
-PROJECT_DIR="/opt/luckyred"
-VENV_DIR="/opt/luckyred/api/.venv"
+PROJECT_DIR="/home/ubuntu/hbgm001"
+VENV_DIR="/home/ubuntu/hbgm001/api/.venv"
 
 echo "=========================================="
 echo "虚拟环境诊断报告"

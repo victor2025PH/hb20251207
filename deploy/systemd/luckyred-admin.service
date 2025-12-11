@@ -6,10 +6,10 @@ After=network.target postgresql.service
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/opt/luckyred/admin
-Environment="PATH=/opt/luckyred/admin/.venv/bin"
-EnvironmentFile=/opt/luckyred/.env
-ExecStart=/opt/luckyred/admin/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8081
+WorkingDirectory=/home/ubuntu/hbgm001/admin
+Environment="PATH=/home/ubuntu/hbgm001/admin/.venv/bin"
+EnvironmentFile=/home/ubuntu/hbgm001/.env
+ExecStart=/home/ubuntu/hbgm001/admin/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8081
 Restart=always
 RestartSec=5
 

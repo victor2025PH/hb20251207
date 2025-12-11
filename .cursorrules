@@ -52,9 +52,9 @@
 2.  **WORKFLOW**: Modify Code -> `git add .` -> `git commit` -> `git push`.
 3.  **NO SSH DEPLOY**: Do not log into server to deploy manually.
 4.  **SERVER CONFIGURATION TRUTH (ABSOLUTE)**:
-    - **Project Root**: `/opt/luckyred`
+    - **Project Root**: `/home/ubuntu/hbgm001`
     - **Systemd Service**: `luckyred-api`
-    - **Virtual Env**: `/opt/luckyred/api/.venv`
+    - **Virtual Env**: `/home/ubuntu/hbgm001/api/.venv`
     - **RULE**: Always hardcode these paths in workflows. Never guess or detect.
 
 ---

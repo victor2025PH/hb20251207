@@ -8,7 +8,7 @@ echo "拉取最新代码并设置脚本权限"
 echo "=========================================="
 
 # 项目根目录
-PROJECT_ROOT="/opt/luckyred"
+PROJECT_ROOT="/home/ubuntu/hbgm001"
 cd "$PROJECT_ROOT" || exit 1
 
 echo ""
@@ -32,7 +32,7 @@ echo "✅ 完成！"
 echo "=========================================="
 echo ""
 echo "现在可以使用以下命令监控日志："
-echo "  /opt/luckyred/scripts/sh/monitor-redpacket-send.sh"
+echo "  /home/ubuntu/hbgm001/scripts/sh/monitor-redpacket-send.sh"
 echo ""
 echo "或者直接使用："
 echo "  sudo journalctl -u luckyred-api -f | grep -E 'chat_id|群組|發送|紅包|minihb2|TelegramError|Exception|錯誤|失敗|成功'"

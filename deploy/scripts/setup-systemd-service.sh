@@ -9,7 +9,7 @@ echo "设置 LuckyRed Systemd 服务"
 echo "=========================================="
 
 # 配置
-PROJECT_DIR="/opt/luckyred"
+PROJECT_DIR="/home/ubuntu/hbgm001"
 SERVICE_NAME="luckyred-api"
 SERVICE_FILE="deploy/systemd/${SERVICE_NAME}.service"
 SYSTEMD_DIR="/etc/systemd/system"

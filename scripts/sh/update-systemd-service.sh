@@ -47,17 +47,17 @@ else
     # 检查是否有 Environment 行
     if grep -q '^Environment=' "$SERVICE_FILE"; then
         # 在第一个 Environment 行后添加 PYTHONPATH
-        sed -i '/^Environment="PATH=/a Environment="PYTHONPATH=/opt/luckyred"' "$SERVICE_FILE"
+        sed -i '/^Environment="PATH=/a Environment="PYTHONPATH=/home/ubuntu/hbgm001"' "$SERVICE_FILE"
     else
         # 在 WorkingDirectory 后添加
-        sed -i '/^WorkingDirectory=/a Environment="PYTHONPATH=/opt/luckyred"' "$SERVICE_FILE"
+        sed -i '/^WorkingDirectory=/a Environment="PYTHONPATH=/home/ubuntu/hbgm001"' "$SERVICE_FILE"
     fi
     log_info "已添加 PYTHONPATH 配置"
 fi
 echo ""
 
 log_step "3. 验证配置..."
-if grep -q 'PYTHONPATH=/opt/luckyred' "$SERVICE_FILE"; then
+if grep -q 'PYTHONPATH=/home/ubuntu/hbgm001' "$SERVICE_FILE"; then
     log_info "✅ PYTHONPATH 配置正确"
     echo ""
     echo "当前配置："
