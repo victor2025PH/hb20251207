@@ -81,13 +81,10 @@ export default function ProfilePage() {
         ref={menuContainerRef}
         className="space-y-2 relative" 
         style={{ 
-          zIndex: 1000,
+          zIndex: 100,
           position: 'relative',
-          pointerEvents: 'auto',
-          isolation: 'isolate'
+          pointerEvents: 'auto'
         }}
-        onMouseEnter={() => console.log('[ProfilePage] 🟢 Menu container mouse enter')}
-        onMouseLeave={() => console.log('[ProfilePage] 🔴 Menu container mouse leave')}
       >
         <MenuLink
           icon={Settings}
@@ -132,100 +129,47 @@ export default function ProfilePage() {
   )
 }
 
-// 使用按钮 + navigate 的菜单项（用于导航，更可靠）
+// 使用按钮 + navigate 的菜单项（用于导航，简化版本，与 MenuItem 保持一致）
 function MenuLink({ icon: Icon, title, to, navigate }: {
   icon: React.ElementType
   title: string
   to: string
   navigate: (path: string) => void
 }) {
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  // 使用多种事件确保点击能触发
-  const handleNavigation = () => {
-    console.log('[MenuLink] 🚀 Navigating to:', to)
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
     try {
+      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
       navigate(to)
-      console.log('[MenuLink] ✅ Navigation successful')
+      console.log('[MenuLink] ✅ Navigation executed successfully')
     } catch (error) {
       console.error('[MenuLink] ❌ Navigation error:', error)
-      // 备用方案
+      // 备用方案：使用 window.location
+      console.log('[MenuLink] 🔄 Trying window.location fallback')
       window.location.href = to
     }
   }
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log('[MenuLink] 🔵 onClick:', title)
-    handleNavigation()
-  }
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // 不阻止默认行为，让点击更自然
-    console.log('[MenuLink] 🟢 MouseDown:', title)
-  }
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
-    console.log('[MenuLink] 🟡 TouchStart:', title)
-    // 移动端立即导航
-    e.preventDefault()
-    handleNavigation()
-  }
-
-  // 确保按钮可以点击
-  useEffect(() => {
-    if (buttonRef.current) {
-      const btn = buttonRef.current
-      btn.style.pointerEvents = 'auto'
-      btn.style.zIndex = '1000'
-      btn.style.position = 'relative'
-      
-      // 添加全局点击监听作为备用
-      const handleGlobalClick = (e: MouseEvent) => {
-        if (e.target === btn || btn.contains(e.target as Node)) {
-          console.log('[MenuLink] 🌐 Global click detected:', title)
-          try {
-            navigate(to)
-          } catch (error) {
-            window.location.href = to
-          }
-        }
-      }
-      
-      btn.addEventListener('click', handleGlobalClick, true)
-      
-      return () => {
-        btn.removeEventListener('click', handleGlobalClick, true)
-      }
-    }
-  }, [title, to, navigate])
-
   return (
     <button
-      ref={buttonRef}
       type="button"
       onClick={handleClick}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
       className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
       style={{ 
         pointerEvents: 'auto', 
         position: 'relative',
-        zIndex: 1000,
-        isolation: 'isolate',
-        WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation',
-        userSelect: 'none'
+        zIndex: 100,
+        isolation: 'isolate'
       }}
       data-testid={`menu-link-${to.replace('/', '')}`}
-      data-nav-to={to}
     >
-      <div className="flex items-center gap-3 pointer-events-none">
+      <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
         <span className="text-white">{title}</span>
       </div>
-      <ChevronRight size={18} className="text-gray-500 pointer-events-none" />
+      <ChevronRight size={18} className="text-gray-500" />
     </button>
   )
 }
