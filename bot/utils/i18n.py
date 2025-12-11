@@ -73,6 +73,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "packet_failed": "❌ 發送失敗",
         "insufficient_balance": "❌ 餘額不足",
         "balance_warning": "⚠️ 注意：您的 {currency} 餘額為 `{balance:.4f}`，發送前請先充值！",
+        "enter_blessing_optional": "請輸入祝福語（可選）：",
+        "blessing_hint": "直接發送消息作為祝福語，或點擊使用默認祝福語",
+        "use_default_blessing": "✅ 使用默認祝福語",
+        "enter_blessing": "📝 輸入祝福語",
+        "amount_label": "金額：",
+        "quantity_label": "數量：",
+        "bomb_number_label": "炸彈數字：",
+        "shares": "份",
         
         # 語言
         "language": "🌐 語言",

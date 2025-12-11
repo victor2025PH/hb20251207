@@ -1622,6 +1622,8 @@ async def show_bomb_number_selection(query, db_user, context):
 
 async def show_message_input(query, db_user, context):
     """顯示祝福語輸入"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     currency = packet_data.get('currency', 'usdt')
     packet_type = packet_data.get('packet_type', 'random')
@@ -1629,31 +1631,61 @@ async def show_message_input(query, db_user, context):
     count = packet_data.get('count')
     bomb_number = packet_data.get('bomb_number')
     
-    currency_upper = currency.upper()
-    type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
-    
-    text = f"""
-➕ *發紅包 - {currency_upper} - {type_text}*
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        _ = user.interaction_mode
+        
+        # 在会话内获取翻译文本
+        currency_upper = currency.upper()
+        send_packet_title = t('send_packet_title', user=user)
+        random_amount_text = t('random_amount', user=user)
+        fixed_amount_text = t('fixed_amount', user=user)
+        type_text = random_amount_text if packet_type == "random" else fixed_amount_text
+        amount_label = t('amount_label', user=user)
+        quantity_label = t('quantity_label', user=user)
+        bomb_number_label = t('bomb_number_label', user=user)
+        shares_text = t('shares', user=user)
+        enter_blessing_optional = t('enter_blessing_optional', user=user)
+        blessing_hint = t('blessing_hint', user=user)
+        use_default_blessing = t('use_default_blessing', user=user)
+        enter_blessing = t('enter_blessing', user=user)
+        return_text = t('return_main', user=user)
+        
+        text = f"""
+➕ *{send_packet_title} - {currency_upper} - {type_text}*
 
-*金額：* `{amount}` {currency_upper}
-*數量：* `{count}` 份
-{f"*炸彈數字：* `{bomb_number}`" if bomb_number is not None else ""}
+*{amount_label}* `{amount}` {currency_upper}
+*{quantity_label}* `{count}` {shares_text}
+{f"*{bomb_number_label}* `{bomb_number}`" if bomb_number is not None else ""}
 
-請輸入祝福語（可選）：
-直接發送消息作為祝福語，或點擊使用默認祝福語
+{enter_blessing_optional}
+{blessing_hint}
 """
-    
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ 使用默認祝福語", callback_data=f"packets:send:group:{currency}:{packet_type}:{amount}:{count}:{bomb_number or ''}:default"),
-        ],
-        [
-            InlineKeyboardButton("📝 輸入祝福語", callback_data=f"packets:send:message_input:{currency}:{packet_type}:{amount}:{count}:{bomb_number or ''}"),
-        ],
-        [
-            InlineKeyboardButton("◀️ 返回", callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:{count}" if bomb_number is not None else f"packets:send:count:{currency}:{packet_type}:{amount}"),
-        ],
-    ]
+        
+        keyboard = [
+            [
+                InlineKeyboardButton(use_default_blessing, callback_data=f"packets:send:group:{currency}:{packet_type}:{amount}:{count}:{bomb_number or ''}:default"),
+            ],
+            [
+                InlineKeyboardButton(enter_blessing, callback_data=f"packets:send:message_input:{currency}:{packet_type}:{amount}:{count}:{bomb_number or ''}"),
+            ],
+            [
+                InlineKeyboardButton(return_text, callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:{count}" if bomb_number is not None else f"packets:send:count:{currency}:{packet_type}:{amount}"),
+            ],
+        ]
     
     # 检查消息是否需要更新，避免"Message is not modified"错误
     try:
