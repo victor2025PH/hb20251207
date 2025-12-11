@@ -113,7 +113,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "amount_label": "金額：",
         "quantity_label": "數量：",
         "bomb_number_label": "炸彈數字：",
+        "blessing_label": "祝福語：",
+        "group_id_label": "群組 ID：",
+        "uuid_label": "UUID:",
         "shares": "份",
+        "enter_group_link_id": "📝 輸入群組鏈接/ID",
+        "search_group": "🔍 查找群組",
+        "group_hint_auto_complete": "可以直接輸入用戶名（如：`minihb2`），系統會自動補全",
+        "group_hint_use_command": "也可以在目標群組中直接使用命令 `/send <金額> <數量> [祝福語]`",
         
         # 語言
         "language": "🌐 語言",
@@ -287,7 +294,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "amount_label": "Amount:",
         "quantity_label": "Quantity:",
         "bomb_number_label": "Bomb Number:",
+        "blessing_label": "Blessing:",
+        "group_id_label": "Group ID:",
+        "uuid_label": "UUID:",
         "shares": "shares",
+        "enter_group_link_id": "📝 Enter Group Link/ID",
+        "search_group": "🔍 Search Group",
+        "group_hint_auto_complete": "You can directly enter the username (e.g.: minihb2), the system will auto-complete",
+        "group_hint_use_command": "You can also directly use the command `/send <amount> <quantity> [blessing]` in the target group",
         
         # 语言
         "language": "🌐 Language",

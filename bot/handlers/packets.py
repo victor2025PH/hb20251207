@@ -308,6 +308,8 @@ async def handle_message_input(update, db_user, text, context):
 
 async def show_group_selection_from_message(update, db_user, context):
     """從消息中顯示群組選擇"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     
     # 在會話內獲取用戶發過紅包的群組，並在會話內完成所有操作
@@ -315,8 +317,30 @@ async def show_group_selection_from_message(update, db_user, context):
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            await update.message.reply_text(t("error", user=db_user))
             return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        # 在会话内获取翻译文本
+        send_packet_title = t('send_packet_title', user=user)
+        select_group_text = t('select_group', user=user)
+        packet_info_text = t('packet_info', user=user)
+        currency_label = t('currency_label', user=user)
+        type_label = t('type_label', user=user)
+        amount_label = t('amount_label', user=user)
+        quantity_label = t('quantity_label', user=user)
+        blessing_label = t('blessing_label', user=user)
+        random_amount_text = t('random_amount', user=user)
+        fixed_amount_text = t('fixed_amount', user=user)
+        shares_text = t('shares', user=user)
+        enter_group_link_id = t('enter_group_link_id', user=user)
+        return_text = t('return_main', user=user)
+        
+        type_text = random_amount_text if packet_data.get('packet_type') == "random" else fixed_amount_text
         
         # 在会话内查询红包
         packets = db.query(RedPacket).filter(
@@ -324,16 +348,16 @@ async def show_group_selection_from_message(update, db_user, context):
         ).order_by(RedPacket.created_at.desc()).limit(10).all()
         
         text = f"""
-➕ *發紅包 - 選擇群組*
+➕ *{send_packet_title} - {select_group_text}*
 
-*紅包信息：*
-• 幣種：{packet_data.get('currency', 'usdt').upper()}
-• 類型：{"手氣最佳" if packet_data.get('packet_type') == "random" else "紅包炸彈"}
-• 金額：{packet_data.get('amount')} {packet_data.get('currency', 'usdt').upper()}
-• 數量：{packet_data.get('count')} 份
-• 祝福語：{packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)}
+*{packet_info_text}*
+• {currency_label}{packet_data.get('currency', 'usdt').upper()}
+• {type_label}{type_text}
+• {amount_label}{packet_data.get('amount')} {packet_data.get('currency', 'usdt').upper()}
+• {quantity_label}{packet_data.get('count')} {shares_text}
+• {blessing_label}{packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)}
 
-請選擇群組：
+{select_group_text}
 """
         
         keyboard = []
@@ -352,11 +376,11 @@ async def show_group_selection_from_message(update, db_user, context):
                 ])
         
         keyboard.append([
-            InlineKeyboardButton("📝 輸入群組鏈接/ID", callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}:{packet_data.get('bomb_number', '')}:{packet_data.get('message', 'default')}"),
+            InlineKeyboardButton(enter_group_link_id, callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}:{packet_data.get('bomb_number', '')}:{packet_data.get('message', 'default')}"),
         ])
         
         keyboard.append([
-            InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+            InlineKeyboardButton(return_text, callback_data="menu:packets"),
         ])
         
         # 在会话内完成所有操作后再发送消息
