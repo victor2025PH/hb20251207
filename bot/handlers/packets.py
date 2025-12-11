@@ -1048,7 +1048,27 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 elif sub_action == "amount":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
-                    await show_amount_input(query, db_user, currency, packet_type)
+                    # 检查是否选择了具体金额（parts[5]存在且是数字）
+                    if len(parts) > 5 and parts[5]:
+                        try:
+                            amount = float(parts[5])
+                            logger.info(f"[SEND_PACKET] User {user_id} selected amount: {amount} {currency.upper()}, packet_type: {packet_type}")
+                            # 用户选择了具体金额，设置amount并显示数量选择界面
+                            context.user_data['send_packet'] = {
+                                'currency': currency,
+                                'packet_type': packet_type,
+                                'amount': amount,
+                            }
+                            await show_count_input(query, db_user, context)
+                            logger.info(f"[SEND_PACKET] Successfully showed count input for user {user_id}")
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"[SEND_PACKET] Invalid amount value '{parts[5]}' for user {user_id}: {e}")
+                            # 如果parts[5]不是有效数字，显示金额选择界面
+                            await show_amount_input(query, db_user, currency, packet_type)
+                    else:
+                        logger.info(f"[SEND_PACKET] Showing amount input for user {user_id}, currency: {currency}, packet_type: {packet_type}")
+                        # 没有选择具体金额，显示金额选择界面
+                        await show_amount_input(query, db_user, currency, packet_type)
                 elif sub_action == "count":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1518,7 +1538,7 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
             row = []
             for amt in quick_amounts:
                 if amt <= balance:
-                    row.append(InlineKeyboardButton(str(amt), callback_data=f"packets:send:count:{currency}:{packet_type}:{amt}"))
+                    row.append(InlineKeyboardButton(str(amt), callback_data=f"packets:send:amount:{currency}:{packet_type}:{amt}"))
             if row:
                 keyboard.append(row)
         

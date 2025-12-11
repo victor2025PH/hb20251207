@@ -95,6 +95,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "select_sent_packet_groups": "選擇已發過紅包的群組或用戶",
         "packet_ready": "✅ 紅包已準備好！",
         "select_or_enter_group": "請選擇或輸入群組：",
+        "packet_ready": "✅ 紅包已準備好！",
+        "select_or_enter_group": "請選擇或輸入群組：",
         "select_count": "请选择或输入数量：",
         "custom_count": "📝 自定义数量",
         "enter_count": "请输入红包数量（数字）：\n\n例如：20",

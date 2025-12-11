@@ -40,6 +40,9 @@ ssh ubuntu@165.154.254.99
 ubuntu
 Along2025!!!
 
+拉取所有文件
+git pull origin main
+
 github密码
 # 请使用环境变量或配置文件存储，不要直接写在代码中
 # 示例：使用 GitHub Secrets 或 .env 文件

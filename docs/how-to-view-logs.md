@@ -1,5 +1,115 @@
 # 查看和提取日志指南
 
+## 📋 方法零：服务器 Bot 运行日志（服务器端）
+
+### 快速查看命令
+
+#### 1. 实时监控 Bot 日志
+
+```bash
+# 实时监控 Bot 服务日志（推荐）
+sudo journalctl -u luckyred-bot -f
+
+# 实时监控所有服务（API + Bot）
+sudo journalctl -u luckyred-api -u luckyred-bot -f
+```
+
+#### 2. 查看最近日志
+
+```bash
+# 查看 Bot 最近 100 行日志
+sudo journalctl -u luckyred-bot -n 100 --no-pager
+
+# 查看 Bot 最近 50 行日志
+sudo journalctl -u luckyred-bot -n 50 --no-pager
+
+# 查看所有服务最近 100 行日志
+sudo journalctl -u luckyred-api -u luckyred-bot -n 100 --no-pager
+```
+
+#### 3. 按时间范围查看
+
+```bash
+# 查看最近 1 小时的日志
+sudo journalctl -u luckyred-bot --since "1 hour ago"
+
+# 查看最近 30 分钟的日志
+sudo journalctl -u luckyred-bot --since "30 minutes ago"
+
+# 查看今天的日志
+sudo journalctl -u luckyred-bot --since today
+
+# 查看指定时间范围的日志
+sudo journalctl -u luckyred-bot --since "2025-01-10 08:00:00" --until "2025-01-10 10:00:00"
+```
+
+#### 4. 过滤关键词
+
+```bash
+# 查找包含"红包"的日志
+sudo journalctl -u luckyred-bot | grep -i "红包"
+
+# 查找包含"错误"的日志
+sudo journalctl -u luckyred-bot | grep -iE "错误|error|failed"
+
+# 实时监控并过滤关键词
+sudo journalctl -u luckyred-bot -f | grep -iE "红包|發送|錯誤|error"
+
+# 查找红包发送相关日志
+sudo journalctl -u luckyred-bot --since "1 hour ago" | grep -iE "紅包|發送|群組|send|redpacket"
+```
+
+#### 5. 按日志级别过滤
+
+```bash
+# 只查看错误日志
+sudo journalctl -u luckyred-bot -p err
+
+# 查看警告及以上级别
+sudo journalctl -u luckyred-bot -p warning
+
+# 查看最近 1 小时的错误日志
+sudo journalctl -u luckyred-bot -p err --since "1 hour ago"
+```
+
+#### 6. 查看服务状态
+
+```bash
+# 查看 Bot 服务状态
+sudo systemctl status luckyred-bot
+
+# 查看服务启动日志
+sudo journalctl -u luckyred-bot -b
+```
+
+#### 7. 使用脚本查看（如果可用）
+
+```bash
+# 查看 Bot 最近 100 行日志
+./scripts/sh/view-logs.sh bot 100
+
+# 查看 Bot 最近 50 行包含"红包"的日志
+./scripts/sh/view-logs.sh bot 50 红包
+
+# 实时监控所有服务
+./scripts/sh/monitor-logs.sh all
+```
+
+### 常用命令速查
+
+```bash
+# 最常用：实时监控 Bot 日志
+sudo journalctl -u luckyred-bot -f
+
+# 查看最近错误
+sudo journalctl -u luckyred-bot -p err -n 50 --no-pager
+
+# 查看最近 1 小时的红包相关日志
+sudo journalctl -u luckyred-bot --since "1 hour ago" | grep -i "红包"
+```
+
+---
+
 ## 📋 方法一：浏览器控制台（推荐）
 
 ### 步骤 1: 打开开发者工具
