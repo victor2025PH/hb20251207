@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut, MessageSquare } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from '../providers/I18nProvider'
 import { getUserProfile, getBalance } from '../utils/api'
 import { getTelegramUser } from '../utils/telegram'
@@ -64,57 +64,25 @@ export default function ProfilePage() {
 
       {/* 菜單列表 */}
       <div className="space-y-2 relative" style={{ zIndex: 100 }}>
-        <MenuItem
+        <MenuLink
           icon={Settings}
           title={t('settings')}
-          onClick={() => {
-            console.log('[ProfilePage] ✅ Settings button clicked, navigating to /settings')
-            try {
-              navigate('/settings')
-              console.log('[ProfilePage] ✅ Navigation to /settings executed')
-            } catch (error) {
-              console.error('[ProfilePage] ❌ Navigation error:', error)
-            }
-          }}
+          to="/settings"
         />
-        <MenuItem
+        <MenuLink
           icon={Shield}
           title={t('security_settings')}
-          onClick={() => {
-            console.log('[ProfilePage] ✅ Security Settings button clicked, navigating to /security')
-            try {
-              navigate('/security')
-              console.log('[ProfilePage] ✅ Navigation to /security executed')
-            } catch (error) {
-              console.error('[ProfilePage] ❌ Navigation error:', error)
-            }
-          }}
+          to="/security"
         />
-        <MenuItem
+        <MenuLink
           icon={HelpCircle}
           title={t('help_center')}
-          onClick={() => {
-            console.log('[ProfilePage] ✅ Help Center button clicked, navigating to /help')
-            try {
-              navigate('/help')
-              console.log('[ProfilePage] ✅ Navigation to /help executed')
-            } catch (error) {
-              console.error('[ProfilePage] ❌ Navigation error:', error)
-            }
-          }}
+          to="/help"
         />
-        <MenuItem
+        <MenuLink
           icon={FileText}
           title={t('user_agreement')}
-          onClick={() => {
-            console.log('[ProfilePage] ✅ User Agreement button clicked, navigating to /agreement')
-            try {
-              navigate('/agreement')
-              console.log('[ProfilePage] ✅ Navigation to /agreement executed')
-            } catch (error) {
-              console.error('[ProfilePage] ❌ Navigation error:', error)
-            }
-          }}
+          to="/agreement"
         />
         <MenuItem
           icon={MessageSquare}
@@ -135,6 +103,39 @@ export default function ProfilePage() {
   )
 }
 
+// 使用 Link 的菜单项（用于导航）
+function MenuLink({ icon: Icon, title, to }: {
+  icon: React.ElementType
+  title: string
+  to: string
+}) {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    console.log('[MenuLink] Link clicked:', title, 'to:', to)
+  }
+
+  return (
+    <Link
+      to={to}
+      onClick={handleClick}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer block"
+      style={{ 
+        pointerEvents: 'auto', 
+        position: 'relative',
+        zIndex: 100,
+        isolation: 'isolate',
+        textDecoration: 'none'
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={20} className="text-gray-400" />
+        <span className="text-white">{title}</span>
+      </div>
+      <ChevronRight size={18} className="text-gray-500" />
+    </Link>
+  )
+}
+
+// 使用按钮的菜单项（用于非导航操作）
 function MenuItem({ icon: Icon, title, onClick }: {
   icon: React.ElementType
   title: string
