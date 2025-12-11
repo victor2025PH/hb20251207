@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const username = profile?.username || tgUser?.username
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4">
+    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 1 }}>
       {/* 用戶卡片 */}
       <div className="bg-gradient-to-br from-brand-red/20 via-brand-darker to-orange-500/20 border border-brand-red/30 rounded-2xl p-4">
         <div className="flex items-center gap-4 mb-4">
@@ -117,10 +117,24 @@ function MenuItem({ icon: Icon, title, onClick }: {
   title: string
   onClick: () => void
 }) {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[MenuItem] Button clicked:', title)
+    try {
+      onClick()
+      console.log('[MenuItem] onClick handler executed successfully')
+    } catch (error) {
+      console.error('[MenuItem] Error in onClick handler:', error)
+    }
+  }
+
   return (
     <button
-      onClick={onClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors"
+      type="button"
+      onClick={handleClick}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer relative z-10"
+      style={{ pointerEvents: 'auto' }}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
