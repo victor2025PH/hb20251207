@@ -201,8 +201,23 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("發生錯誤，請稍後再試")
             return
         
-        # 如果是新用户或未设置模式，显示初始设置（语言 + 键盘模式）
-        if not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto":
+        # 检查是否有 reset 参数（用于重新设置）
+        should_reset = context.args and len(context.args) > 0 and context.args[0].lower() == "reset"
+        
+        # 检查用户是否已设置过模式（排除 "auto" 和 None）
+        has_set_mode = db_user_refreshed.interaction_mode and db_user_refreshed.interaction_mode != "auto"
+        
+        # 如果是新用户、未设置模式、用户明确要求重置，或者用户删除机器人后重新启动（已设置过模式但没有邀请码参数），显示初始设置
+        if should_reset or not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto" or (has_set_mode and not invite_code):
+            # 如果用户要求重置或重新启动（已设置过模式但没有邀请码），先清除现有设置
+            if should_reset or (has_set_mode and not invite_code):
+                db_user_refreshed.interaction_mode = None
+                db.commit()
+                if should_reset:
+                    logger.info(f"User {user.id} requested reset, cleared interaction_mode")
+                else:
+                    logger.info(f"User {user.id} restarted bot (had mode {db_user_refreshed.interaction_mode}), resetting to show initial setup")
+            
             from bot.handlers.initial_setup import show_initial_setup
             await show_initial_setup(update, context)
             return
