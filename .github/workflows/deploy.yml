@@ -31,13 +31,12 @@ jobs:
             echo "开始部署 LuckyRed"
             echo "=========================================="
             
-            # 硬编码的服务器配置
-            # 注意：实际项目目录是 /home/ubuntu/hbgm001，不是 /opt/luckyred
-            PROJECT_DIR="/home/ubuntu/hbgm001"
+            # 硬编码的服务器配置（根据 repo 规则）
+            PROJECT_DIR="/opt/luckyred"
             API_SERVICE_NAME="luckyred-api"
             BOT_SERVICE_NAME="luckyred-bot"
-            API_VENV_DIR="/home/ubuntu/hbgm001/api/.venv"
-            BOT_VENV_DIR="/home/ubuntu/hbgm001/bot/.venv"
+            API_VENV_DIR="/opt/luckyred/api/.venv"
+            BOT_VENV_DIR="/opt/luckyred/bot/.venv"
             
             echo "📁 项目目录: $PROJECT_DIR"
             echo "🔧 API 服务名称: $API_SERVICE_NAME"
