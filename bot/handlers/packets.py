@@ -947,7 +947,17 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 # 如果 sub_action 为空，显示发红包菜单（不是引导界面）
                 if not sub_action:
                     logger.info(f"[SEND_PACKET] Showing send packet menu for user {user_id}")
-                    await show_send_packet_menu(query, db_user, use_inline_buttons=True)
+                    try:
+                        await show_send_packet_menu(query, db_user, use_inline_buttons=True)
+                    except Exception as menu_error:
+                        logger.error(f"[SEND_PACKET] Error in show_send_packet_menu: {menu_error}", exc_info=True)
+                        # 如果显示菜单失败，尝试显示引导界面作为后备
+                        try:
+                            await show_send_packet_guide(query, db_user)
+                        except Exception as guide_error:
+                            logger.error(f"[SEND_PACKET] Error in show_send_packet_guide: {guide_error}", exc_info=True)
+                            from bot.utils.i18n import t
+                            await query.message.reply_text(t("error", user=db_user))
                 elif sub_action == "type":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     logger.info(f"[SEND_PACKET] Showing packet type selection for user {user_id}, currency={currency}")
