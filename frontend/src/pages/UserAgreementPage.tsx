@@ -25,7 +25,7 @@ export default function UserAgreementPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <FileText size={20} className="text-orange-400" />
-              <h2 className="text-white font-semibold">{t('terms_of_service') || '服務條款'}</h2>
+              <h2 className="text-white font-semibold">{t('terms_of_service')}</h2>
             </div>
             <div className="text-gray-300 text-sm leading-relaxed space-y-3">
               <Section title={t('terms_section_1_title') || '1. 服務說明'}>
@@ -58,7 +58,7 @@ export default function UserAgreementPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Shield size={20} className="text-green-400" />
-              <h2 className="text-white font-semibold">{t('privacy_policy') || '隱私政策'}</h2>
+              <h2 className="text-white font-semibold">{t('privacy_policy')}</h2>
             </div>
             <div className="text-gray-300 text-sm leading-relaxed space-y-3">
               <Section title={t('privacy_section_1_title') || '1. 信息收集'}>
@@ -81,7 +81,7 @@ export default function UserAgreementPage() {
             <div className="flex items-start gap-3">
               <AlertCircle size={20} className="text-yellow-400 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-yellow-400 font-semibold mb-2">{t('risk_warning') || '風險提示'}</h3>
+                <h3 className="text-yellow-400 font-semibold mb-2">{t('risk_warning')}</h3>
                 <ul className="text-gray-300 text-sm space-y-2">
                   <li>• {t('risk_warning_1') || '數字貨幣交易存在價格波動風險，請謹慎投資'}</li>
                   <li>• {t('risk_warning_2') || '請妥善保管您的賬戶和密碼，避免被盜用'}</li>
@@ -94,7 +94,7 @@ export default function UserAgreementPage() {
 
           {/* 更新日期 */}
           <div className="text-center text-gray-500 text-xs py-4">
-            {t('last_updated') || '最後更新'}：2024-12-10
+            {t('last_updated')}：2024-12-10
           </div>
         </div>
       </div>

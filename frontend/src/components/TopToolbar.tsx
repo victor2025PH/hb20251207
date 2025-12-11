@@ -88,19 +88,19 @@ export default function TopToolbar() {
                 className="block w-full px-4 py-2 text-left text-sm text-gray-200 hover:bg-white/10"
                 onClick={() => { setLanguage('zh-TW'); setShowLangMenu(false); playSound('click'); }}
               >
-                繁體中文
+                {t('lang_zh_tw')}
               </button>
               <button
                 className="block w-full px-4 py-2 text-left text-sm text-gray-200 hover:bg-white/10"
                 onClick={() => { setLanguage('zh-CN'); setShowLangMenu(false); playSound('click'); }}
               >
-                简体中文
+                {t('lang_zh_cn')}
               </button>
               <button
                 className="block w-full px-4 py-2 text-left text-sm text-gray-200 hover:bg-white/10"
                 onClick={() => { setLanguage('en'); setShowLangMenu(false); playSound('click'); }}
               >
-                English
+                {t('lang_en')}
               </button>
             </motion.div>
           )}
@@ -149,7 +149,7 @@ export default function TopToolbar() {
             animate={{ opacity: 1, x: 0 }}
             className="text-xs text-gray-400 whitespace-nowrap group-hover:text-white transition-colors"
           >
-            {showMessagesPanel ? '關閉消息' : '打開消息'}
+            {showMessagesPanel ? t('close_messages') : t('open_messages')}
           </motion.span>
         </button>
       </div>

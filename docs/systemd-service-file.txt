@@ -1,0 +1,39 @@
+[Unit]
+Description=LuckyRed MiniApp API Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/hbgm001
+Environment="PATH=/home/ubuntu/hbgm001/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/ubuntu/hbgm001"
+EnvironmentFile=/home/ubuntu/hbgm001/.env
+
+# 启动命令
+ExecStart=/home/ubuntu/hbgm001/.venv/bin/python3 -m uvicorn api.main:app --host 127.0.0.1 --port 8080 --workers 4
+
+# 重启策略
+Restart=always
+RestartSec=5
+StartLimitInterval=200
+StartLimitBurst=5
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=luckyred-api
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# ProtectHome=true 会导致无法执行 /home 目录下的文件，改为 false
+ProtectHome=false
+ReadWritePaths=/home/ubuntu/hbgm001
+
+[Install]
+WantedBy=multi-user.target
+

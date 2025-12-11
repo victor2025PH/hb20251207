@@ -122,8 +122,11 @@ function MenuItem({ icon: Icon, title, onClick }: {
     e.stopPropagation()
     console.log('[MenuItem] Button clicked:', title)
     try {
-      onClick()
-      console.log('[MenuItem] onClick handler executed successfully')
+      // 使用 setTimeout 确保导航在下一个事件循环中执行
+      setTimeout(() => {
+        onClick()
+        console.log('[MenuItem] onClick handler executed successfully')
+      }, 0)
     } catch (error) {
       console.error('[MenuItem] Error in onClick handler:', error)
     }

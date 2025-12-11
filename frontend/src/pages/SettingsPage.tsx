@@ -23,23 +23,23 @@ export default function SettingsPage() {
     mutationFn: updateNotificationSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification-settings'] })
-      showAlert('設置已保存', 'success')
+      showAlert(t('settings_saved'), 'success')
     },
     onError: () => {
-      showAlert('保存失敗', 'error')
+      showAlert(t('save_failed'), 'error')
     },
   })
 
   // 語言選項
   const languages = [
-    { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
-    { code: 'zh-CN', name: '简体中文', flag: '🇨🇳' },
-    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'zh-TW', nameKey: 'lang_zh_tw', flag: '🇹🇼' },
+    { code: 'zh-CN', nameKey: 'lang_zh_cn', flag: '🇨🇳' },
+    { code: 'en', nameKey: 'lang_en', flag: '🇺🇸' },
   ]
 
   const handleLanguageChange = (langCode: string) => {
     setLanguage(langCode as 'zh-TW' | 'zh-CN' | 'en')
-    showAlert('語言已切換', 'success')
+    showAlert(t('language_changed'), 'success')
   }
 
   const handleNotificationToggle = (
@@ -71,7 +71,7 @@ export default function SettingsPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Globe size={20} className="text-orange-400" />
-              <h2 className="text-white font-semibold">{t('language') || '語言設置'}</h2>
+              <h2 className="text-white font-semibold">{t('language_settings')}</h2>
             </div>
             <div className="space-y-2">
               {languages.map((lang) => (
@@ -86,7 +86,7 @@ export default function SettingsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{lang.flag}</span>
-                    <span className="text-white">{lang.name}</span>
+                    <span className="text-white">{t(lang.nameKey)}</span>
                   </div>
                   {language === lang.code && (
                     <div className="w-2 h-2 rounded-full bg-orange-500" />
@@ -100,24 +100,24 @@ export default function SettingsPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Bell size={20} className="text-orange-400" />
-              <h2 className="text-white font-semibold">{t('notifications') || '通知設置'}</h2>
+              <h2 className="text-white font-semibold">{t('notifications')}</h2>
             </div>
             <div className="space-y-3">
               <SettingToggle
-                label={t('red_packet_notifications') || '紅包通知'}
-                description={t('red_packet_notifications_desc') || '接收紅包領取和發送通知'}
+                label={t('red_packet_notifications')}
+                description={t('red_packet_notifications_desc')}
                 checked={notificationSettings?.red_packet_notifications ?? true}
                 onChange={(checked) => handleNotificationToggle('red_packet_notifications', checked)}
               />
               <SettingToggle
-                label={t('balance_notifications') || '餘額變動通知'}
-                description={t('balance_notifications_desc') || '接收充值、提現和交易通知'}
+                label={t('balance_notifications')}
+                description={t('balance_notifications_desc')}
                 checked={notificationSettings?.balance_notifications ?? true}
                 onChange={(checked) => handleNotificationToggle('balance_notifications', checked)}
               />
               <SettingToggle
-                label={t('game_notifications') || '遊戲通知'}
-                description={t('game_notifications_desc') || '接收遊戲獎勵和活動通知'}
+                label={t('game_notifications')}
+                description={t('game_notifications_desc')}
                 checked={notificationSettings?.game_notifications ?? true}
                 onChange={(checked) => handleNotificationToggle('game_notifications', checked)}
               />
@@ -128,20 +128,20 @@ export default function SettingsPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Moon size={20} className="text-orange-400" />
-              <h2 className="text-white font-semibold">{t('other_settings') || '其他設置'}</h2>
+              <h2 className="text-white font-semibold">{t('other_settings')}</h2>
             </div>
             <div className="space-y-3">
               <SettingItem
-                label={t('sound_effects') || '音效'}
-                description={t('sound_effects_desc') || '開啟或關閉遊戲音效'}
+                label={t('sound_effects')}
+                description={t('sound_effects_desc')}
                 icon={Volume2}
-                onClick={() => showAlert('音效設置功能開發中', 'info')}
+                onClick={() => showAlert(t('sound_settings_developing'), 'info')}
               />
               <SettingItem
-                label={t('vibration') || '震動'}
-                description={t('vibration_desc') || '開啟或關閉觸覺反饋'}
+                label={t('vibration')}
+                description={t('vibration_desc')}
                 icon={Bell}
-                onClick={() => showAlert('震動設置功能開發中', 'info')}
+                onClick={() => showAlert(t('vibration_settings_developing'), 'info')}
               />
             </div>
           </div>

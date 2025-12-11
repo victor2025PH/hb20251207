@@ -284,7 +284,7 @@ export default function EarnPage() {
                   onClick={() => {
                     // 如果已簽到，顯示提示
                     if (checkInStatus?.checked_today) {
-                      showAlert('今天已簽到，請明天再來', 'info')
+                      showAlert(t('already_checked_in') || `${t('checked_in')}，${t('come_tomorrow')}`, 'info')
                       return
                     }
                     // 如果正在簽到中，不執行

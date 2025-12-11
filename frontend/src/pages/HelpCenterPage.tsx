@@ -29,7 +29,7 @@ export default function HelpCenterPage() {
   const faqCategories = [
     {
       id: 'redpacket',
-      title: t('red_packet_help') || '紅包相關',
+      title: t('red_packet_help'),
       icon: Gift,
       items: [
         {
@@ -44,19 +44,19 @@ export default function HelpCenterPage() {
         },
         {
           id: 'rp3',
-          question: t('faq_redpacket_3_q') || '紅包炸彈是什麼？',
-          answer: t('faq_redpacket_3_a') || '紅包炸彈是一種特殊玩法，領取到指定數字（0-9）的用戶會被扣除一定金額作為懲罰。其他用戶可以獲得更多獎勵。',
+          question: t('faq_redpacket_3_q'),
+          answer: t('faq_redpacket_3_a'),
         },
         {
           id: 'rp4',
-          question: t('faq_redpacket_4_q') || '紅包過期了怎麼辦？',
-          answer: t('faq_redpacket_4_a') || '過期的紅包會自動退還給發送者。您可以在錢包頁面查看退款記錄。',
+          question: t('faq_redpacket_4_q'),
+          answer: t('faq_redpacket_4_a'),
         },
       ],
     },
     {
       id: 'wallet',
-      title: t('wallet_help') || '錢包相關',
+      title: t('wallet_help'),
       icon: Wallet,
       items: [
         {
@@ -76,14 +76,14 @@ export default function HelpCenterPage() {
         },
         {
           id: 'w4',
-          question: t('faq_wallet_4_q') || '充值多久到賬？',
-          answer: t('faq_wallet_4_a') || '充值到賬時間取決於區塊鏈網絡確認速度。USDT（TRC20）通常需要 1-3 分鐘，TON 需要 1-5 分鐘，ERC20 需要 5-15 分鐘。',
+          question: t('faq_wallet_4_q'),
+          answer: t('faq_wallet_4_a'),
         },
       ],
     },
     {
       id: 'game',
-      title: t('game_help') || '遊戲相關',
+      title: t('game_help'),
       icon: Gamepad2,
       items: [
         {
@@ -98,14 +98,14 @@ export default function HelpCenterPage() {
         },
         {
           id: 'g3',
-          question: t('faq_game_3_q') || '遊戲獎勵如何領取？',
-          answer: t('faq_game_3_a') || '遊戲獲勝後，獎勵會自動發放到您的賬戶餘額中。您可以在錢包頁面查看餘額變化。',
+          question: t('faq_game_3_q'),
+          answer: t('faq_game_3_a'),
         },
       ],
     },
     {
       id: 'security',
-      title: t('security_help') || '安全相關',
+      title: t('security_help'),
       icon: Shield,
       items: [
         {
@@ -143,22 +143,22 @@ export default function HelpCenterPage() {
               className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-xl p-4 text-left"
             >
               <Gift size={24} className="text-orange-400 mb-2" />
-              <div className="text-white font-semibold">{t('send_red_packet') || '發送紅包'}</div>
-              <div className="text-gray-400 text-sm mt-1">{t('learn_how_to_send') || '學習如何發送'}</div>
+              <div className="text-white font-semibold">{t('send_red_packet')}</div>
+              <div className="text-gray-400 text-sm mt-1">{t('learn_how_to_send')}</div>
             </button>
             <button
               onClick={() => navigate('/recharge')}
               className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-4 text-left"
             >
               <Wallet size={24} className="text-green-400 mb-2" />
-              <div className="text-white font-semibold">{t('recharge') || '充值'}</div>
-              <div className="text-gray-400 text-sm mt-1">{t('learn_how_to_recharge') || '學習如何充值'}</div>
+              <div className="text-white font-semibold">{t('recharge')}</div>
+              <div className="text-gray-400 text-sm mt-1">{t('learn_how_to_recharge')}</div>
             </button>
           </div>
 
           {/* 常見問題 */}
           <div className="space-y-4">
-            <h2 className="text-white font-bold text-lg">{t('frequently_asked_questions') || '常見問題'}</h2>
+            <h2 className="text-white font-bold text-lg">{t('frequently_asked_questions')}</h2>
             {faqCategories.map((category) => (
               <div key={category.id} className="bg-brand-darker rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-4">
@@ -184,15 +184,15 @@ export default function HelpCenterPage() {
             <div className="flex items-start gap-3">
               <Info size={20} className="text-blue-400 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">{t('need_more_help') || '需要更多幫助？'}</h3>
+                <h3 className="text-white font-semibold mb-2">{t('need_more_help')}</h3>
                 <p className="text-gray-300 text-sm mb-3">
-                  {t('contact_support') || '如果以上問題無法解決您的疑問，請聯繫我們的客服團隊。'}
+                  {t('contact_support')}
                 </p>
                 <button
-                  onClick={() => showAlert('客服功能開發中', 'info')}
+                  onClick={() => showAlert(t('customer_service_developing'), 'info')}
                   className="w-full py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg text-blue-400 font-medium hover:bg-blue-500/30 transition-colors"
                 >
-                  {t('contact_customer_service') || '聯繫客服'}
+                  {t('contact_customer_service')}
                 </button>
               </div>
             </div>

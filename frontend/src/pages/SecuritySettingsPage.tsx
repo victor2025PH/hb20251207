@@ -27,26 +27,26 @@ export default function SecuritySettingsPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Shield size={20} className="text-orange-400" />
-              <h2 className="text-white font-semibold">{t('account_security') || '賬戶安全'}</h2>
+              <h2 className="text-white font-semibold">{t('account_security')}</h2>
             </div>
             <div className="space-y-3">
               <SecurityItem
                 icon={Lock}
-                title={t('login_password') || '登錄密碼'}
-                description={t('login_password_desc') || '設置或修改登錄密碼'}
-                onClick={() => showAlert('密碼設置功能開發中', 'info')}
+                title={t('login_password')}
+                description={t('login_password_desc')}
+                onClick={() => showAlert(t('password_settings_developing'), 'info')}
               />
               <SecurityItem
                 icon={Key}
-                title={t('transaction_password') || '交易密碼'}
-                description={t('transaction_password_desc') || '設置交易密碼，保護您的資金安全'}
-                onClick={() => showAlert('交易密碼設置功能開發中', 'info')}
+                title={t('transaction_password')}
+                description={t('transaction_password_desc')}
+                onClick={() => showAlert(t('transaction_password_settings_developing'), 'info')}
               />
               <SecurityItem
                 icon={Smartphone}
-                title={t('two_factor_auth') || '雙重驗證'}
-                description={t('two_factor_auth_desc') || '啟用雙重驗證，增強賬戶安全性'}
-                onClick={() => showAlert('雙重驗證功能開發中', 'info')}
+                title={t('two_factor_auth')}
+                description={t('two_factor_auth_desc')}
+                onClick={() => showAlert(t('two_factor_auth_developing'), 'info')}
               />
             </div>
           </div>
@@ -55,20 +55,20 @@ export default function SecuritySettingsPage() {
           <div className="bg-brand-darker rounded-xl p-4">
             <div className="flex items-center gap-3 mb-4">
               <Shield size={20} className="text-green-400" />
-              <h2 className="text-white font-semibold">{t('transaction_security') || '交易安全'}</h2>
+              <h2 className="text-white font-semibold">{t('transaction_security')}</h2>
             </div>
             <div className="space-y-3">
               <SecurityItem
                 icon={AlertTriangle}
-                title={t('withdrawal_whitelist') || '提現白名單'}
-                description={t('withdrawal_whitelist_desc') || '設置提現地址白名單，防止資金被盜'}
-                onClick={() => showAlert('提現白名單功能開發中', 'info')}
+                title={t('withdrawal_whitelist')}
+                description={t('withdrawal_whitelist_desc')}
+                onClick={() => showAlert(t('withdrawal_whitelist_developing'), 'info')}
               />
               <SecurityItem
                 icon={CheckCircle}
-                title={t('transaction_limit') || '交易限額'}
-                description={t('transaction_limit_desc') || '設置單筆和每日交易限額'}
-                onClick={() => showAlert('交易限額設置功能開發中', 'info')}
+                title={t('transaction_limit')}
+                description={t('transaction_limit_desc')}
+                onClick={() => showAlert(t('transaction_limit_developing'), 'info')}
               />
             </div>
           </div>
@@ -78,13 +78,13 @@ export default function SecuritySettingsPage() {
             <div className="flex items-start gap-3">
               <AlertTriangle size={20} className="text-yellow-400 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-yellow-400 font-semibold mb-2">{t('security_tips') || '安全提示'}</h3>
+                <h3 className="text-yellow-400 font-semibold mb-2">{t('security_tips')}</h3>
                 <ul className="text-gray-300 text-sm space-y-2">
-                  <li>• {t('security_tip_1') || '請勿將密碼告知他人，包括客服人員'}</li>
-                  <li>• {t('security_tip_2') || '定期更換密碼，建議每3個月更換一次'}</li>
-                  <li>• {t('security_tip_3') || '不要在公共網絡環境下進行交易操作'}</li>
-                  <li>• {t('security_tip_4') || '啟用雙重驗證可以大幅提升賬戶安全性'}</li>
-                  <li>• {t('security_tip_5') || '如發現異常交易，請立即聯繫客服'}</li>
+                  <li>• {t('security_tip_1')}</li>
+                  <li>• {t('security_tip_2')}</li>
+                  <li>• {t('security_tip_3')}</li>
+                  <li>• {t('security_tip_4')}</li>
+                  <li>• {t('security_tip_5')}</li>
                 </ul>
               </div>
             </div>
