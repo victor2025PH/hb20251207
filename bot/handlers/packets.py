@@ -1348,16 +1348,20 @@ async def show_packet_type_selection(query, db_user, currency: str, context=None
                 currency_name = "USDT" if currency == "usdt" else "TON" if currency == "ton" else "能量"
                 balance_warning = t("balance_warning", user=user, currency=currency_name, balance=balance)
             
+            # 获取类型描述
+            random_amount_desc = t('random_amount_desc', user=user)
+            fixed_amount_desc = t('fixed_amount_desc', user=user)
+            
             text = f"""
 ➕ *{send_packet_title} - {currency_upper}*
 
 *{current_balance}* `{balance:.4f}` {currency_upper}{balance_warning}
 
 *{select_type}*
-• 🎲 {random_amount} - 隨機金額分配，領取完成後金額最大的用戶將被標記為"最佳手氣"
-• 💣 {fixed_amount} - 固定金額分配，如果領取金額的小數點後最後一位數字與炸彈數字相同，將觸發炸彈
+• 🎲 {random_amount} - {random_amount_desc}
+• 💣 {fixed_amount} - {fixed_amount_desc}
 
-{select_type}：
+{select_type}:
 """
             
             if use_inline:
@@ -1491,80 +1495,114 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
 
 async def show_count_input(query, db_user, context):
     """顯示數量輸入"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     currency = packet_data.get('currency', 'usdt')
     packet_type = packet_data.get('packet_type', 'random')
     amount = packet_data.get('amount')
     
-    if not amount:
-        await query.answer("請先輸入金額", show_alert=True)
-        return
-    
-    currency_upper = currency.upper()
-    type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
-    
-    # 紅包炸彈只能選擇 5 或 10
-    if packet_type == "equal":
-        text = f"""
-➕ *發紅包 - {currency_upper} - {type_text}*
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        if not amount:
+            await query.answer(t("please_enter_amount_first", user=user), show_alert=True)
+            return
+        
+        # 在会话内获取翻译文本
+        currency_upper = currency.upper()
+        send_packet_title = t('send_packet_title', user=user)
+        random_amount_text = t('random_amount', user=user)
+        fixed_amount_text = t('fixed_amount', user=user)
+        type_text = random_amount_text if packet_type == "random" else fixed_amount_text
+        amount_label = t('amount_label', user=user)
+        select_packet_count = t('select_packet_count', user=user)
+        select_packet_count_range = t('select_packet_count_range', user=user)
+        bomb_count_restriction = t('bomb_count_restriction', user=user)
+        double_thunder = t('double_thunder', user=user)
+        single_thunder = t('single_thunder', user=user)
+        custom_count = t('custom_count', user=user)
+        return_text = t('return_main', user=user)
+        shares_text = t('shares', user=user)
+        
+        # 紅包炸彈只能選擇 5 或 10
+        if packet_type == "equal":
+            text = f"""
+➕ *{send_packet_title} - {currency_upper} - {type_text}*
 
-*金額：* `{amount}` {currency_upper}
+*{amount_label}* `{amount}` {currency_upper}
 
-請選擇紅包數量：
-💣 紅包炸彈只能選擇 5 份（雙雷）或 10 份（單雷）
+{select_packet_count}
+{bomb_count_restriction}
 """
-        keyboard = [
-            [
-                InlineKeyboardButton("5 份（雙雷）", callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:5"),
-                InlineKeyboardButton("10 份（單雷）", callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:10"),
-            ],
-            [
-                InlineKeyboardButton("◀️ 返回", callback_data=f"packets:send:amount:{currency}:{packet_type}"),
-            ],
-        ]
-    else:
-        text = f"""
-➕ *發紅包 - {currency_upper} - {type_text}*
-
-*金額：* `{amount}` {currency_upper}
-
-請選擇紅包數量（1-100）：
-"""
-        keyboard = [
-            [
-                InlineKeyboardButton("5", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:5"),
-                InlineKeyboardButton("10", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:10"),
-                InlineKeyboardButton("20", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:20"),
-            ],
-            [
-                InlineKeyboardButton("📝 自定義數量", callback_data=f"packets:send:count_custom:{currency}:{packet_type}:{amount}"),
-            ],
-            [
-                InlineKeyboardButton("◀️ 返回", callback_data=f"packets:send:amount:{currency}:{packet_type}"),
-            ],
-        ]
-    
-    # 检查消息是否需要更新，避免"Message is not modified"错误
-    try:
-        await query.edit_message_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    except Exception as e:
-        error_msg = str(e)
-        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-            # 消息内容相同，只需要响应点击即可
-            await query.answer("已選擇", show_alert=False)
-            logger.debug(f"Message not modified for count input, user {db_user.tg_id}")
+            keyboard = [
+                [
+                    InlineKeyboardButton(f"5 {shares_text}（{double_thunder}）", callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:5"),
+                    InlineKeyboardButton(f"10 {shares_text}（{single_thunder}）", callback_data=f"packets:send:bomb:{currency}:{packet_type}:{amount}:10"),
+                ],
+                [
+                    InlineKeyboardButton(return_text, callback_data=f"packets:send:amount:{currency}:{packet_type}"),
+                ],
+            ]
         else:
-            # 其他错误，重新抛出
-            logger.error(f"Error editing message in show_count_input: {e}", exc_info=True)
-            raise
+            text = f"""
+➕ *{send_packet_title} - {currency_upper} - {type_text}*
+
+*{amount_label}* `{amount}` {currency_upper}
+
+{select_packet_count_range}
+"""
+            keyboard = [
+                [
+                    InlineKeyboardButton("5", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:5"),
+                    InlineKeyboardButton("10", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:10"),
+                    InlineKeyboardButton("20", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}:20"),
+                ],
+                [
+                    InlineKeyboardButton(f"📝 {custom_count}", callback_data=f"packets:send:count_custom:{currency}:{packet_type}:{amount}"),
+                ],
+                [
+                    InlineKeyboardButton(return_text, callback_data=f"packets:send:amount:{currency}:{packet_type}"),
+                ],
+            ]
+    
+        # 在会话外发送消息（text 和 keyboard 已经在会话内生成）
+        # 检查消息是否需要更新，避免"Message is not modified"错误
+        try:
+            await query.edit_message_text(
+                text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        except Exception as e:
+            error_msg = str(e)
+            if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+                # 消息内容相同，只需要响应点击即可
+                await query.answer(t("selected", user=user) if t("selected", user=user) != "selected" else "已選擇", show_alert=False)
+                logger.debug(f"Message not modified for count input, user {db_user.tg_id}")
+            else:
+                # 其他错误，重新抛出
+                logger.error(f"Error editing message in show_count_input: {e}", exc_info=True)
+                raise
 
 
 async def show_bomb_number_selection(query, db_user, context):
     """顯示炸彈數字選擇"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     currency = packet_data.get('currency', 'usdt')
     packet_type = packet_data.get('packet_type', 'random')
@@ -1576,32 +1614,59 @@ async def show_bomb_number_selection(query, db_user, context):
         await show_message_input(query, db_user, context)
         return
     
-    currency_upper = currency.upper()
-    thunder_type = "單雷" if count == 10 else "雙雷"
-    
-    text = f"""
-➕ *發紅包 - {currency_upper} - 紅包炸彈*
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        # 在会话内获取翻译文本
+        currency_upper = currency.upper()
+        send_packet_title = t('send_packet_title', user=user)
+        fixed_amount_text = t('fixed_amount', user=user)
+        amount_label = t('amount_label', user=user)
+        quantity_label = t('quantity_label', user=user)
+        single_thunder = t('single_thunder', user=user)
+        double_thunder = t('double_thunder', user=user)
+        shares_text = t('shares', user=user)
+        thunder_type = single_thunder if count == 10 else double_thunder
+        select_bomb_number = t('select_bomb_number', user=user)
+        bomb_number_hint = t('bomb_number_hint', user=user)
+        return_text = t('return_main', user=user)
+        
+        text = f"""
+➕ *{send_packet_title} - {currency_upper} - {fixed_amount_text}*
 
-*金額：* `{amount}` {currency_upper}
-*數量：* `{count}` 份（{thunder_type}）
+*{amount_label}* `{amount}` {currency_upper}
+*{quantity_label}* `{count}` {shares_text}（{thunder_type}）
 
-請選擇炸彈數字（0-9）：
-如果領取金額的小數點後最後一位數字與炸彈數字相同，將觸發炸彈
+{select_bomb_number}
+{bomb_number_hint}
 """
-    
-    keyboard = []
-    row = []
-    for i in range(10):
-        row.append(InlineKeyboardButton(str(i), callback_data=f"packets:send:message:{currency}:{packet_type}:{amount}:{count}:{i}"))
-        if len(row) == 5:
+        
+        keyboard = []
+        row = []
+        for i in range(10):
+            row.append(InlineKeyboardButton(str(i), callback_data=f"packets:send:message:{currency}:{packet_type}:{amount}:{count}:{i}"))
+            if len(row) == 5:
+                keyboard.append(row)
+                row = []
+        if row:
             keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
-    
-    keyboard.append([
-        InlineKeyboardButton("◀️ 返回", callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}"),
-    ])
+        
+        keyboard.append([
+            InlineKeyboardButton(return_text, callback_data=f"packets:send:count:{currency}:{packet_type}:{amount}"),
+        ])
     
     # 检查消息是否需要更新，避免"Message is not modified"错误
     try:
