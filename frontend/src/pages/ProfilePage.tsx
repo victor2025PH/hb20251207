@@ -30,7 +30,7 @@ export default function ProfilePage() {
   // 确保菜单按钮可以点击
   useEffect(() => {
     if (menuContainerRef.current) {
-      const buttons = menuContainerRef.current.querySelectorAll('button[data-testid^="menu-link"]')
+      const buttons = menuContainerRef.current.querySelectorAll<HTMLButtonElement>('button[data-testid^="menu-link"]')
       buttons.forEach((btn) => {
         // 确保按钮可以接收点击
         btn.style.pointerEvents = 'auto'
