@@ -118,16 +118,37 @@ function MenuLink({ icon: Icon, title, to, navigate }: {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     e.stopPropagation()
+    console.log('=== [MenuLink] 按钮点击开始 ===')
     console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
+    console.log('[MenuLink] 🔵 Current URL:', window.location.href)
+    console.log('[MenuLink] 🔵 Current pathname:', window.location.pathname)
+    console.log('[MenuLink] 🔵 Event details:', {
+      type: e.type,
+      target: e.target,
+      currentTarget: e.currentTarget,
+      button: e.button,
+      bubbles: e.bubbles,
+      cancelable: e.cancelable,
+      defaultPrevented: e.defaultPrevented,
+      isPropagationStopped: e.isPropagationStopped()
+    })
     try {
       console.log('[MenuLink] 🔵 Attempting navigation to:', to)
       navigate(to)
       console.log('[MenuLink] ✅ Navigation executed successfully')
+      console.log('[MenuLink] 🔵 URL after navigation:', window.location.href)
+      console.log('=== [MenuLink] 按钮点击结束 ===')
     } catch (error) {
       console.error('[MenuLink] ❌ Navigation error:', error)
+      console.error('[MenuLink] ❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      })
       // 备用方案：使用 window.location
       console.log('[MenuLink] 🔄 Trying window.location fallback')
       window.location.href = to
+      console.log('=== [MenuLink] 按钮点击结束（使用 fallback）===')
     }
   }
 

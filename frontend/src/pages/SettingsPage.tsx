@@ -11,8 +11,15 @@ export default function SettingsPage() {
   const { t, language, setLanguage } = useTranslation()
   const queryClient = useQueryClient()
 
-  // 调试日志
+  // 详细的调试日志
+  console.log('=== [SettingsPage] 组件开始渲染 ===')
   console.log('[SettingsPage] Component rendered')
+  console.log('[SettingsPage] Current URL:', window.location.href)
+  console.log('[SettingsPage] Current pathname:', window.location.pathname)
+  console.log('[SettingsPage] Current hash:', window.location.hash)
+  console.log('[SettingsPage] Current search:', window.location.search)
+  console.log('[SettingsPage] Language:', language)
+  console.log('[SettingsPage] Translation function available:', typeof t === 'function')
 
   // 獲取通知設置
   const { data: notificationSettings } = useQuery({
@@ -56,6 +63,13 @@ export default function SettingsPage() {
   }
 
   console.log('[SettingsPage] Rendering content')
+  console.log('[SettingsPage] Notification settings:', notificationSettings)
+  console.log('[SettingsPage] Update mutation state:', {
+    isPending: updateMutation.isPending,
+    isError: updateMutation.isError,
+    isSuccess: updateMutation.isSuccess
+  })
+  console.log('=== [SettingsPage] 组件渲染完成 ===')
 
   return (
     <div className="h-full flex flex-col bg-brand-dark">
