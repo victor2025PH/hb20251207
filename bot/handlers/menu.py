@@ -202,7 +202,7 @@ async def show_packets_menu(query, db_user):
     from shared.database.connection import get_db
     from shared.database.models import User
     
-    # 在会话内重新查询用户以确保数据最新
+    # 在会话内重新查询用户以确保数据最新，并在会话内完成所有操作
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
@@ -212,6 +212,12 @@ async def show_packets_menu(query, db_user):
                 if hasattr(query, 'message') and query.message:
                     await query.message.reply_text("發生錯誤，請稍後再試")
             return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language
+        _ = user.interaction_mode
         
         # 在会话内获取翻译文本
         packets_center_text = t('packets_center', user=user)
@@ -225,6 +231,9 @@ async def show_packets_menu(query, db_user):
         send_packet_desc = t('send_packet_desc', user=user)
         my_packets_desc = t('my_packets_desc', user=user)
         
+        # 在会话内生成键盘（get_packets_menu 内部会调用 t()，需要访问 user 属性）
+        reply_markup = get_packets_menu(user=user)
+        
         text = f"""
 🧧 *{packets_center_text}*
 
@@ -236,10 +245,11 @@ async def show_packets_menu(query, db_user):
 {select_operation_text}:
 """
     
+    # 在会话外发送消息（reply_markup 已经在会话内生成）
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=get_packets_menu(user=user),
+        reply_markup=reply_markup,
     )
 
 
