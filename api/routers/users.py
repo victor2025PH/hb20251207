@@ -75,6 +75,49 @@ async def get_user_balance(
     )
 
 
+@router.get("/debug/initdata")
+async def debug_initdata(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """调试端点：检查 initData 是否正确传递"""
+    from api.utils.telegram_auth import parse_telegram_init_data, check_auth_date_validity
+    from shared.config.settings import get_settings
+    
+    settings = get_settings()
+    
+    # 获取所有可能的请求头
+    headers = dict(request.headers)
+    init_data_header = request.headers.get("X-Telegram-Init-Data") or request.headers.get("x-telegram-init-data")
+    
+    result = {
+        "has_initdata_header": bool(init_data_header),
+        "initdata_length": len(init_data_header) if init_data_header else 0,
+        "all_headers_keys": list(headers.keys()),
+        "telegram_headers": {k: v[:100] + "..." if len(v) > 100 else v 
+                            for k, v in headers.items() 
+                            if "telegram" in k.lower() or "init" in k.lower()},
+    }
+    
+    if init_data_header:
+        # 解析 initData
+        user_data = parse_telegram_init_data(init_data_header)
+        auth_date_valid, auth_date = check_auth_date_validity(init_data_header)
+        
+        result.update({
+            "initdata_preview": init_data_header[:200] + "..." if len(init_data_header) > 200 else init_data_header,
+            "parsed_user_data": user_data,
+            "auth_date_valid": auth_date_valid,
+            "auth_date": auth_date,
+            "bot_token_configured": bool(settings.BOT_TOKEN),
+            "bot_token_length": len(settings.BOT_TOKEN) if settings.BOT_TOKEN else 0,
+        })
+    else:
+        result["error"] = "No X-Telegram-Init-Data header found"
+    
+    return result
+
+
 @router.get("/me")
 async def get_my_profile(
     db: AsyncSession = Depends(get_db_session),
