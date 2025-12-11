@@ -63,26 +63,39 @@ export default function ProfilePage() {
       </div>
 
       {/* 菜單列表 */}
-      <div className="space-y-2 relative" style={{ zIndex: 100 }}>
+      <div 
+        className="space-y-2 relative" 
+        style={{ 
+          zIndex: 1000,
+          position: 'relative',
+          pointerEvents: 'auto'
+        }}
+        onMouseEnter={() => console.log('[ProfilePage] 🟢 Menu container mouse enter')}
+        onMouseLeave={() => console.log('[ProfilePage] 🔴 Menu container mouse leave')}
+      >
         <MenuLink
           icon={Settings}
           title={t('settings')}
           to="/settings"
+          navigate={navigate}
         />
         <MenuLink
           icon={Shield}
           title={t('security_settings')}
           to="/security"
+          navigate={navigate}
         />
         <MenuLink
           icon={HelpCircle}
           title={t('help_center')}
           to="/help"
+          navigate={navigate}
         />
         <MenuLink
           icon={FileText}
           title={t('user_agreement')}
           to="/agreement"
+          navigate={navigate}
         />
         <MenuItem
           icon={MessageSquare}
@@ -103,35 +116,69 @@ export default function ProfilePage() {
   )
 }
 
-// 使用 Link 的菜单项（用于导航）
-function MenuLink({ icon: Icon, title, to }: {
+// 使用按钮 + navigate 的菜单项（用于导航，更可靠）
+function MenuLink({ icon: Icon, title, to, navigate }: {
   icon: React.ElementType
   title: string
   to: string
+  navigate: (path: string) => void
 }) {
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    console.log('[MenuLink] Link clicked:', title, 'to:', to)
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
+    console.log('[MenuLink] 🔵 Event details:', {
+      type: e.type,
+      target: e.target,
+      currentTarget: e.currentTarget,
+      button: e.button,
+      bubbles: e.bubbles,
+      cancelable: e.cancelable
+    })
+    
+    try {
+      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
+      navigate(to)
+      console.log('[MenuLink] ✅ Navigation executed successfully')
+    } catch (error) {
+      console.error('[MenuLink] ❌ Navigation error:', error)
+      // 备用方案：使用 window.location
+      console.log('[MenuLink] 🔄 Trying window.location fallback')
+      window.location.href = to
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[MenuLink] 🟢 MouseDown event:', title)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
+    console.log('[MenuLink] 🟡 TouchStart event:', title)
   }
 
   return (
-    <Link
-      to={to}
+    <button
+      type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer block"
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
       style={{ 
         pointerEvents: 'auto', 
         position: 'relative',
-        zIndex: 100,
+        zIndex: 1000,
         isolation: 'isolate',
-        textDecoration: 'none'
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation'
       }}
+      data-testid={`menu-link-${to.replace('/', '')}`}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
         <span className="text-white">{title}</span>
       </div>
       <ChevronRight size={18} className="text-gray-500" />
-    </Link>
+    </button>
   )
 }
 
