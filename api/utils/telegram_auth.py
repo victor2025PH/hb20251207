@@ -14,9 +14,10 @@ from shared.config.settings import get_settings
 
 settings = get_settings()
 
-# auth_date 有效期（秒），默认 24 小时
+# auth_date 有效期（秒），默认 48 小时
 # 注意：Telegram Desktop 客户端可能缓存 initData，所以需要较长的有效期
-AUTH_DATE_VALIDITY = 86400  # 24 小时
+# 延长到 48 小时以应对客户端缓存问题
+AUTH_DATE_VALIDITY = 172800  # 48 小时
 
 
 def parse_telegram_init_data(init_data: str) -> Optional[dict]:
@@ -60,6 +61,11 @@ def check_auth_date_validity(init_data: str) -> tuple[bool, Optional[int]]:
         
         if not auth_date_str:
             logger.warning("[Telegram Auth] initData 中沒有 auth_date 字段")
+            # 如果没有 auth_date，在某些情况下（如开发环境）可以允许通过
+            # 但生产环境应该拒绝
+            if not settings.BOT_TOKEN:
+                logger.warning("[Telegram Auth] 開發環境：允許沒有 auth_date 的 initData（僅用於調試）")
+                return True, None
             return False, None
         
         try:
