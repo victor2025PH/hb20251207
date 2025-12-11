@@ -324,7 +324,6 @@ Hi {user.first_name}！
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
                 )
                 logger.info(f"✓ Inline keyboard sent successfully to user {user.id} (inline mode, no bottom keyboard)")
-            logger.info(f"✓ Reply keyboard sent successfully to user {user.id}")
         except Exception as e:
             logger.error(f"✗ Error sending keyboard to user {user.id}: {e}", exc_info=True)
             await update.message.reply_text(welcome_text, parse_mode="Markdown")
