@@ -224,18 +224,48 @@ async def handle_group_input(update, db_user, text, context):
         message = packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)
         bomb_number = packet_data.get('bomb_number')
         
-        text = f"""
-✅ *確認發送紅包*
+        # 在会话内重新查询用户以确保数据最新
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if not user:
+                await update.message.reply_text(t("error", user=db_user))
+                return
+            
+            # 在会话内访问所有需要的属性
+            _ = user.id
+            _ = user.tg_id
+            _ = user.language_code
+            
+            # 在会话内获取翻译文本
+            confirm_send_packet_text = t('confirm_send_packet', user=user)
+            packet_info_text = t('packet_info', user=user)
+            currency_label = t('currency_label', user=user)
+            type_label = t('type_label', user=user)
+            amount_label = t('amount_label', user=user)
+            quantity_label = t('quantity_label', user=user)
+            blessing_label = t('blessing_label', user=user)
+            group_id_label = t('group_id_label', user=user)
+            please_confirm_send_text = t('please_confirm_send', user=user)
+            random_amount_text = t('random_amount', user=user)
+            fixed_amount_text = t('fixed_amount', user=user)
+            shares_text = t('shares', user=user)
+            confirm_send = t('confirm_send', user=user)
+            cancel_text = t('cancel', user=user)
+            
+            type_text = random_amount_text if packet_type == "random" else fixed_amount_text
+            
+            text = f"""
+{confirm_send_packet_text}
 
-*紅包信息：*
-• 幣種：{currency.upper()}
-• 類型：{"手氣最佳" if packet_type == "random" else "紅包炸彈"}
-• 金額：{amount} {currency.upper()}
-• 數量：{count} 份
-• 祝福語：{message}
-• 群組 ID：{chat_id}
+*{packet_info_text}*
+• {currency_label}{currency.upper()}
+• {type_label}{type_text}
+• {amount_label}{amount} {currency.upper()}
+• {quantity_label}{count} {shares_text}
+• {blessing_label}{message}
+• {group_id_label}{chat_id}
 
-請確認是否發送：
+{please_confirm_send_text}
 """
         
         # 检查是否应该使用内联按钮
@@ -267,8 +297,8 @@ async def handle_group_input(update, db_user, text, context):
             
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ 確認發送", callback_data=confirm_callback),
-                    InlineKeyboardButton("❌ 取消", callback_data="menu:packets"),
+                    InlineKeyboardButton(confirm_send, callback_data=confirm_callback),
+                    InlineKeyboardButton(cancel_text, callback_data="menu:packets"),
                 ],
             ]
             await update.message.reply_text(
@@ -1857,6 +1887,8 @@ async def show_group_search(query, db_user, context):
 
 async def show_group_selection(query, db_user, context):
     """顯示群組選擇"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     
     # 在會話內獲取用戶發過紅包的群組，並在會話內完成所有操作
@@ -1865,11 +1897,38 @@ async def show_group_selection(query, db_user, context):
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
             try:
-                await query.edit_message_text("發生錯誤，請稍後再試")
+                await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t("error", user=db_user))
             return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        # 在会话内获取翻译文本
+        send_packet_title = t('send_packet_title', user=user)
+        select_group_or_user_text = t('select_group_or_user', user=user)
+        packet_info_text = t('packet_info', user=user)
+        currency_label = t('currency_label', user=user)
+        type_label = t('type_label', user=user)
+        amount_label = t('amount_label', user=user)
+        quantity_label = t('quantity_label', user=user)
+        blessing_label = t('blessing_label', user=user)
+        random_amount_text = t('random_amount', user=user)
+        fixed_amount_text = t('fixed_amount', user=user)
+        shares_text = t('shares', user=user)
+        method_one = t('method_one', user=user)
+        method_two = t('method_two', user=user)
+        use_command_in_group = t('use_command_in_group', user=user)
+        use_command_in_target_group = t('use_command_in_target_group', user=user)
+        select_sent_packet_groups = t('select_sent_packet_groups', user=user)
+        enter_group_link_id = t('enter_group_link_id', user=user)
+        return_text = t('return_main', user=user)
+        
+        type_text = random_amount_text if packet_data.get('packet_type') == "random" else fixed_amount_text
         
         # 在会话内查询红包（最近发送的群组）
         packets = db.query(RedPacket).filter(
@@ -1883,19 +1942,19 @@ async def show_group_selection(query, db_user, context):
         ).order_by(RedPacketClaim.claimed_at.desc()).limit(10).all()
         
         text = f"""
-➕ *發紅包 - 選擇群組或用戶*
+➕ *{send_packet_title} - {select_group_or_user_text}*
 
-*紅包信息：*
-• 幣種：{packet_data.get('currency', 'usdt').upper()}
-• 類型：{"手氣最佳" if packet_data.get('packet_type') == "random" else "紅包炸彈"}
-• 金額：{packet_data.get('amount')} {packet_data.get('currency', 'usdt').upper()}
-• 數量：{packet_data.get('count')} 份
-• 祝福語：{packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)}
+*{packet_info_text}*
+• {currency_label}{packet_data.get('currency', 'usdt').upper()}
+• {type_label}{type_text}
+• {amount_label}{packet_data.get('amount')} {packet_data.get('currency', 'usdt').upper()}
+• {quantity_label}{packet_data.get('count')} {shares_text}
+• {blessing_label}{packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)}
 
-*方式一：* 在群組中使用命令
-在目標群組中輸入：`/send <金額> <數量> [祝福語]`
+*{method_one}* {use_command_in_group}
+{use_command_in_target_group}
 
-*方式二：* 選擇已發過紅包的群組或用戶
+*{method_two}* {select_sent_packet_groups}
 """
         
         keyboard = []
@@ -1981,11 +2040,11 @@ async def show_group_selection(query, db_user, context):
             logger.debug(f"Group input callback data too long, using simplified format")
         
         keyboard.append([
-            InlineKeyboardButton("📝 輸入群組鏈接/ID", callback_data=group_input_callback),
+            InlineKeyboardButton(enter_group_link_id, callback_data=group_input_callback),
         ])
         
         keyboard.append([
-            InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+            InlineKeyboardButton(return_text, callback_data="menu:packets"),
         ])
         
         # 在会话内完成所有操作后再发送消息
@@ -2049,42 +2108,74 @@ async def show_group_selection(query, db_user, context):
 
 async def show_group_link_input(query, db_user, context):
     """顯示群組鏈接輸入提示 - 支持只输入用户名（自动补全）"""
+    from bot.utils.i18n import t
+    
     packet_data = context.user_data.get('send_packet', {})
     
-    text = """
-➕ *發紅包 - 輸入群組*
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text(t("error", user=db_user))
+            return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
+        # 在会话内获取翻译文本
+        send_packet_title = t('send_packet_title', user=user)
+        enter_group_id_or_username = t('enter_group_id_or_username', user=user)
+        method_one = t('method_one', user=user)
+        method_two = t('method_two', user=user)
+        enter_group_id_numeric = t('enter_group_id_numeric', user=user)
+        enter_group_username = t('enter_group_username', user=user)
+        group_id_example = t('group_id_example', user=user)
+        group_username_example = t('group_username_example', user=user)
+        group_hint_auto_complete = t('group_hint_auto_complete', user=user)
+        group_hint_use_command = t('group_hint_use_command', user=user)
+        return_text = t('return_main', user=user)
+        
+        text = f"""
+➕ *{send_packet_title} - {enter_group_id_or_username}*
 
-請輸入群組 ID 或群組用戶名：
+{enter_group_id_or_username}
 
-*方式一：* 輸入群組 ID（數字）
-例如：`-1001234567890`
+*{method_one}* {enter_group_id_numeric}
+{group_id_example}
 
-*方式二：* 輸入群組用戶名（自動補全 @ 和 t.me/）
-例如：`groupname` 或 `@groupname` 或 `https://t.me/groupname`
+*{method_two}* {enter_group_username}
+{group_username_example}
 
 💡 提示：
-• 可以直接輸入用戶名（如：`minihb2`），系統會自動補全
-• 也可以在目標群組中直接使用命令 `/send <金額> <數量> [祝福語]`
+• {group_hint_auto_complete}
+• {group_hint_use_command}
 """
-    
-    keyboard = [
-        [
-            InlineKeyboardButton("◀️ 返回", callback_data=f"packets:send:group:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}:{packet_data.get('bomb_number', '')}:{packet_data.get('message', 'default')}"),
-        ],
-    ]
-    
-    try:
-        await query.edit_message_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    except Exception as e:
-        error_msg = str(e)
-        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-            await query.answer("已顯示輸入提示", show_alert=False)
-        else:
-            raise
+        
+        keyboard = [
+            [
+                InlineKeyboardButton(return_text, callback_data=f"packets:send:group:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}:{packet_data.get('bomb_number', '')}:{packet_data.get('message', 'default')}"),
+            ],
+        ]
+        
+        # 在会话外发送消息（text 和 keyboard 已经在会话内生成）
+        try:
+            await query.edit_message_text(
+                text,
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        except Exception as e:
+            error_msg = str(e)
+            if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+                await query.answer(t("displayed", user=user) if t("displayed", user=user) != "displayed" else "已顯示輸入提示", show_alert=False)
+            else:
+                raise
     
     # 設置狀態，等待用戶輸入
     context.user_data['waiting_for_group'] = True
@@ -2127,9 +2218,15 @@ async def confirm_and_send_packet(query, db_user, context):
             await query.answer(error_msg, show_alert=True)
             return
         
+        # 在会话内获取翻译文本
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        
         # 檢查餘額（在會話內）
         if balance < amount:
-            await query.answer(f"餘額不足，當前 {currency.upper()} 餘額: {float(balance):.4f}", show_alert=True)
+            insufficient_balance_text = t('insufficient_balance', user=user)
+            await query.answer(f"{insufficient_balance_text}, {t('current_balance', user=user)} {currency.upper()}: {float(balance):.4f}", show_alert=True)
             return
     
     # 如果沒有選擇群組，提示用戶輸入群組ID

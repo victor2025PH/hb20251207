@@ -93,6 +93,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "use_command_in_group": "在群組中使用命令",
         "use_command_in_target_group": "在目標群組中輸入：`/send <金額> <數量> [祝福語]`",
         "select_sent_packet_groups": "選擇已發過紅包的群組或用戶",
+        "packet_ready": "✅ 紅包已準備好！",
+        "select_or_enter_group": "請選擇或輸入群組：",
         "select_count": "请选择或输入数量：",
         "custom_count": "📝 自定义数量",
         "enter_count": "请输入红包数量（数字）：\n\n例如：20",
