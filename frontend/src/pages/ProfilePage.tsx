@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -12,32 +12,6 @@ export default function ProfilePage() {
   const { t } = useTranslation()
   const tgUser = getTelegramUser()
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const settingsButtonRef = useRef<HTMLButtonElement>(null)
-
-  // 添加全局点击监听器作为备用方案
-  useEffect(() => {
-    console.log('[ProfilePage] 🔧 设置全局点击监听器')
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      // 检查是否点击了设置按钮或其子元素
-      if (settingsButtonRef.current && (target === settingsButtonRef.current || settingsButtonRef.current.contains(target))) {
-        console.log('[ProfilePage] 🌐 全局点击检测到设置按钮！')
-        e.preventDefault()
-        e.stopPropagation()
-        console.log('[ProfilePage] 🌐 执行导航到 /settings')
-        navigate('/settings')
-      }
-    }
-
-    // 在捕获阶段监听，确保能捕获到事件
-    document.addEventListener('click', handleGlobalClick, true)
-    console.log('[ProfilePage] ✅ 全局点击监听器已添加')
-
-    return () => {
-      document.removeEventListener('click', handleGlobalClick, true)
-      console.log('[ProfilePage] 🧹 全局点击监听器已移除')
-    }
-  }, [navigate])
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -91,30 +65,37 @@ export default function ProfilePage() {
 
       {/* 菜單列表 */}
       <div className="space-y-2 relative">
-        <MenuLink
-          ref={settingsButtonRef}
+        <MenuItem
           icon={Settings}
           title={t('settings')}
-          to="/settings"
-          navigate={navigate}
+          onClick={() => {
+            console.log('[ProfilePage] ✅ Settings button clicked')
+            navigate('/settings')
+          }}
         />
-        <MenuLink
+        <MenuItem
           icon={Shield}
           title={t('security_settings')}
-          to="/security"
-          navigate={navigate}
+          onClick={() => {
+            console.log('[ProfilePage] ✅ Security Settings button clicked')
+            navigate('/security')
+          }}
         />
-        <MenuLink
+        <MenuItem
           icon={HelpCircle}
           title={t('help_center')}
-          to="/help"
-          navigate={navigate}
+          onClick={() => {
+            console.log('[ProfilePage] ✅ Help Center button clicked')
+            navigate('/help')
+          }}
         />
-        <MenuLink
+        <MenuItem
           icon={FileText}
           title={t('user_agreement')}
-          to="/agreement"
-          navigate={navigate}
+          onClick={() => {
+            console.log('[ProfilePage] ✅ User Agreement button clicked')
+            navigate('/agreement')
+          }}
         />
         <MenuItem
           icon={MessageSquare}
@@ -135,88 +116,7 @@ export default function ProfilePage() {
   )
 }
 
-// 使用按钮 + navigate 的菜单项（用于导航，完全模仿 MenuItem 的实现）
-const MenuLink = React.forwardRef<HTMLButtonElement, {
-  icon: React.ElementType
-  title: string
-  to: string
-  navigate: (path: string) => void
-}>(({ icon: Icon, title, to, navigate }, ref) => {
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log('=== [MenuLink] 按钮点击开始 ===')
-    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
-    console.log('[MenuLink] 🔵 Current URL:', window.location.href)
-    console.log('[MenuLink] 🔵 Current pathname:', window.location.pathname)
-    console.log('[MenuLink] 🔵 Event details:', {
-      type: e.type,
-      target: e.target,
-      currentTarget: e.currentTarget,
-      button: e.button,
-      bubbles: e.bubbles,
-      cancelable: e.cancelable,
-      defaultPrevented: e.defaultPrevented,
-      isPropagationStopped: e.isPropagationStopped()
-    })
-    try {
-      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
-      navigate(to)
-      console.log('[MenuLink] ✅ Navigation executed successfully')
-      console.log('[MenuLink] 🔵 URL after navigation:', window.location.href)
-      console.log('=== [MenuLink] 按钮点击结束 ===')
-    } catch (error) {
-      console.error('[MenuLink] ❌ Navigation error:', error)
-      console.error('[MenuLink] ❌ Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        name: error instanceof Error ? error.name : undefined
-      })
-      // 备用方案：使用 window.location
-      console.log('[MenuLink] 🔄 Trying window.location fallback')
-      window.location.href = to
-      console.log('=== [MenuLink] 按钮点击结束（使用 fallback）===')
-    }
-  }
-
-  return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={handleClick}
-      onMouseDown={(e) => {
-        console.log('[MenuLink] 🟢 MouseDown event:', title)
-      }}
-      onMouseUp={(e) => {
-        console.log('[MenuLink] 🟡 MouseUp event:', title)
-      }}
-      onTouchStart={(e) => {
-        console.log('[MenuLink] 🟠 TouchStart event:', title)
-      }}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
-      style={{ 
-        pointerEvents: 'auto', 
-        position: 'relative',
-        zIndex: 1000,
-        isolation: 'isolate',
-        WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation'
-      }}
-      data-menu-item="true"
-      data-menu-path={to}
-    >
-      <div className="flex items-center gap-3 pointer-events-none">
-        <Icon size={20} className="text-gray-400" />
-        <span className="text-white">{title}</span>
-      </div>
-      <ChevronRight size={18} className="text-gray-500 pointer-events-none" />
-    </button>
-  )
-})
-
-MenuLink.displayName = 'MenuLink'
-
-// 使用按钮的菜单项（用于非导航操作）
+// 统一的菜单项组件（用于所有操作，包括导航和非导航）
 function MenuItem({ icon: Icon, title, onClick }: {
   icon: React.ElementType
   title: string
