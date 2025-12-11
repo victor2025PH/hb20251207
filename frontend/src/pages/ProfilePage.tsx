@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const username = profile?.username || tgUser?.username
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 1 }}>
+    <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 10 }}>
       {/* 用戶卡片 */}
       <div className="bg-gradient-to-br from-brand-red/20 via-brand-darker to-orange-500/20 border border-brand-red/30 rounded-2xl p-4">
         <div className="flex items-center gap-4 mb-4">
@@ -63,43 +63,66 @@ export default function ProfilePage() {
       </div>
 
       {/* 菜單列表 */}
-      <div className="space-y-2">
+      <div className="space-y-2 relative" style={{ zIndex: 100 }}>
         <MenuItem
           icon={Settings}
           title={t('settings')}
           onClick={() => {
-            console.log('[ProfilePage] Navigating to /settings')
-            navigate('/settings')
+            console.log('[ProfilePage] ✅ Settings button clicked, navigating to /settings')
+            try {
+              navigate('/settings')
+              console.log('[ProfilePage] ✅ Navigation to /settings executed')
+            } catch (error) {
+              console.error('[ProfilePage] ❌ Navigation error:', error)
+            }
           }}
         />
         <MenuItem
           icon={Shield}
           title={t('security_settings')}
           onClick={() => {
-            console.log('[ProfilePage] Navigating to /security')
-            navigate('/security')
+            console.log('[ProfilePage] ✅ Security Settings button clicked, navigating to /security')
+            try {
+              navigate('/security')
+              console.log('[ProfilePage] ✅ Navigation to /security executed')
+            } catch (error) {
+              console.error('[ProfilePage] ❌ Navigation error:', error)
+            }
           }}
         />
         <MenuItem
           icon={HelpCircle}
           title={t('help_center')}
           onClick={() => {
-            console.log('[ProfilePage] Navigating to /help')
-            navigate('/help')
+            console.log('[ProfilePage] ✅ Help Center button clicked, navigating to /help')
+            try {
+              navigate('/help')
+              console.log('[ProfilePage] ✅ Navigation to /help executed')
+            } catch (error) {
+              console.error('[ProfilePage] ❌ Navigation error:', error)
+            }
           }}
         />
         <MenuItem
           icon={FileText}
           title={t('user_agreement')}
           onClick={() => {
-            console.log('[ProfilePage] Navigating to /agreement')
-            navigate('/agreement')
+            console.log('[ProfilePage] ✅ User Agreement button clicked, navigating to /agreement')
+            try {
+              navigate('/agreement')
+              console.log('[ProfilePage] ✅ Navigation to /agreement executed')
+            } catch (error) {
+              console.error('[ProfilePage] ❌ Navigation error:', error)
+            }
           }}
         />
         <MenuItem
           icon={MessageSquare}
           title={t('submit_feedback') || '提交反馈'}
-          onClick={() => setShowFeedbackModal(true)}
+          onClick={() => {
+            console.log('[ProfilePage] ✅ Submit Feedback button clicked')
+            setShowFeedbackModal(true)
+          }}
         />
       </div>
 
@@ -133,8 +156,13 @@ function MenuItem({ icon: Icon, title, onClick }: {
     <button
       type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer relative z-50"
-      style={{ pointerEvents: 'auto', position: 'relative' }}
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer"
+      style={{ 
+        pointerEvents: 'auto', 
+        position: 'relative',
+        zIndex: 100,
+        isolation: 'isolate'
+      }}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
