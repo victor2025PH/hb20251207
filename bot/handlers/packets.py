@@ -928,8 +928,12 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 # 标记用户使用的是内联按钮流程
                 context.user_data['use_inline_buttons'] = True
                 
-                # ✅ 只在第一次進入時移除底部鍵盤（不發送消息，避免重複）
-                if not sub_action:
+                # 检查用户当前模式，如果已经是内联模式，就不需要显示提示和移除键盘
+                from bot.utils.mode_helper import get_effective_mode
+                effective_mode = get_effective_mode(db_user, update.effective_chat.type)
+                
+                # ✅ 只在从键盘模式切换到内联模式时移除底部鍵盤（避免重复提示）
+                if not sub_action and effective_mode != "inline":
                     from telegram import ReplyKeyboardRemove
                     try:
                         from bot.utils.i18n import t
@@ -940,10 +944,10 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     except Exception:
                         pass
                 
-                # 如果 sub_action 为空，显示发红包引导界面
+                # 如果 sub_action 为空，显示发红包菜单（不是引导界面）
                 if not sub_action:
-                    logger.info(f"[SEND_PACKET] Showing send packet guide for user {user_id}")
-                    await show_send_packet_guide(query, db_user)
+                    logger.info(f"[SEND_PACKET] Showing send packet menu for user {user_id}")
+                    await show_send_packet_menu(query, db_user, use_inline_buttons=True)
                 elif sub_action == "type":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     logger.info(f"[SEND_PACKET] Showing packet type selection for user {user_id}, currency={currency}")
@@ -1139,10 +1143,16 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"[SEND_PACKET] Error processing callback: {e}", exc_info=True)
         try:
-            # 簡化錯誤處理，直接發送錯誤消息
-            await query.message.reply_text("發生錯誤，請稍後再試")
+            # 簡化錯誤處理，直接發送錯誤消息（使用i18n）
+            from bot.utils.i18n import t
+            error_text = t("error", user=db_user) if db_user else "發生錯誤，請稍後再試"
+            await query.message.reply_text(error_text)
         except Exception as e2:
             logger.error(f"Error in error handler: {e2}", exc_info=True)
+            try:
+                await query.message.reply_text("發生錯誤，請稍後再試")
+            except:
+                pass
 
 
 async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True):
