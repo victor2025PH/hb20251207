@@ -1237,7 +1237,16 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
                     logger.debug(f"Message not modified in show_send_packet_menu, user {db_user.tg_id}")
                 else:
                     logger.error(f"Error editing message in show_send_packet_menu: {e}", exc_info=True)
-                    raise
+                    # 如果编辑失败，尝试发送新消息
+                    try:
+                        await query.message.reply_text(
+                            text,
+                            parse_mode="Markdown",
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                        )
+                    except Exception as e2:
+                        logger.error(f"Error sending new message in show_send_packet_menu: {e2}", exc_info=True)
+                        raise
         else:
             # 底部鍵盤模式 - 只顯示消息，不帶內聯按鈕
             try:
