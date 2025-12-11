@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Settings, ChevronRight, Shield, HelpCircle, FileText, LogOut, MessageSquare } from 'lucide-react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../providers/I18nProvider'
 import { getUserProfile, getBalance } from '../utils/api'
 import { getTelegramUser } from '../utils/telegram'
@@ -12,7 +12,6 @@ export default function ProfilePage() {
   const { t } = useTranslation()
   const tgUser = getTelegramUser()
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
-  const menuContainerRef = useRef<HTMLDivElement>(null)
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -27,18 +26,6 @@ export default function ProfilePage() {
   const displayName = profile?.first_name || tgUser?.first_name || 'User'
   const username = profile?.username || tgUser?.username
 
-  // 确保菜单按钮可以点击
-  useEffect(() => {
-    if (menuContainerRef.current) {
-      const buttons = menuContainerRef.current.querySelectorAll<HTMLButtonElement>('button[data-testid^="menu-link"]')
-      buttons.forEach((btn) => {
-        // 确保按钮可以接收点击
-        btn.style.pointerEvents = 'auto'
-        btn.style.zIndex = '1000'
-        btn.style.position = 'relative'
-      })
-    }
-  }, [])
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4 relative" style={{ zIndex: 10 }}>
@@ -77,34 +64,30 @@ export default function ProfilePage() {
       </div>
 
       {/* 菜單列表 */}
-      <div 
-        ref={menuContainerRef}
-        className="space-y-2 relative" 
-        style={{ 
-          zIndex: 100,
-          position: 'relative',
-          pointerEvents: 'auto'
-        }}
-      >
+      <div className="space-y-2 relative">
         <MenuLink
           icon={Settings}
           title={t('settings')}
           to="/settings"
+          navigate={navigate}
         />
         <MenuLink
           icon={Shield}
           title={t('security_settings')}
           to="/security"
+          navigate={navigate}
         />
         <MenuLink
           icon={HelpCircle}
           title={t('help_center')}
           to="/help"
+          navigate={navigate}
         />
         <MenuLink
           icon={FileText}
           title={t('user_agreement')}
           to="/agreement"
+          navigate={navigate}
         />
         <MenuItem
           icon={MessageSquare}
@@ -125,36 +108,47 @@ export default function ProfilePage() {
   )
 }
 
-// 使用 Link 组件的菜单项（用于导航，最可靠的方式）
-function MenuLink({ icon: Icon, title, to }: {
+// 使用按钮 + navigate 的菜单项（用于导航，完全模仿 MenuItem 的实现）
+function MenuLink({ icon: Icon, title, to, navigate }: {
   icon: React.ElementType
   title: string
   to: string
+  navigate: (path: string) => void
 }) {
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    console.log('[MenuLink] 🔵 Link clicked:', title, 'to:', to)
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('[MenuLink] 🔵 Button clicked:', title, 'to:', to)
+    try {
+      console.log('[MenuLink] 🔵 Attempting navigation to:', to)
+      navigate(to)
+      console.log('[MenuLink] ✅ Navigation executed successfully')
+    } catch (error) {
+      console.error('[MenuLink] ❌ Navigation error:', error)
+      // 备用方案：使用 window.location
+      console.log('[MenuLink] 🔄 Trying window.location fallback')
+      window.location.href = to
+    }
   }
 
   return (
-    <Link
-      to={to}
+    <button
+      type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10 block"
+      className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl active:bg-white/5 transition-colors cursor-pointer hover:bg-white/10"
       style={{ 
         pointerEvents: 'auto', 
         position: 'relative',
         zIndex: 100,
-        isolation: 'isolate',
-        textDecoration: 'none'
+        isolation: 'isolate'
       }}
-      data-testid={`menu-link-${to.replace('/', '')}`}
     >
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-gray-400" />
         <span className="text-white">{title}</span>
       </div>
       <ChevronRight size={18} className="text-gray-500" />
-    </Link>
+    </button>
   )
 }
 
