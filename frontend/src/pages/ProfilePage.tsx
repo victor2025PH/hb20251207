@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Settings, ChevronRight, Shield, HelpCircle, FileText, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -9,12 +9,24 @@ import FeedbackModal from '../components/FeedbackModal'
 import PageTransition from '../components/PageTransition'
 import { useSound } from '../hooks/useSound'
 
+// 版本标识 - 用于确认代码已更新
+const PROFILE_PAGE_VERSION = 'v2.0.0 - 2024-12-11'
+
 export default function ProfilePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { playSound } = useSound()
   const tgUser = getTelegramUser()
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+
+  // 页面加载时输出明显的日志
+  useEffect(() => {
+    console.log('🚀 ========================================')
+    console.log('🚀 ProfilePage 已更新到新版本！')
+    console.log('🚀 版本:', PROFILE_PAGE_VERSION)
+    console.log('🚀 时间:', new Date().toLocaleString())
+    console.log('🚀 ========================================')
+  }, [])
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -80,6 +92,13 @@ export default function ProfilePage() {
   return (
     <PageTransition>
       <div className="h-full overflow-y-auto scrollbar-hide pb-20 p-4 space-y-4">
+        {/* 版本标识 - 临时显示，确认代码已更新 */}
+        <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-2 mb-2 text-center">
+          <div className="text-green-400 text-xs font-bold">
+            ✅ 新版本已加载: {PROFILE_PAGE_VERSION}
+          </div>
+        </div>
+
         {/* 用户卡片 */}
         <div className="bg-gradient-to-br from-brand-red/20 via-brand-darker to-orange-500/20 border border-brand-red/30 rounded-2xl p-4">
           <div className="flex items-center gap-4 mb-4">
@@ -122,7 +141,11 @@ export default function ProfilePage() {
               <button
                 key={index}
                 type="button"
-                onClick={item.action}
+                onClick={(e) => {
+                  console.log('🎯 按钮被点击:', item.title)
+                  console.log('🎯 事件目标:', e.target)
+                  item.action()
+                }}
                 className="w-full flex items-center justify-between p-4 bg-brand-darker rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
               >
                 <div className="flex items-center gap-3">
