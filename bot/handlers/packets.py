@@ -1238,26 +1238,44 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     }
                     context.user_data['send_packet_step'] = 'amount_input'
                     
-                    # 重新在会话内查询用户
+                    # 重新在会话内查询用户并获取翻译文本
                     with get_db() as db:
                         db_user = db.query(User).filter(User.tg_id == user_id).first()
                         if db_user:
-                            await query.edit_message_text(
-                                t("enter_amount", user=db_user),
-                                parse_mode="Markdown"
-                            )
+                            # 在会话内获取所有需要的翻译文本
+                            enter_amount_text = t("enter_amount", user=db_user)
+                            cancel_text = t("cancel", user=db_user)
+                            
+                            # 在会话外发送消息
+                            try:
+                                await query.edit_message_text(
+                                    enter_amount_text,
+                                    parse_mode="Markdown"
+                                )
+                            except:
+                                pass
+                            
                             await query.message.reply_text(
-                                t("enter_amount", user=db_user),
+                                enter_amount_text,
                                 reply_markup=ReplyKeyboardMarkup([[
-                                    KeyboardButton(t("cancel", user=db_user))
+                                    KeyboardButton(cancel_text)
                                 ]], resize_keyboard=True),
                             )
     except Exception as e:
         logger.error(f"[SEND_PACKET] Error processing callback: {e}", exc_info=True)
         try:
-            # 簡化錯誤處理，直接發送錯誤消息（使用i18n）
+            # 在会话内获取错误消息文本
             from bot.utils.i18n import t
-            error_text = t("error", user=db_user) if db_user else "發生錯誤，請稍後再試"
+            error_text = "發生錯誤，請稍後再試"
+            if user_id:
+                try:
+                    with get_db() as db:
+                        error_user = db.query(User).filter(User.tg_id == user_id).first()
+                        if error_user:
+                            error_text = t("error", user=error_user)
+                except:
+                    pass
+            
             await query.message.reply_text(error_text)
         except Exception as e2:
             logger.error(f"Error in error handler: {e2}", exc_info=True)
@@ -1596,7 +1614,7 @@ async def show_count_input(query, db_user, context):
             await query.answer(t("please_enter_amount_first", user=user), show_alert=True)
             return
         
-        # 在会话内获取翻译文本
+        # 在会话内获取翻译文本（所有文本都在会话内获取，避免会话分离错误）
         currency_upper = currency.upper()
         send_packet_title = t('send_packet_title', user=user)
         random_amount_text = t('random_amount', user=user)
@@ -1611,6 +1629,7 @@ async def show_count_input(query, db_user, context):
         custom_count = t('custom_count', user=user)
         return_text = t('return_main', user=user)
         shares_text = t('shares', user=user)
+        selected_text = t('selected', user=user) if t('selected', user=user) != "selected" else "已選擇"
         
         # 紅包炸彈只能選擇 5 或 10
         if packet_type == "equal":
@@ -1652,6 +1671,9 @@ async def show_count_input(query, db_user, context):
                     InlineKeyboardButton(return_text, callback_data=f"packets:send:amount:{currency}:{packet_type}"),
                 ],
             ]
+        
+        # 在会话内获取用户ID（用于日志）
+        user_id_for_log = user.tg_id
     
         # 在会话外发送消息（text 和 keyboard 已经在会话内生成）
         # 检查消息是否需要更新，避免"Message is not modified"错误
@@ -1664,9 +1686,27 @@ async def show_count_input(query, db_user, context):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                # 消息内容相同，只需要响应点击即可
-                await query.answer(t("selected", user=user) if t("selected", user=user) != "selected" else "已選擇", show_alert=False)
-                logger.debug(f"Message not modified for count input, user {db_user.tg_id}")
+                # 消息内容相同，只需要响应点击即可（使用会话内获取的文本）
+                await query.answer(selected_text, show_alert=False)
+                logger.debug(f"Message not modified for count input, user {user_id_for_log}")
+            elif "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
+                # Markdown 解析错误，尝试不使用 Markdown 或转义特殊字符
+                logger.warning(f"Markdown parse error in show_count_input: {e}, trying without Markdown")
+                try:
+                    # 移除 Markdown 格式，使用纯文本
+                    text_plain = text.replace('*', '').replace('`', '').replace('_', '')
+                    await query.edit_message_text(
+                        text_plain,
+                        parse_mode=None,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                    )
+                except Exception as e2:
+                    logger.error(f"Error editing message without Markdown: {e2}", exc_info=True)
+                    # 如果还是失败，发送错误消息
+                    try:
+                        await query.message.reply_text("發生錯誤，請稍後再試")
+                    except:
+                        pass
             else:
                 # 其他错误，重新抛出
                 logger.error(f"Error editing message in show_count_input: {e}", exc_info=True)
