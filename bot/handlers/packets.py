@@ -754,49 +754,77 @@ async def confirm_and_send_from_message(update, db_user, context):
 
 async def show_packets_list(query, db_user):
     """顯示可搶的紅包列表"""
+    from bot.utils.i18n import t
+    
     # 在會話內完成所有操作
     with get_db() as db:
+        # 重新查询用户以确保在会话内
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内访问所有需要的属性
+        _ = user.id
+        _ = user.tg_id
+        _ = user.language_code
+        _ = user.interaction_mode
+        
         # 獲取未過期且未領完的紅包
         packets = db.query(RedPacket).filter(
             RedPacket.status == RedPacketStatus.ACTIVE,
             RedPacket.expires_at > datetime.utcnow()
         ).order_by(RedPacket.created_at.desc()).limit(10).all()
         
+        # 在会话内获取翻译文本
+        view_packets_text = t('view_packets', user=user)
+        no_packets_text = t('no_packets_available', user=user) if t('no_packets_available', user=user) != 'no_packets_available' else "目前沒有可搶的紅包"
+        packets_hint_text = t('packets_list_hint', user=user) if t('packets_list_hint', user=user) != 'packets_list_hint' else "💡 提示：在群組中發送紅包，其他用戶就可以搶了"
+        send_packet_text = t('send_packet', user=user)
+        return_text = t('return_main', user=user)
+        view_full_list_text = t('view_full_list', user=user) if t('view_full_list', user=user) != 'view_full_list' else "📱 查看完整列表"
+        remaining_text = t('remaining', user=user) if t('remaining', user=user) != 'remaining' else "份剩餘"
+        
         # 在会话内访问packet属性
         if not packets:
-            text = """
-📋 *可搶紅包*
+            text = f"""
+📋 *{view_packets_text}*
 
-目前沒有可搶的紅包
+{no_packets_text}
 
-💡 提示：在群組中發送紅包，其他用戶就可以搶了
+{packets_hint_text}
 """
             keyboard = [
                 [
-                    InlineKeyboardButton("➕ 發紅包", callback_data="packets:send"),
+                    InlineKeyboardButton(f"➕ {send_packet_text}", callback_data="packets:send"),
                 ],
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(return_text, callback_data="menu:packets"),
                 ],
             ]
         else:
-            text = "📋 *可搶紅包列表*\n\n"
+            packets_list_text = t('packets_list', user=user) if t('packets_list', user=user) != 'packets_list' else "📋 *可搶紅包列表*"
+            text = f"{packets_list_text}\n\n"
             for i, packet in enumerate(packets[:5], 1):
                 claimed = packet.claimed_count or 0
                 remaining = packet.total_count - claimed
                 text += f"{i}. {packet.message or PacketConstants.DEFAULT_MESSAGE}\n"
                 text += f"   💰 {float(packet.total_amount):.2f} {packet.currency.value.upper()}\n"
-                text += f"   👥 {remaining}/{packet.total_count} 份剩餘\n\n"
+                text += f"   👥 {remaining}/{packet.total_count} {remaining_text}\n\n"
             
             keyboard = [
                 [
-                    InlineKeyboardButton("📱 查看完整列表", web_app=WebAppInfo(url=f"{settings.MINIAPP_URL}/packets")),
+                    InlineKeyboardButton(view_full_list_text, web_app=WebAppInfo(url=f"{settings.MINIAPP_URL}/packets")),
                 ],
                 [
-                    InlineKeyboardButton("➕ 發紅包", callback_data="packets:send"),
+                    InlineKeyboardButton(f"➕ {send_packet_text}", callback_data="packets:send"),
                 ],
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(return_text, callback_data="menu:packets"),
                 ],
             ]
         
