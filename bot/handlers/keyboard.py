@@ -911,8 +911,12 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
                 # 尝试设置为群组输入状态并处理
                 context.user_data['waiting_for_group'] = True
                 context.user_data['send_packet_step'] = 'group_input'
-                # 关键：明确标记这是底部键盘流程
-                context.user_data['use_inline_buttons'] = False
+                # 关键：保持现有的 use_inline_buttons 标志
+                # 如果用户通过内联按钮流程进入，应该保持 True，这样确认发送时也会使用内联按钮
+                # 只有在明确是底部键盘流程时，才设置为 False
+                if 'use_inline_buttons' not in context.user_data:
+                    context.user_data['use_inline_buttons'] = False
+                logger.info(f"Processing group input, keeping use_inline_buttons={context.user_data.get('use_inline_buttons', False)}")
                 from bot.handlers.packets import handle_text_input
                 await handle_text_input(update, context)
                 return
