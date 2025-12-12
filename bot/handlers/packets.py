@@ -114,10 +114,10 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             count = int(text)
             if count <= 0:
-                await update.message.reply_text("數量必須大於0，請重新輸入：")
+                await update.message.reply_text(t('count_must_positive_reenter', user=db_user))
                 return
             if count > PacketConstants.MAX_COUNT:
-                await update.message.reply_text(f"數量不能超過 {PacketConstants.MAX_COUNT}，請重新輸入：")
+                await update.message.reply_text(t('count_exceeded_reenter', user=db_user, max=PacketConstants.MAX_COUNT))
                 return
             
             packet_data['count'] = count
@@ -131,7 +131,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 elif count == 10:
                     packet_data['bomb_number'] = None  # 單雷
                 else:
-                    await update.message.reply_text("紅包炸彈只能選擇 5 份（雙雷）或 10 份（單雷），請重新輸入：")
+                    await update.message.reply_text(t('bomb_count_restriction_reenter', user=db_user))
                     return
                 context.user_data['send_packet'] = packet_data
             
@@ -142,12 +142,12 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             })()
             await show_group_selection(query, db_user, context)
             await update.message.reply_text(
-                "輸入群組 ID 或鏈接：",
+                t('enter_group_link_id', user=db_user),
                 reply_markup=get_send_packet_group_keyboard(),
             )
             return
         except ValueError:
-            await update.message.reply_text("請輸入有效的數字，例如：20")
+            await update.message.reply_text(t('enter_valid_number_example', user=db_user))
             return
     
     # 處理群組 ID 輸入
@@ -202,7 +202,7 @@ async def handle_group_input(update, db_user, text, context):
             except Exception as e:
                 logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
                 await update.message.reply_text(
-                    f"無法獲取群組信息：{str(e)}\n\n請確保：\n1. 群組用戶名正確（已自動補全 @{username}）\n2. Bot 在群組中\n3. 群組有公開 username\n\n也可以輸入：\n• 群組 ID（數字）\n• 完整鏈接：https://t.me/{username}",
+                    t('cannot_get_group_info', user=db_user, error=str(e), username=username),
                     parse_mode="Markdown"
                 )
                 return
@@ -318,7 +318,7 @@ async def handle_group_input(update, db_user, text, context):
             )
     else:
         await update.message.reply_text(
-            "無法識別群組 ID 或鏈接。\n\n請輸入：\n• 群組 ID（數字，例如：-1001234567890）\n• 群組鏈接（例如：https://t.me/groupname 或 @groupname）",
+            t('cannot_identify_group_id', user=db_user),
             parse_mode="Markdown"
         )
 
@@ -434,16 +434,16 @@ async def confirm_and_send_from_message(update, db_user, context):
     chat_id = packet_data.get('chat_id')
     
     if not chat_id:
-        await update.message.reply_text("請選擇或輸入群組")
+        await update.message.reply_text(t('please_select_or_enter_group', user=db_user))
         return
     
     # 驗證參數
     if amount <= 0 or count <= 0:
-        await update.message.reply_text("金額和數量必須大於0")
+        await update.message.reply_text(t('amount_count_must_positive', user=db_user))
         return
     
     if count > PacketConstants.MAX_COUNT:
-        await update.message.reply_text(f"每個紅包最多{PacketConstants.MAX_COUNT}份")
+        await update.message.reply_text(t('max_packets_per_red_packet', user=db_user, max=PacketConstants.MAX_COUNT))
         return
     
     # ========================================
@@ -467,16 +467,7 @@ async def confirm_and_send_from_message(update, db_user, context):
             if bot_status in ['left', 'kicked']:
                 # 机器人不在群组中
                 await update.message.reply_text(
-                    f"""❌ *機器人不在群組中*
-
-機器人需要先加入群組才能發送紅包。
-
-*解決方案：*
-1. 在群組中添加機器人 @{settings.BOT_USERNAME or 'luckyred2025_bot'}
-2. 確保機器人有發送消息的權限
-3. 然後重新嘗試發送紅包
-
-*群組 ID：* `{chat_id}`""",
+                    t('bot_not_in_group', user=db_user, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
                     parse_mode="Markdown"
                 )
                 return
@@ -486,17 +477,7 @@ async def confirm_and_send_from_message(update, db_user, context):
             error_msg = str(e).lower()
             if "chat not found" in error_msg or "bot is not a member" in error_msg or "forbidden" in error_msg:
                 await update.message.reply_text(
-                    f"""❌ *機器人不在群組中*
-
-機器人需要先加入群組才能發送紅包。
-
-*解決方案：*
-1. 確認群組 ID 正確：`{chat_id}`
-2. 在群組中添加機器人 @{settings.BOT_USERNAME or 'luckyred2025_bot'}
-3. 確保機器人有發送消息的權限
-
-💡 *如何添加機器人到群組：*
-• 打開群組設置 → 添加成員 → 搜索機器人""",
+                    t('bot_not_in_group_verify', user=db_user, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
                     parse_mode="Markdown"
                 )
                 return
@@ -504,15 +485,7 @@ async def confirm_and_send_from_message(update, db_user, context):
                 # 其他錯誤也要阻止創建紅包
                 logger.warning(f"Error checking bot membership: {e}")
                 await update.message.reply_text(
-                    f"""❌ *無法驗證機器人權限*
-
-檢查機器人群組權限時出錯。
-
-*請確保：*
-1. 機器人已加入群組
-2. 機器人有發送消息的權限
-
-*群組 ID：* `{chat_id}`""",
+                    t('cannot_verify_bot_permission', user=db_user, chat_id=chat_id),
                     parse_mode="Markdown"
                 )
                 return
@@ -523,15 +496,7 @@ async def confirm_and_send_from_message(update, db_user, context):
             sender_status = sender_member.status
             if sender_status in ['left', 'kicked']:
                 await update.message.reply_text(
-                    f"""❌ *您不在目標群組中*
-
-您需要先加入群組才能發送紅包到該群組。
-
-*解決方案：*
-1. 加入群組
-2. 然後重新嘗試發送紅包
-
-*群組 ID：* `{chat_id}`""",
+                    t('sender_not_in_group', user=db_user, chat_id=chat_id),
                     parse_mode="Markdown"
                 )
                 return
@@ -557,11 +522,7 @@ async def confirm_and_send_from_message(update, db_user, context):
     except Exception as e:
         logger.error(f"Error checking group membership: {e}", exc_info=True)
         await update.message.reply_text(
-            f"""❌ *檢查群組權限失敗*
-
-無法驗證群組成員資格，請稍後再試。
-
-*錯誤：* {str(e)[:100]}""",
+            t('check_group_permission_failed', user=db_user, error=str(e)[:100]),
             parse_mode="Markdown"
         )
         return
@@ -575,12 +536,12 @@ async def confirm_and_send_from_message(update, db_user, context):
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            await update.message.reply_text(t('error_occurred', user=db_user))
             return
         
         balance = getattr(user, f"balance_{currency}", 0) or Decimal(0)
     if balance < amount:
-        await update.message.reply_text(f"餘額不足，當前餘額: {float(balance):.2f}")
+        await update.message.reply_text(t('insufficient_balance_current', user=user, balance=float(balance)))
         return
     
     # 創建紅包
@@ -688,21 +649,29 @@ async def confirm_and_send_from_message(update, db_user, context):
             # 如果機器人不在群組中，提示用戶分享鏈接
             if not bot_in_group:
                 share_link = f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
+                from bot.utils.i18n import t
+                red_packet_created = t('red_packet_created_success', user=user)
+                bot_not_in_group = t('bot_not_in_group_cannot_send', user=user)
+                share_link_label = t('share_link_label', user=user)
+                how_to_share = t('how_to_share', user=user)
+                share_step1 = t('share_step1', user=user)
+                share_step2 = t('share_step2', user=user)
+                share_step3 = t('share_step3', user=user)
                 await update.message.reply_text(
-                    f"""✅ *紅包創建成功！*
+                    f"""{red_packet_created}
 
-⚠️ *機器人不在群組中，無法自動發送紅包消息*
+{bot_not_in_group}
 
-*分享鏈接：*
+{share_link_label}
 `{share_link}`
 
-💡 *如何分享：*
-1. 複製上面的鏈接
-2. 在群組中發送鏈接
-3. 點擊鏈接即可直接打開 MiniApp 搶紅包""",
+{how_to_share}
+{share_step1}
+{share_step2}
+{share_step3}""",
                     parse_mode="Markdown"
                 )
-            # 群組發送失敗不影響紅包創建成功
+            # {t('group_send_failed_not_affect', user=user)}
         
         # 检查是否应该使用内联按钮（根据use_inline_buttons标志）
         use_inline = context.user_data.get('use_inline_buttons', False)
@@ -711,31 +680,49 @@ async def confirm_and_send_from_message(update, db_user, context):
             # 使用内联按钮返回
             keyboard = [
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ],
             ]
+            from bot.utils.i18n import t
+            red_packet_sent = t('red_packet_sent_success', user=user)
+            packet_info = t('packet_info', user=user)
+            uuid_label = t('uuid_label', user=user)
+            amount_label = t('amount_label', user=user)
+            quantity_label = t('quantity_label', user=user)
+            blessing_label = t('blessing_label', user=user)
+            shares_text = t('shares', user=user)
+            red_packet_sent_to_group = t('red_packet_sent_to_group', user=user)
             await update.message.reply_text(
-                f"✅ *紅包發送成功！*\n\n"
-                f"*紅包信息：*\n"
-                f"• UUID: `{packet_uuid}`\n"
-                f"• 金額：{float(amount):.2f} {currency.upper()}\n"
-                f"• 數量：{count} 份\n"
-                f"• 祝福語：{message}\n\n"
-                f"紅包已發送到群組！",
+                f"{red_packet_sent}\n\n"
+                f"*{packet_info}*\n"
+                f"• {uuid_label}`{packet_uuid}`\n"
+                f"• {amount_label}{float(amount):.2f} {currency.upper()}\n"
+                f"• {quantity_label}{count} {shares_text}\n"
+                f"• {blessing_label}{message}\n\n"
+                f"{red_packet_sent_to_group}",
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
         else:
             # 使用底部键盘返回
             from bot.keyboards.reply_keyboards import get_packets_reply_keyboard
+            from bot.utils.i18n import t
+            red_packet_sent = t('red_packet_sent_success', user=user)
+            packet_info = t('packet_info', user=user)
+            uuid_label = t('uuid_label', user=user)
+            amount_label = t('amount_label', user=user)
+            quantity_label = t('quantity_label', user=user)
+            blessing_label = t('blessing_label', user=user)
+            shares_text = t('shares', user=user)
+            red_packet_sent_to_group = t('red_packet_sent_to_group', user=user)
             await update.message.reply_text(
-                f"✅ *紅包發送成功！*\n\n"
-                f"*紅包信息：*\n"
-                f"• UUID: `{packet_uuid}`\n"
-                f"• 金額：{float(amount):.2f} {currency.upper()}\n"
-                f"• 數量：{count} 份\n"
-                f"• 祝福語：{message}\n\n"
-                f"紅包已發送到群組！",
+                f"{red_packet_sent}\n\n"
+                f"*{packet_info}*\n"
+                f"• {uuid_label}`{packet_uuid}`\n"
+                f"• {amount_label}{float(amount):.2f} {currency.upper()}\n"
+                f"• {quantity_label}{count} {shares_text}\n"
+                f"• {blessing_label}{message}\n\n"
+                f"{red_packet_sent_to_group}",
                 parse_mode="Markdown",
                 reply_markup=get_packets_reply_keyboard(user=db_user),
             )
@@ -781,11 +768,11 @@ async def confirm_and_send_from_message(update, db_user, context):
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             keyboard = [
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ],
             ]
             await update.message.reply_text(
-                f"❌ *發送失敗*\n\n{error_msg}",
+                t('send_failed', user=user) + "\n\n" + error_msg,
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -793,7 +780,7 @@ async def confirm_and_send_from_message(update, db_user, context):
             # 使用底部键盘返回
             from bot.keyboards.reply_keyboards import get_packets_reply_keyboard
             await update.message.reply_text(
-                f"❌ *發送失敗*\n\n{error_msg}",
+                t('send_failed', user=user) + "\n\n" + error_msg,
                 parse_mode="Markdown",
                 reply_markup=get_packets_reply_keyboard(user=db_user),
             )
@@ -819,7 +806,7 @@ async def show_packets_list(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -893,7 +880,7 @@ async def show_packets_list(query, db_user):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer("已顯示", show_alert=False)
+                await query.answer(t('displayed', user=user), show_alert=False)
                 logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
@@ -1271,7 +1258,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
         try:
             # 在会话内获取错误消息文本
             from bot.utils.i18n import t
-            error_text = "發生錯誤，請稍後再試"
+            error_text = t('error_occurred', user=db_user)
             if user_id:
                 try:
                     with get_db() as db:
@@ -1316,7 +1303,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
                         error_text = t("error", user=db_user)
                         await query.message.reply_text(error_text)
                     except:
-                        await query.message.reply_text("發生錯誤，請稍後再試")
+                        await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -1368,7 +1355,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
             except Exception as e:
                 error_msg = str(e)
                 if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                    await query.answer("已顯示", show_alert=False)
+                    await query.answer(t('displayed', user=user), show_alert=False)
                     logger.debug(f"Message not modified in show_send_packet_menu, user {db_user.tg_id}")
                 else:
                     logger.error(f"Error editing message in show_send_packet_menu: {e}", exc_info=True)
@@ -1422,7 +1409,7 @@ async def show_packet_type_selection(query, db_user, currency: str, context=None
                     await query.edit_message_text(t("error", user=db_user))
                 except:
                     if hasattr(query, 'message') and query.message:
-                        await query.message.reply_text("發生錯誤，請稍後再試")
+                        await query.message.reply_text(t('error_occurred', user=db_user))
                 return
             
             # 在会话内访问所有需要的属性
@@ -1487,7 +1474,7 @@ async def show_packet_type_selection(query, db_user, currency: str, context=None
                 except Exception as e:
                     error_msg = str(e)
                     if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                        await query.answer("已顯示", show_alert=False)
+                        await query.answer(t('displayed', user=user), show_alert=False)
                         logger.debug(f"Message not modified in show_packet_type_selection, user {db_user.tg_id}")
                     else:
                         raise
@@ -1521,7 +1508,7 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -1583,7 +1570,7 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer("已顯示", show_alert=False)
+                await query.answer(t('displayed', user=user), show_alert=False)
                 logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
@@ -1607,7 +1594,7 @@ async def show_count_input(query, db_user, context):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -1709,7 +1696,7 @@ async def show_count_input(query, db_user, context):
                     logger.error(f"Error editing message without Markdown: {e2}", exc_info=True)
                     # 如果还是失败，发送错误消息
                     try:
-                        await query.message.reply_text("發生錯誤，請稍後再試")
+                        await query.message.reply_text(t('error_occurred', user=db_user))
                     except:
                         pass
             else:
@@ -1741,7 +1728,7 @@ async def show_bomb_number_selection(query, db_user, context):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -1823,7 +1810,7 @@ async def show_message_input(query, db_user, context):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -1905,7 +1892,7 @@ async def show_group_search(query, db_user, context):
                 await query.edit_message_text("發生錯誤，請稍後再試")
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内查询红包
@@ -2123,7 +2110,7 @@ async def show_group_selection(query, db_user, context):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer("已顯示", show_alert=False)
+                await query.answer(t('displayed', user=user), show_alert=False)
                 logger.debug(f"Message not modified in show_group_selection, user {db_user.tg_id}")
             elif "Button_data_invalid" in error_msg or ("button" in error_msg.lower() and "invalid" in error_msg.lower()):
                 # callback_data可能有问题，尝试使用简化的键盘
@@ -2155,7 +2142,7 @@ async def show_group_selection(query, db_user, context):
                     InlineKeyboardButton("📝 輸入群組", callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}"),
                 ])
                 simplified_keyboard.append([
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ])
                 try:
                     await query.edit_message_text(
@@ -2340,7 +2327,7 @@ async def confirm_and_send_packet(query, db_user, context):
                 ])
                 
                 keyboard.append([
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ])
             else:
                 keyboard = [
@@ -2351,7 +2338,7 @@ async def confirm_and_send_packet(query, db_user, context):
                         ),
                     ],
                     [
-                        InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                     ],
                 ]
         
@@ -2470,17 +2457,12 @@ async def confirm_and_send_packet(query, db_user, context):
             # 发送者不在群组，阻止发送
             error_msg = str(e).lower()
             if "user not found" in error_msg or "forbidden" in error_msg:
+                from bot.utils.i18n import t
                 await query.edit_message_text(
-                    f"""❌ *您不在目標群組中*
-
-您需要先加入群組才能發送紅包。
-
-*解決方案：*
-1. 加入群組 `{chat_id}`
-2. 然後重新嘗試發送紅包""",
+                    t('sender_not_in_group_solution', user=db_user, chat_id=chat_id),
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("◀️ 返回", callback_data="menu:packets")
+                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
                     ]])
                 )
                 return
@@ -2489,28 +2471,24 @@ async def confirm_and_send_packet(query, db_user, context):
             sender_in_group = True
     except Exception as e:
         logger.error(f"Error checking group membership: {e}", exc_info=True)
+        from bot.utils.i18n import t
         await query.edit_message_text(
-            f"""❌ *檢查群組權限失敗*
-
-無法驗證群組成員資格，請稍後再試。
-
-*錯誤：* {str(e)[:100]}""",
+            t('check_group_permission_failed', user=db_user, error=str(e)[:100]),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("◀️ 返回", callback_data="menu:packets")
+                InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
             ]])
         )
         return
     
     # 最終檢查
     if not bot_in_group:
+        from bot.utils.i18n import t
         await query.edit_message_text(
-            f"""❌ *機器人不在群組中*
-
-請先將機器人添加到群組 `{chat_id}`""",
+            t('bot_not_in_group_add_first', user=db_user, chat_id=chat_id),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("◀️ 返回", callback_data="menu:packets")
+                InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
             ]])
         )
         return
@@ -2522,7 +2500,8 @@ async def confirm_and_send_packet(query, db_user, context):
         from bot.utils.ui_helpers import show_loading
         
         # 顯示加載狀態
-        await show_loading(query, "正在發送紅包...")
+        from bot.utils.i18n import t
+        await show_loading(query, t('sending_red_packet', user=db_user))
         
         # 清理消息
         message = sanitize_message(message)
@@ -2627,38 +2606,72 @@ async def confirm_and_send_packet(query, db_user, context):
                 share_link = f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
                 # 使用輔助函數格式化信息
                 packet_info = format_packet_info(currency, packet_type, amount, count, bomb_number, message)
+                from bot.utils.i18n import t
+                with get_db() as db:
+                    sender_user = db.query(User).filter(User.tg_id == sender_tg_id).first()
+                    if sender_user:
+                        red_packet_created = t('red_packet_created_success', user=sender_user)
+                        bot_not_in_group = t('bot_not_in_group_cannot_send', user=sender_user)
+                        share_link_label = t('share_link_label', user=sender_user)
+                        how_to_share = t('how_to_share', user=sender_user)
+                        share_step1 = t('share_step1', user=sender_user)
+                        share_step2 = t('share_step2', user=sender_user)
+                        share_step3 = t('share_step3', user=sender_user)
+                    else:
+                        red_packet_created = "✅ *紅包創建成功！*"
+                        bot_not_in_group = "⚠️ *機器人不在群組中，無法自動發送紅包消息*"
+                        share_link_label = "*分享鏈接：*"
+                        how_to_share = "💡 *如何分享：*"
+                        share_step1 = "1. 複製上面的鏈接"
+                        share_step2 = "2. 在群組中發送鏈接"
+                        share_step3 = "3. 點擊鏈接即可直接打開 MiniApp 搶紅包"
+                
                 text = f"""
-✅ *紅包創建成功！*
+{red_packet_created}
 
 {packet_info}
 
-⚠️ *機器人不在群組中，無法自動發送紅包消息*
+{bot_not_in_group}
 
-*分享鏈接：*
+{share_link_label}
 `{share_link}`
 
-💡 *如何分享：*
-1. 複製上面的鏈接
-2. 在群組中發送鏈接
-3. 點擊鏈接即可直接打開 MiniApp 搶紅包"""
+{how_to_share}
+{share_step1}
+{share_step2}
+{share_step3}"""
                 await query.edit_message_text(
                     text,
                     parse_mode="Markdown"
                 )
                 return
-            # 群組發送失敗不影響紅包創建成功
+            # {t('group_send_failed_not_affect', user=user)}
         
         # 使用輔助函數格式化信息
         packet_info = format_packet_info(currency, packet_type, amount, count, bomb_number, message)
         
+        from bot.utils.i18n import t
+        with get_db() as db:
+            sender_user = db.query(User).filter(User.tg_id == sender_tg_id).first()
+            if sender_user:
+                red_packet_sent = t('red_packet_sent_success', user=sender_user)
+                packet_info_label = t('packet_info', user=sender_user)
+                uuid_label = t('uuid_label', user=sender_user)
+                red_packet_sent_to_group = t('red_packet_sent_to_group', user=sender_user)
+            else:
+                red_packet_sent = "✅ *紅包發送成功！*"
+                packet_info_label = "紅包信息："
+                uuid_label = "UUID:"
+                red_packet_sent_to_group = "紅包已發送到群組！"
+        
         text = f"""
-✅ *紅包發送成功！*
+{red_packet_sent}
 
-*紅包信息：*
+*{packet_info_label}*
 {packet_info}
-• UUID: `{packet_uuid}`
+• {uuid_label} `{packet_uuid}`
 
-紅包已發送到群組！
+{red_packet_sent_to_group}
 """
         
         # 检查是否应该使用内联按钮
@@ -2668,7 +2681,7 @@ async def confirm_and_send_packet(query, db_user, context):
             # 使用内联按钮
             keyboard = [
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ],
             ]
             await query.edit_message_text(
@@ -2689,7 +2702,7 @@ async def confirm_and_send_packet(query, db_user, context):
                 # 如果无法发送新消息，尝试编辑
                 keyboard = [
                     [
-                        InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                     ],
                 ]
                 await query.edit_message_text(
@@ -2767,7 +2780,7 @@ async def confirm_and_send_packet(query, db_user, context):
             # 如果无法发送新消息，尝试编辑
             keyboard = [
                 [
-                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ],
             ]
             await query.edit_message_text(
@@ -2793,7 +2806,7 @@ async def show_my_packets(query, db_user):
                 await query.edit_message_text("發生錯誤，請稍後再試")
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内查询红包
@@ -2843,7 +2856,7 @@ async def show_my_packets(query, db_user):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer("已顯示", show_alert=False)
+                await query.answer(t('displayed', user=user), show_alert=False)
                 logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
