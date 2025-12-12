@@ -66,12 +66,12 @@ export default function EarnPage() {
       
       // 檢查邀請鏈接是否存在
       if (!inviteStats?.invite_link) {
-        showAlert('邀請鏈接未生成，請稍後再試', 'error')
+        showAlert(t('invite_link_not_ready'), 'error')
         return
       }
       
       const telegram = getTelegram()
-      const shareMessage = `🎁 來搶紅包啦！\n\n我在玩紅包遊戲，送你 0.5 USDT 新人獎勵！\n\n點擊加入：${inviteStats.invite_link}`
+      const shareMessage = t('invite_share_message', { link: inviteStats.invite_link })
       const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteStats.invite_link)}&text=${encodeURIComponent(shareMessage)}`
       
       // 優先使用 Telegram WebApp 的分享功能
@@ -99,12 +99,12 @@ export default function EarnPage() {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: '邀請你來搶紅包！',
+            title: t('invite_share_title'),
             text: shareMessage,
             url: inviteStats.invite_link
           })
           haptic('success')
-          showAlert('分享成功！', 'success')
+          showAlert(t('share_success'), 'success')
           return
         } catch (error: any) {
           // 用戶取消分享不算錯誤
@@ -118,15 +118,15 @@ export default function EarnPage() {
       try {
         await navigator.clipboard.writeText(inviteStats.invite_link)
         haptic('success')
-        showAlert('邀請鏈接已複製到剪貼板！', 'success')
+        showAlert(t('invite_link_copied'), 'success')
       } catch (error) {
         console.error('[handleShareInvite] Clipboard error:', error)
-        showAlert('無法複製鏈接，請手動複製：' + inviteStats.invite_link, 'error')
+        showAlert(t('copy_failed_manual', { link: inviteStats.invite_link }), 'error')
       }
     } catch (error) {
       console.error('[handleShareInvite] Unexpected error:', error)
       haptic('error')
-      showAlert('分享失敗，請稍後再試', 'error')
+      showAlert(t('share_failed'), 'error')
     }
   }
 
@@ -163,7 +163,7 @@ export default function EarnPage() {
             whileTap={{ scale: 0.98 }}
           >
             <Sparkles size={16} />
-            每日簽到
+            {t('daily_checkin')}
           </motion.button>
           <motion.button
             onClick={() => setActiveTab('invite')}
@@ -175,7 +175,7 @@ export default function EarnPage() {
             whileTap={{ scale: 0.98 }}
           >
             <UserPlus size={16} />
-            邀請好友
+            {t('invite_friends')}
           </motion.button>
           <motion.button
             onClick={() => setActiveTab('referral')}
@@ -187,7 +187,7 @@ export default function EarnPage() {
             whileTap={{ scale: 0.98 }}
           >
             <Users size={16} />
-            推薦系統
+            {t('referral_system')}
           </motion.button>
         </div>
 
@@ -328,7 +328,7 @@ export default function EarnPage() {
                     <Trophy className="text-blue-500" size={20} />
                   </div>
                   <h3 className="text-white text-sm font-bold mb-1">{t('tasks')}</h3>
-                  <p className="text-gray-500 text-xs">完成任務領獎勵</p>
+                  <p className="text-gray-500 text-xs">{t('complete_tasks_reward')}</p>
                 </motion.div>
               </div>
             </motion.div>
@@ -345,10 +345,10 @@ export default function EarnPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Gift className="text-purple-400" size={20} />
-                    我的邀請
+                    {t('my_invitations')}
                   </h2>
                   <div className="text-purple-400 text-sm">
-                    +1 USDT/人
+                    {t('invite_reward_per_person')}
                   </div>
                 </div>
 
@@ -357,21 +357,21 @@ export default function EarnPage() {
                     <div className="text-2xl font-bold text-white">{inviteStats?.invite_count || 0}</div>
                     <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
                       <Users size={12} />
-                      已邀請
+                      {t('invited')}
                     </div>
                   </div>
                   <div className="bg-black/20 rounded-xl p-3 text-center">
                     <div className="text-2xl font-bold text-green-400">{inviteStats?.invite_earnings?.toFixed(2) || '0.00'}</div>
                     <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
                       <Coins size={12} />
-                      已獲得
+                      {t('earned')}
                     </div>
                   </div>
                   <div className="bg-black/20 rounded-xl p-3 text-center">
                     <div className="text-2xl font-bold text-yellow-400">{nextMilestone?.reward || '-'}</div>
                     <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
                       <Trophy size={12} />
-                      下個獎勵
+                      {t('next_reward')}
                     </div>
                   </div>
                 </div>
@@ -404,7 +404,7 @@ export default function EarnPage() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Share2 size={16} />
-                  分享邀請鏈接
+                  {t('share_invitation_link')}
                 </motion.button>
               </div>
 
@@ -412,7 +412,7 @@ export default function EarnPage() {
               <div className="bg-[#1C1C1E] border border-white/5 rounded-2xl p-4">
                 <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
                   <Trophy className="text-yellow-500" size={18} />
-                  邀請里程碑
+                  {t('invitation_milestones')}
                 </h3>
                 <div className="space-y-2">
                   {milestonesWithStatus.map((milestone, index) => (
@@ -435,9 +435,9 @@ export default function EarnPage() {
                           )}
                         </div>
                         <div>
-                          <div className="text-white text-sm font-medium">邀請 {milestone.target} 人</div>
+                          <div className="text-white text-sm font-medium">{t('invite_people', { count: milestone.target })}</div>
                           <div className="text-xs text-gray-500">
-                            {milestone.achieved ? '已完成' : `還差 ${milestone.target - inviteCount} 人`}
+                            {milestone.achieved ? t('completed') : t('need_more_people', { count: milestone.target - inviteCount })}
                           </div>
                         </div>
                       </div>
@@ -457,9 +457,9 @@ export default function EarnPage() {
                   <h3 className="text-base font-bold text-white mb-3 flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       <Users className="text-blue-400" size={18} />
-                      我邀請的好友
+                      {t('my_invited_friends')}
                     </span>
-                    <span className="text-xs text-gray-500">{inviteStats.invitees.length} 人</span>
+                    <span className="text-xs text-gray-500">{t('people_count', { count: inviteStats.invitees.length })}</span>
                   </h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {inviteStats.invitees.map((invitee, index) => (
@@ -491,13 +491,13 @@ export default function EarnPage() {
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
                 <h4 className="text-yellow-500 font-bold mb-2 flex items-center gap-2">
                   <Gift size={16} />
-                  邀請獎勵說明
+                  {t('invitation_reward_info')}
                 </h4>
                 <ul className="text-yellow-200/80 text-xs space-y-1.5">
-                  <li>• 邀請好友註冊，雙方各得獎勵</li>
-                  <li>• 邀請人獲得 1 USDT，被邀請人獲得 0.5 USDT</li>
-                  <li>• 好友充值，您可獲得 5% 返佣</li>
-                  <li>• 達到里程碑可獲得額外獎勵</li>
+                  <li>• {t('invite_reward_rule_1')}</li>
+                  <li>• {t('invite_reward_rule_2')}</li>
+                  <li>• {t('invite_reward_rule_3')}</li>
+                  <li>• {t('invite_reward_rule_4')}</li>
                 </ul>
               </div>
             </motion.div>

@@ -40,7 +40,7 @@ export default function ReferralTree() {
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-400">加载中...</div>
+        <div className="text-gray-400">{t('loading')}</div>
       </div>
     );
   }
@@ -48,7 +48,7 @@ export default function ReferralTree() {
   if (!stats) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-400">暂无推荐数据</div>
+        <div className="text-gray-400">{t('no_referral_data')}</div>
       </div>
     );
   }
@@ -64,10 +64,10 @@ export default function ReferralTree() {
         >
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-5 h-5 text-blue-400" />
-            <span className="text-sm text-gray-300">Tier 1推荐</span>
+            <span className="text-sm text-gray-300">{t('tier1_referral')}</span>
           </div>
           <div className="text-2xl font-bold text-blue-400">{stats.tier1_count}</div>
-          <div className="text-xs text-gray-400 mt-1">奖励: {parseFloat(stats.tier1_reward).toFixed(2)} USDT</div>
+          <div className="text-xs text-gray-400 mt-1">{t('reward')}: {parseFloat(stats.tier1_reward).toFixed(2)} USDT</div>
         </motion.div>
 
         <motion.div
@@ -78,10 +78,10 @@ export default function ReferralTree() {
         >
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-5 h-5 text-purple-400" />
-            <span className="text-sm text-gray-300">Tier 2推荐</span>
+            <span className="text-sm text-gray-300">{t('tier2_referral')}</span>
           </div>
           <div className="text-2xl font-bold text-purple-400">{stats.tier2_count}</div>
-          <div className="text-xs text-gray-400 mt-1">奖励: {parseFloat(stats.tier2_reward).toFixed(2)} USDT</div>
+          <div className="text-xs text-gray-400 mt-1">{t('reward')}: {parseFloat(stats.tier2_reward).toFixed(2)} USDT</div>
         </motion.div>
       </div>
 
@@ -95,21 +95,21 @@ export default function ReferralTree() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Award className="w-6 h-6 text-emerald-400" />
-            <span className="text-lg font-semibold text-white">总推荐统计</span>
+            <span className="text-lg font-semibold text-white">{t('total_referral_stats')}</span>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <div className="text-sm text-gray-400 mb-1">总推荐人数</div>
+            <div className="text-sm text-gray-400 mb-1">{t('total_referrals')}</div>
             <div className="text-2xl font-bold text-emerald-400">{stats.total_referrals}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-400 mb-1">总奖励</div>
+            <div className="text-sm text-gray-400 mb-1">{t('total_reward')}</div>
             <div className="text-2xl font-bold text-emerald-400">{parseFloat(stats.total_reward).toFixed(2)}</div>
             <div className="text-xs text-gray-400">USDT</div>
           </div>
           <div>
-            <div className="text-sm text-gray-400 mb-1">奖励次数</div>
+            <div className="text-sm text-gray-400 mb-1">{t('reward_count')}</div>
             <div className="text-2xl font-bold text-emerald-400">{stats.reward_count}</div>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default function ReferralTree() {
           transition={{ delay: 0.3 }}
           className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700"
         >
-          <h3 className="text-lg font-semibold text-white mb-4">推荐树</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{t('referral_tree')}</h3>
           <ReferralTreeNodeComponent
             node={tree}
             level={0}
@@ -168,10 +168,10 @@ function ReferralTreeNodeComponent({ node, level, expandedNodes, onToggle }: Ref
         <div className="flex-1">
           <div className="text-white font-medium">
             {node.username || `User ${node.user_id}`}
-            {level === 0 && <span className="ml-2 text-xs text-blue-400">(我)</span>}
+            {level === 0 && <span className="ml-2 text-xs text-blue-400">({t('me')})</span>}
           </div>
           {node.referral_code && (
-            <div className="text-xs text-gray-400">推荐码: {node.referral_code}</div>
+            <div className="text-xs text-gray-400">{t('referral_code')}: {node.referral_code}</div>
           )}
         </div>
         {level > 0 && (
