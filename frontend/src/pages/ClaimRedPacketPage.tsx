@@ -155,11 +155,11 @@ export default function ClaimRedPacketPage() {
           className="bg-[#1C1C1E] border border-orange-500/30 rounded-3xl p-6 max-w-md w-full text-center"
         >
           <div className="text-6xl mb-4">🔐</div>
-          <h2 className="text-2xl font-bold text-white mb-4">需要登錄</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">{t('need_login')}</h2>
           <p className="text-gray-400 mb-6">
             {isTelegram 
-              ? '請確保您已通過 Telegram 登錄' 
-              : '搶紅包需要登錄。請通過 Telegram MiniApp 訪問或先登錄。'}
+              ? t('please_login_telegram')
+              : t('please_login_miniapp')}
           </p>
           <div className="flex flex-col gap-3">
             {!isTelegram && (
