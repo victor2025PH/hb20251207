@@ -40,7 +40,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
             return
         
         is_new_user = not db_user_refreshed.invited_by
@@ -198,7 +199,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
             return
         
         # 检查是否有 reset 参数（用于重新设置）
@@ -242,18 +244,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from bot.utils.i18n import t
         welcome_msg = t('welcome', user=db_user_refreshed)
         
+        # 獲取所有歡迎消息的翻譯文本
+        welcome_greeting = t('welcome_greeting', user=db_user_refreshed, name=user.first_name or 'User')
+        welcome_description = t('welcome_description', user=db_user_refreshed)
+        welcome_feature_send = t('welcome_feature_send', user=db_user_refreshed)
+        welcome_feature_claim = t('welcome_feature_claim', user=db_user_refreshed)
+        welcome_feature_checkin = t('welcome_feature_checkin', user=db_user_refreshed)
+        welcome_feature_invite = t('welcome_feature_invite', user=db_user_refreshed)
+        welcome_call_to_action = t('welcome_call_to_action', user=db_user_refreshed)
+        
         welcome_text = f"""
 🧧 {welcome_msg}
 
-Hi {user.first_name}！
+{welcome_greeting}
 
-這裡是最有趣的紅包遊戲平台：
-• 💰 發紅包給群友
-• 🎁 搶紅包贏大獎
-• 📅 每日簽到領積分
-• 👥 邀請好友得返佣
+{welcome_description}
+{welcome_feature_send}
+{welcome_feature_claim}
+{welcome_feature_checkin}
+{welcome_feature_invite}
 
-快來試試吧！👇
+{welcome_call_to_action}
 """
         
         # 获取用户的有效模式（在会话内）
@@ -355,43 +366,115 @@ async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYP
         )
     ]]
     
+    # 獲取用戶以使用翻譯
+    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.i18n import t
+    db_user = await get_user_from_update(update, context)
+    if db_user:
+        open_app_message = t('open_app_message', user=db_user, page=command)
+        open_app_button = t('open_app_button', user=db_user)
+        keyboard = [[
+            InlineKeyboardButton(
+                open_app_button,
+                web_app=WebAppInfo(url=url)
+            )
+        ]]
+    else:
+        open_app_message = f"點擊按鈕打開 {command} 頁面："
+        open_app_button = "🚀 打開應用"
+    
     await update.message.reply_text(
-        f"點擊按鈕打開 {command} 頁面：",
+        open_app_message,
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /help 命令"""
-    help_text = """
-🧧 *Lucky Red 使用指南*
+    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.i18n import t
+    
+    db_user = await get_user_from_update(update, context)
+    if not db_user:
+        db_user = await get_user_from_update(update, context, use_cache=False)
+    
+    if db_user:
+        help_title = t('help_title', user=db_user)
+        help_basic_commands = t('help_basic_commands', user=db_user)
+        help_command_start = t('help_command_start', user=db_user)
+        help_command_wallet = t('help_command_wallet', user=db_user)
+        help_command_packets = t('help_command_packets', user=db_user)
+        help_command_earn = t('help_command_earn', user=db_user)
+        help_command_game = t('help_command_game', user=db_user)
+        help_command_profile = t('help_command_profile', user=db_user)
+        help_command_send = t('help_command_send', user=db_user)
+        help_command_checkin = t('help_command_checkin', user=db_user)
+        help_command_invite = t('help_command_invite', user=db_user)
+        help_how_to_send = t('help_how_to_send', user=db_user)
+        help_send_step1 = t('help_send_step1', user=db_user)
+        help_send_step2 = t('help_send_step2', user=db_user)
+        help_send_step3 = t('help_send_step3', user=db_user)
+        help_how_to_claim = t('help_how_to_claim', user=db_user)
+        help_claim_description = t('help_claim_description', user=db_user)
+        help_daily_checkin = t('help_daily_checkin', user=db_user)
+        help_checkin_description = t('help_checkin_description', user=db_user)
+        help_invite_rebate = t('help_invite_rebate', user=db_user)
+        help_invite_description = t('help_invite_description', user=db_user)
+        help_contact = t('help_contact', user=db_user)
+    else:
+        # 默認中文
+        help_title = "🧧 *Lucky Red 使用指南*"
+        help_basic_commands = "*基本命令：*"
+        help_command_start = "/start - 開始使用"
+        help_command_wallet = "/wallet - 打開錢包"
+        help_command_packets = "/packets - 打開紅包"
+        help_command_earn = "/earn - 打開賺取"
+        help_command_game = "/game - 打開遊戲"
+        help_command_profile = "/profile - 打開我的"
+        help_command_send = "/send - 發送紅包"
+        help_command_checkin = "/checkin - 每日簽到"
+        help_command_invite = "/invite - 邀請好友"
+        help_how_to_send = "*如何發紅包：*"
+        help_send_step1 = "1. 在群組中輸入 /send"
+        help_send_step2 = "2. 選擇金額和數量"
+        help_send_step3 = "3. 發送紅包給群友"
+        help_how_to_claim = "*如何搶紅包：*"
+        help_claim_description = "點擊群組中的紅包消息即可搶"
+        help_daily_checkin = "*每日簽到：*"
+        help_checkin_description = "連續簽到7天可獲得額外獎勵！"
+        help_invite_rebate = "*邀請返佣：*"
+        help_invite_description = "邀請好友可獲得其交易的10%返佣！"
+        help_contact = "有問題？聯繫客服 @support"
+    
+    help_text = f"""
+{help_title}
 
-*基本命令：*
-/start - 開始使用
-/wallet - 打開錢包
-/packets - 打開紅包
-/earn - 打開賺取
-/game - 打開遊戲
-/profile - 打開我的
-/send - 發送紅包
-/checkin - 每日簽到
-/invite - 邀請好友
+{help_basic_commands}
+{help_command_start}
+{help_command_wallet}
+{help_command_packets}
+{help_command_earn}
+{help_command_game}
+{help_command_profile}
+{help_command_send}
+{help_command_checkin}
+{help_command_invite}
 
-*如何發紅包：*
-1. 在群組中輸入 /send
-2. 選擇金額和數量
-3. 發送紅包給群友
+{help_how_to_send}
+{help_send_step1}
+{help_send_step2}
+{help_send_step3}
 
-*如何搶紅包：*
-點擊群組中的紅包消息即可搶
+{help_how_to_claim}
+{help_claim_description}
 
-*每日簽到：*
-連續簽到7天可獲得額外獎勵！
+{help_daily_checkin}
+{help_checkin_description}
 
-*邀請返佣：*
-邀請好友可獲得其交易的10%返佣！
+{help_invite_rebate}
+{help_invite_description}
 
-有問題？聯繫客服 @support
+{help_contact}
 """
     
     await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -405,14 +488,25 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 獲取用戶（帶緩存）
     db_user = await get_user_from_update(update, context)
     if not db_user:
-        await update.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        # 嘗試獲取用戶以使用翻譯，如果失敗則使用默認值
+        try:
+            with get_db() as db:
+                temp_user = db.query(User).filter(User.tg_id == update.effective_user.id).first()
+                if temp_user:
+                    await update.message.reply_text(t('please_register_first', user=temp_user))
+                else:
+                    await update.message.reply_text("請先使用 /start 註冊")
+        except:
+            await update.message.reply_text("請先使用 /start 註冊")
         return
     
     # 在會話內處理邀請碼和獲取統計信息
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await update.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 生成邀請碼（如果沒有）
@@ -433,22 +527,34 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={invite_code}"
     
+    # 使用翻譯文本
+    from bot.utils.i18n import t
+    invite_title = t('invite_title', user=user)
+    invite_your_link = t('invite_your_link', user=user)
+    invite_statistics = t('invite_statistics', user=user)
+    invite_count_text = t('invite_count', user=user, count=invite_count)
+    invite_earnings_text = t('invite_earnings', user=user, earnings=invite_earnings)
+    invite_rules = t('invite_rules', user=user)
+    invite_rules_description = t('invite_rules_description', user=user)
+    invite_share_button = t('invite_share_button', user=user)
+    invite_share_text = t('invite_share_text', user=user)
+    
     invite_text = f"""
-👥 *邀請好友*
+{invite_title}
 
-你的專屬邀請鏈接：
+{invite_your_link}
 `{invite_link}`
 
-📊 邀請統計：
-• 已邀請：{invite_count} 人
-• 累計收益：{invite_earnings:.2f} USDT
+{invite_statistics}
+{invite_count_text}
+{invite_earnings_text}
 
-💡 邀請規則：
-好友通過你的鏈接註冊後，你將獲得其所有交易的 10% 返佣！
+{invite_rules}
+{invite_rules_description}
 """
     
     keyboard = [
-        [InlineKeyboardButton("📤 分享給好友", url=f"https://t.me/share/url?url={invite_link}&text=快來玩搶紅包遊戲！")],
+        [InlineKeyboardButton(invite_share_button, url=f"https://t.me/share/url?url={invite_link}&text={invite_share_text}")],
     ]
     
     await update.message.reply_text(

@@ -22,30 +22,52 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     
+    # 獲取用戶以使用翻譯
+    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.i18n import t
+    db_user = await get_user_from_update(update, context)
+    if not db_user:
+        db_user = await get_user_from_update(update, context, use_cache=False)
+    
     # 只能在群組中發紅包
     if chat.type == "private":
-        await update.message.reply_text("請在群組中使用此命令發送紅包")
+        if db_user:
+            await update.message.reply_text(t('send_command_group_only', user=db_user))
+        else:
+            await update.message.reply_text("請在群組中使用此命令發送紅包")
         return
     
     # 解析參數: /send <金額> <數量> [祝福語]
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text(
-            "用法: /send <金額> <數量> [祝福語]\n"
-            "例如: /send 10 5 恭喜發財"
-        )
+        if db_user:
+            send_usage = t('send_command_usage', user=db_user)
+            send_example = t('send_command_example', user=db_user)
+            await update.message.reply_text(f"{send_usage}\n{send_example}")
+        else:
+            await update.message.reply_text(
+                "用法: /send <金額> <數量> [祝福語]\n"
+                "例如: /send 10 5 恭喜發財"
+            )
         return
     
     try:
         amount = Decimal(args[0])
         count = int(args[1])
-        message = " ".join(args[2:]) if len(args) > 2 else "恭喜發財！🧧"
+        default_message = t('default_blessing', user=db_user) if db_user and t('default_blessing', user=db_user) != 'default_blessing' else "恭喜發財！🧧"
+        message = " ".join(args[2:]) if len(args) > 2 else default_message
     except (ValueError, IndexError):
-        await update.message.reply_text("參數格式錯誤，請輸入正確的金額和數量")
+        if db_user:
+            await update.message.reply_text(t('send_command_invalid_params', user=db_user))
+        else:
+            await update.message.reply_text("參數格式錯誤，請輸入正確的金額和數量")
         return
     
     if amount <= 0 or count <= 0:
-        await update.message.reply_text("金額和數量必須大於0")
+        if db_user:
+            await update.message.reply_text(t('send_command_amount_count_positive', user=db_user))
+        else:
+            await update.message.reply_text("金額和數量必須大於0")
         return
     
     if count > 100:
@@ -541,14 +563,43 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 按金額排序（用於排行榜顯示）
         claimers_info_sorted = sorted(claimers_info, key=lambda x: x['amount'], reverse=True)
     
+    # 獲取發送者的語言設置以顯示正確的提示
+    from bot.utils.i18n import t
+    with get_db() as db:
+        sender_user = db.query(User).filter(User.id == packet.sender_id).first()
+        if sender_user:
+            double_thunder = t('double_thunder_text', user=sender_user)
+            single_thunder = t('single_thunder_text', user=sender_user)
+            claim_bomb_alert_template = t('claim_bomb_alert', user=sender_user)
+            claim_success_luckiest_template = t('claim_success_luckiest', user=sender_user)
+            claim_success_template = t('claim_success', user=sender_user)
+            processing_complete = t('send_command_processing', user=sender_user)
+        else:
+            double_thunder = "雙雷"
+            single_thunder = "單雷"
+            claim_bomb_alert_template = "💣 踩雷了！需要賠付 {penalty:.2f} {currency}（{thunder_type}）"
+            claim_success_luckiest_template = "🎉 恭喜獲得 {amount:.2f} {currency}！\n🏆 你是最佳手氣！"
+            claim_success_template = "🎉 恭喜獲得 {amount:.2f} {currency}！"
+            processing_complete = "處理完成"
+    
     # 根據是否踩雷和是否最佳手氣顯示不同的提示
     if is_bomb_value and penalty_amount_value:
-        thunder_type = "單雷" if total_count == 10 else "雙雷"
-        alert_text = f"💣 踩雷了！需要賠付 {float(penalty_amount_value):.2f} {currency_symbol}（{thunder_type}）"
+        thunder_type = single_thunder if total_count == 10 else double_thunder
+        alert_text = claim_bomb_alert_template.format(
+            penalty=float(penalty_amount_value),
+            currency=currency_symbol,
+            thunder_type=thunder_type
+        )
     elif is_luckiest_value and packet_status == RedPacketStatus.COMPLETED:
-        alert_text = f"🎉 恭喜獲得 {float(claim_amount):.2f} {currency_symbol}！\n🏆 你是最佳手氣！"
+        alert_text = claim_success_luckiest_template.format(
+            amount=float(claim_amount),
+            currency=currency_symbol
+        )
     else:
-        alert_text = f"🎉 恭喜獲得 {float(claim_amount):.2f} {currency_symbol}！"
+        alert_text = claim_success_template.format(
+            amount=float(claim_amount),
+            currency=currency_symbol
+        )
     
     # 確保彈窗提示始終顯示（無論什麼情況）
     try:
@@ -557,7 +608,7 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Failed to show alert: {e}")
         # 如果彈窗失敗，至少嘗試簡單的 answer
         try:
-            await query.answer("處理完成", show_alert=False)
+            await query.answer(processing_complete, show_alert=False)
         except:
             pass
     
