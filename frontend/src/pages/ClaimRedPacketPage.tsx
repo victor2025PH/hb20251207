@@ -8,12 +8,14 @@ import { useAuth } from '../utils/auth/useAuth'
 import { claimRedPacket, getRedPacket, type RedPacket } from '../utils/api'
 import { showAlert } from '../utils/telegram'
 import { isInTelegram } from '../utils/platform'
+import { useTranslation } from '../providers/I18nProvider'
 import ResultModal from '../components/ResultModal'
 import Loading from '../components/Loading'
 
 export default function ClaimRedPacketPage() {
   const { uuid } = useParams<{ uuid: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { playSound } = useSound()
   const { isAuthenticated, loading: authLoading } = useAuth()
   const [showResultModal, setShowResultModal] = useState(false)
@@ -33,8 +35,8 @@ export default function ClaimRedPacketPage() {
   // 使用 useEffect 替代 onError
   useEffect(() => {
     if (isError && error) {
-      const errorMessage = (error as any).response?.data?.detail || (error as Error).message || '紅包不存在'
-      showAlert(errorMessage, 'error', '錯誤')
+      const errorMessage = (error as any).response?.data?.detail || (error as Error).message || t('packet_not_found')
+      showAlert(errorMessage, 'error', t('error'))
       setTimeout(() => {
         navigate('/packets')
       }, 2000)
@@ -48,7 +50,7 @@ export default function ClaimRedPacketPage() {
       // 檢查領取是否成功
       if (!result.success) {
         playSound('click')
-        showAlert(result.message || '領取失敗', 'error')
+        showAlert(result.message || t('claim_failed'), 'error')
         return
       }
       
@@ -56,13 +58,13 @@ export default function ClaimRedPacketPage() {
       if (!result.amount || result.amount <= 0) {
         console.error('[claimRedPacket] Invalid amount:', result)
         playSound('click')
-        showAlert('領取失敗：金額無效', 'error')
+        showAlert(t('claim_failed_invalid_amount'), 'error')
         return
       }
       
       // 顯示結果
       setClaimAmount(result.amount)
-      setClaimMessage(result.message || `恭喜獲得 ${result.amount} ${packet?.currency || 'USDT'}！`)
+      setClaimMessage(result.message || t('claim_success', { amount: result.amount, currency: packet?.currency || 'USDT' }))
       setPacketInfo(packet || null)
       setShowResultModal(true)
       
@@ -72,7 +74,7 @@ export default function ClaimRedPacketPage() {
     },
     onError: (error: any) => {
       playSound('click')
-      const errorMessage = error.response?.data?.detail || error.message || '領取失敗'
+      const errorMessage = error.response?.data?.detail || error.message || t('claim_failed')
       showAlert(errorMessage, 'error')
     }
   })
@@ -136,7 +138,7 @@ export default function ClaimRedPacketPage() {
       <div className="fixed inset-0 bg-brand-dark flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">正在搶紅包...</p>
+          <p className="text-gray-400">{t('claiming')}</p>
         </div>
       </div>
     )
@@ -165,14 +167,14 @@ export default function ClaimRedPacketPage() {
                 onClick={() => navigate('/')}
                 className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl font-bold"
               >
-                前往登錄
+                {t('go_to_login')}
               </button>
             )}
             <button
               onClick={() => navigate('/packets')}
               className="w-full py-3 bg-[#2C2C2E] text-gray-300 rounded-xl font-bold"
             >
-              返回紅包列表
+              {t('return_to_packets')}
             </button>
           </div>
         </motion.div>
@@ -184,7 +186,7 @@ export default function ClaimRedPacketPage() {
     return (
       <div className="fixed inset-0 bg-brand-dark flex items-center justify-center p-6">
         <div className="text-center">
-          <p className="text-red-400 mb-4">紅包不存在或已過期</p>
+          <p className="text-red-400 mb-4">{t('packet_expired')}</p>
           <button
             onClick={() => navigate('/packets')}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg"
@@ -206,8 +208,8 @@ export default function ClaimRedPacketPage() {
             className="mb-6"
           >
             <div className="text-6xl mb-4">🧧</div>
-            <h2 className="text-2xl font-bold text-white mb-2">搶紅包</h2>
-            <p className="text-gray-400">{packet?.message || '恭喜發財！'}</p>
+            <h2 className="text-2xl font-bold text-white mb-2">{t('grab_red_packet')}</h2>
+            <p className="text-gray-400">{packet?.message || t('default_blessing')}</p>
           </motion.div>
         </div>
       </div>
