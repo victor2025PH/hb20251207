@@ -36,6 +36,7 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     為用戶生成一次性登入連結，用於在瀏覽器中訪問 H5 版本
     """
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user = update.effective_user
     if not user:
         return
@@ -50,14 +51,12 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user = result.scalar_one_or_none()
         
         if not db_user:
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('not_registered_yet', user=None) if t('not_registered_yet', user=None) != 'not_registered_yet' else "❌ 您還沒有註冊，請先使用機器人的其他功能完成註冊。"
             )
             return
         
         if db_user.is_banned:
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('account_banned', user=db_user)
             )
