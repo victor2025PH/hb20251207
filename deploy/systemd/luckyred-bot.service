@@ -4,14 +4,17 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=ubuntu
+Group=ubuntu
 WorkingDirectory=/home/ubuntu/hbgm001/bot
-Environment="PATH=/home/ubuntu/hbgm001/bot/.venv/bin"
+Environment="PATH=/home/ubuntu/hbgm001/bot/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/ubuntu/hbgm001"
 EnvironmentFile=/home/ubuntu/hbgm001/.env
 ExecStart=/home/ubuntu/hbgm001/bot/.venv/bin/python main.py
 Restart=always
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
