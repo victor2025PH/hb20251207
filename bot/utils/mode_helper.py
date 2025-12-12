@@ -18,8 +18,12 @@ def get_effective_mode(user: User, chat_type: str) -> str:
         有效的交互模式
     """
     # 安全地获取 interaction_mode（字段可能不存在）
+    # 使用 __dict__ 访问已加载的属性，避免触发 SQLAlchemy 延迟加载
     try:
-        mode = getattr(user, 'interaction_mode', None) or "auto"
+        if hasattr(user, '__dict__') and 'interaction_mode' in user.__dict__:
+            mode = user.__dict__.get('interaction_mode') or "auto"
+        else:
+            mode = getattr(user, 'interaction_mode', None) or "auto"
     except Exception:
         mode = "auto"
     
@@ -28,20 +32,35 @@ def get_effective_mode(user: User, chat_type: str) -> str:
         if chat_type in ["group", "supergroup"]:
             # 群组中优先使用 inline
             try:
-                last_mode = getattr(user, 'last_interaction_mode', None)
+                if hasattr(user, '__dict__') and 'last_interaction_mode' in user.__dict__:
+                    last_mode = user.__dict__.get('last_interaction_mode')
+                else:
+                    last_mode = getattr(user, 'last_interaction_mode', None)
                 return last_mode if last_mode in ["inline", "keyboard"] else "inline"
             except Exception:
                 return "inline"
         else:
             # 私聊中使用上次的模式，默认 keyboard
             try:
-                return getattr(user, 'last_interaction_mode', None) or "keyboard"
+                if hasattr(user, '__dict__') and 'last_interaction_mode' in user.__dict__:
+                    last_mode = user.__dict__.get('last_interaction_mode')
+                else:
+                    last_mode = getattr(user, 'last_interaction_mode', None)
+                return last_mode or "keyboard"
             except Exception:
                 return "keyboard"
     
     # 如果用户选择了 miniapp 但在群组中，回退到 inline
     if mode == "miniapp" and chat_type in ["group", "supergroup"]:
-        logger.info(f"User {user.tg_id} selected miniapp but in group, falling back to inline")
+        try:
+            # 安全地获取 tg_id，避免会话分离错误
+            if hasattr(user, '__dict__') and 'tg_id' in user.__dict__:
+                tg_id = user.__dict__.get('tg_id')
+            else:
+                tg_id = getattr(user, 'tg_id', None)
+            logger.info(f"User {tg_id} selected miniapp but in group, falling back to inline")
+        except Exception:
+            logger.info("User selected miniapp but in group, falling back to inline")
         return "inline"
     
     return mode

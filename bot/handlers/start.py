@@ -252,6 +252,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_call_to_action = t('welcome_call_to_action', user=db_user_refreshed)
         
         # 获取用户的有效模式（在会话内）
+        # 预先访问所有需要的属性，确保它们在会话内被加载
+        _ = db_user_refreshed.interaction_mode
+        _ = db_user_refreshed.last_interaction_mode if hasattr(db_user_refreshed, 'last_interaction_mode') else None
+        _ = db_user_refreshed.tg_id
+        
         from bot.utils.mode_helper import get_effective_mode
         from bot.keyboards.unified import get_unified_keyboard
         
