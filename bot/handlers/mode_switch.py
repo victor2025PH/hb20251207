@@ -128,14 +128,18 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"[SET_MODE] Sent ReplyKeyboardMarkup for user {user_id}")
             
         elif isinstance(keyboard, InlineKeyboardMarkup):
-            # 内联按钮模式：移除底部键盘，然后编辑消息
+            # 内联按钮模式：静默移除底部键盘，不显示提示消息
             from telegram import ReplyKeyboardRemove
             try:
-                # 先发送一个消息来移除底部键盘
-                await query.message.reply_text(
-                    t("using_inline_buttons", user=db_user) if t("using_inline_buttons", user=db_user) != "using_inline_buttons" else "使用內聯按鈕進行操作 👇",
-                    reply_markup=ReplyKeyboardRemove()
-                )
+                # 静默移除底部键盘，不显示提示消息
+                # 直接移除键盘，不发送提示消息
+                # 通过编辑当前消息来移除键盘（如果消息有回复标记）
+                try:
+                    # 尝试编辑消息移除键盘
+                    await query.edit_message_reply_markup(reply_markup=None)
+                except:
+                    # 如果编辑失败，说明当前消息没有键盘，不需要移除
+                    pass
             except Exception as remove_e:
                 logger.warning(f"Could not remove keyboard: {remove_e}")
             

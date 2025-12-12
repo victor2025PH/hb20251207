@@ -1014,15 +1014,20 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 from bot.utils.mode_helper import get_effective_mode
                 effective_mode = get_effective_mode(db_user, update.effective_chat.type)
                 
-                # ✅ 只在从键盘模式切换到内联模式时移除底部鍵盤（避免重复提示）
+                # ✅ 只在从键盘模式切换到内联模式时移除底部鍵盤（静默移除，不显示提示）
                 if not sub_action and effective_mode != "inline":
                     from telegram import ReplyKeyboardRemove
                     try:
-                        from bot.utils.i18n import t
-                        await query.message.reply_text(
-                            t("using_inline_buttons", user=db_user),
-                            reply_markup=ReplyKeyboardRemove()
-                        )
+                        # 静默移除底部键盘，不显示任何提示消息
+                        # 直接移除键盘，不发送提示消息
+                        # 注意：ReplyKeyboardRemove 需要在一个消息中发送，但我们不发送可见消息
+                        # 通过编辑当前消息来移除键盘（如果消息有回复标记）
+                        try:
+                            # 尝试编辑消息移除键盘
+                            await query.edit_message_reply_markup(reply_markup=None)
+                        except:
+                            # 如果编辑失败，说明当前消息没有键盘，不需要移除
+                            pass
                     except Exception:
                         pass
                 
