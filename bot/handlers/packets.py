@@ -378,7 +378,7 @@ async def show_group_selection_from_message(update, db_user, context):
         ).order_by(RedPacket.created_at.desc()).limit(10).all()
         
         text = f"""
-➕ *{send_packet_title} - {select_group_text}*
+*{send_packet_title} - {select_group_text}*
 
 *{packet_info_text}*
 • {currency_label}{packet_data.get('currency', 'usdt').upper()}
@@ -854,7 +854,7 @@ async def show_packets_list(query, db_user):
 """
             keyboard = [
                 [
-                    InlineKeyboardButton(f"➕ {send_packet_text}", callback_data="packets:send"),
+                    InlineKeyboardButton(send_packet_text, callback_data="packets:send"),
                 ],
                 [
                     InlineKeyboardButton(return_text, callback_data="menu:packets"),
@@ -875,7 +875,7 @@ async def show_packets_list(query, db_user):
                     InlineKeyboardButton(view_full_list_text, web_app=WebAppInfo(url=f"{settings.MINIAPP_URL}/packets")),
                 ],
                 [
-                    InlineKeyboardButton(f"➕ {send_packet_text}", callback_data="packets:send"),
+                    InlineKeyboardButton(send_packet_text, callback_data="packets:send"),
                 ],
                 [
                     InlineKeyboardButton(return_text, callback_data="menu:packets"),
@@ -910,7 +910,7 @@ async def show_send_packet_guide(query, db_user):
             return
         
         text = f"""
-➕ *{t('send_packet_title', user=user)}*
+*{t('send_packet_title', user=user)}*
 
 {t('select_operation', user=user)}
 
@@ -1332,7 +1332,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
         energy_text = t("energy", user=user)
         
         text = f"""
-➕ *{send_packet_title}*
+*{send_packet_title}*
 
 *{current_balance}*
 • USDT: `{usdt_balance:.4f}`
@@ -1450,13 +1450,13 @@ async def show_packet_type_selection(query, db_user, currency: str, context=None
             fixed_amount_desc = t('fixed_amount_desc', user=user)
             
             text = f"""
-➕ *{send_packet_title} - {currency_upper}*
+*{send_packet_title} - {currency_upper}*
 
 *{current_balance}* `{balance:.4f}` {currency_upper}{balance_warning}
 
 *{select_type}*
-• 🎲 {random_amount} - {random_amount_desc}
-• 💣 {fixed_amount} - {fixed_amount_desc}
+• {random_amount} - {random_amount_desc}
+• {fixed_amount} - {fixed_amount_desc}
 
 {select_type}:
 """
@@ -1538,7 +1538,7 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
         type_text = t("random_amount", user=user) if packet_type == "random" else t("fixed_amount", user=user)
         
         text = f"""
-➕ *{send_packet_title} - {currency_upper} - {type_text}*
+*{send_packet_title} - {currency_upper} - {type_text}*
 
 *{current_balance}* `{balance:.4f}` {currency_upper}
 
@@ -1639,7 +1639,7 @@ async def show_count_input(query, db_user, context):
         # 紅包炸彈只能選擇 5 或 10
         if packet_type == "equal":
             text = f"""
-➕ *{send_packet_title} - {currency_upper} - {type_text}*
+*{send_packet_title} - {currency_upper} - {type_text}*
 
 *{amount_label}* `{amount}` {currency_upper}
 
@@ -1657,7 +1657,7 @@ async def show_count_input(query, db_user, context):
             ]
         else:
             text = f"""
-➕ *{send_packet_title} - {currency_upper} - {type_text}*
+*{send_packet_title} - {currency_upper} - {type_text}*
 
 *{amount_label}* `{amount}` {currency_upper}
 
@@ -1764,7 +1764,7 @@ async def show_bomb_number_selection(query, db_user, context):
         return_text = t('return_main', user=user)
         
         text = f"""
-➕ *{send_packet_title} - {currency_upper} - {fixed_amount_text}*
+*{send_packet_title} - {currency_upper} - {fixed_amount_text}*
 
 *{amount_label}* `{amount}` {currency_upper}
 *{quantity_label}* `{count}` {shares_text}（{thunder_type}）
@@ -1849,7 +1849,7 @@ async def show_message_input(query, db_user, context):
         return_text = t('return_main', user=user)
         
         text = f"""
-➕ *{send_packet_title} - {currency_upper} - {type_text}*
+*{send_packet_title} - {currency_upper} - {type_text}*
 
 *{amount_label}* `{amount}` {currency_upper}
 *{quantity_label}* `{count}` {shares_text}
@@ -2007,7 +2007,7 @@ async def show_group_selection(query, db_user, context):
         ).order_by(RedPacketClaim.claimed_at.desc()).limit(10).all()
         
         text = f"""
-➕ *{send_packet_title} - {select_group_or_user_text}*
+*{send_packet_title} - {select_group_or_user_text}*
 
 *{packet_info_text}*
 • {currency_label}{packet_data.get('currency', 'usdt').upper()}
@@ -2207,7 +2207,7 @@ async def show_group_link_input(query, db_user, context):
         return_text = t('return_main', user=user)
         
         text = f"""
-➕ *{send_packet_title} - {enter_group_id_or_username}*
+*{send_packet_title} - {enter_group_id_or_username}*
 
 {enter_group_id_or_username}
 

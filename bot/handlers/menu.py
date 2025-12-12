@@ -258,16 +258,44 @@ async def show_packets_menu(query, db_user):
 
 async def show_earn_menu(query, db_user):
     """顯示賺取菜單"""
-    text = """
-📈 *賺取中心*
+    from bot.utils.i18n import t
+    from shared.database.connection import get_db
+    from shared.database.models import User
+    
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内获取翻译文本
+        earn_center = t('earn_center', user=user) if t('earn_center', user=user) != 'earn_center' else "📈 賺取中心"
+        functions_label = t('functions', user=user)
+        daily_checkin = t('daily_checkin', user=user) if t('daily_checkin', user=user) != 'daily_checkin' else "📅 每日簽到"
+        daily_checkin_desc = t('daily_checkin_desc', user=user) if t('daily_checkin_desc', user=user) != 'daily_checkin_desc' else "每天簽到領取積分"
+        invite_friends = t('invite_friends', user=user) if t('invite_friends', user=user) != 'invite_friends' else "👥 邀請好友"
+        invite_friends_desc = t('invite_friends_desc', user=user) if t('invite_friends_desc', user=user) != 'invite_friends_desc' else "邀請好友獲得返佣"
+        task_center = t('task_center', user=user) if t('task_center', user=user) != 'task_center' else "🎯 任務中心"
+        task_center_desc = t('task_center_desc', user=user) if t('task_center_desc', user=user) != 'task_center_desc' else "完成任務獲得獎勵"
+        lucky_wheel = t('lucky_wheel', user=user) if t('lucky_wheel', user=user) != 'lucky_wheel' else "🎰 幸運轉盤"
+        lucky_wheel_desc = t('lucky_wheel_desc', user=user) if t('lucky_wheel_desc', user=user) != 'lucky_wheel_desc' else "轉盤抽獎贏大獎"
+        select_operation = t('select_operation', user=user)
+    
+    text = f"""
+{earn_center}
 
-*功能：*
-• 📅 每日簽到 - 每天簽到領取積分
-• 👥 邀請好友 - 邀請好友獲得返佣
-• 🎯 任務中心 - 完成任務獲得獎勵
-• 🎰 幸運轉盤 - 轉盤抽獎贏大獎
+*{functions_label}*
+• {daily_checkin} - {daily_checkin_desc}
+• {invite_friends} - {invite_friends_desc}
+• {task_center} - {task_center_desc}
+• {lucky_wheel} - {lucky_wheel_desc}
 
-請選擇操作：
+{select_operation}:
 """
     
     await query.edit_message_text(
@@ -279,14 +307,39 @@ async def show_earn_menu(query, db_user):
 
 async def show_game_menu(query, db_user):
     """顯示遊戲菜單"""
-    text = """
-🎮 *遊戲中心*
+    from bot.utils.i18n import t
+    from shared.database.connection import get_db
+    from shared.database.models import User
+    
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内获取翻译文本
+        game_center = t('game_center', user=user) if t('game_center', user=user) != 'game_center' else "🎮 遊戲中心"
+        functions_label = t('functions', user=user)
+        select_operation = t('select_operation', user=user)
+        # 游戏相关的翻译文本（如果不存在，使用默认值）
+        game_golden_luck = t('game_golden_luck', user=user) if t('game_golden_luck', user=user) != 'game_golden_luck' else "🎰 金運局"
+        game_golden_luck_desc = t('game_golden_luck_desc', user=user) if t('game_golden_luck_desc', user=user) != 'game_golden_luck_desc' else "經典紅包遊戲"
+        lucky_wheel = t('lucky_wheel', user=user) if t('lucky_wheel', user=user) != 'lucky_wheel' else "🎡 幸運轉盤"
+        lucky_wheel_desc = t('lucky_wheel_desc', user=user) if t('lucky_wheel_desc', user=user) != 'lucky_wheel_desc' else "轉盤抽獎"
+    
+    text = f"""
+{game_center}
 
-*功能：*
-• 🎰 金運局 - 經典紅包遊戲
-• 🎡 幸運轉盤 - 轉盤抽獎
+*{functions_label}*
+• {game_golden_luck} - {game_golden_luck_desc}
+• {lucky_wheel} - {lucky_wheel_desc}
 
-請選擇操作：
+{select_operation}:
 """
     
     await query.edit_message_text(
@@ -298,15 +351,44 @@ async def show_game_menu(query, db_user):
 
 async def show_profile_menu(query, db_user):
     """顯示個人資料菜單"""
-    text = """
-👤 *個人資料*
+    from bot.utils.i18n import t
+    from shared.database.connection import get_db
+    from shared.database.models import User
+    
+    # 在会话内重新查询用户以确保数据最新
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        if not user:
+            try:
+                await query.edit_message_text(t("error", user=db_user))
+            except:
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text("發生錯誤，請稍後再試")
+            return
+        
+        # 在会话内获取翻译文本
+        profile_center = t('profile_center', user=user) if t('profile_center', user=user) != 'profile_center' else "👤 個人資料"
+        functions_label = t('functions', user=user)
+        select_operation = t('select_operation', user=user)
+        # 个人资料相关的翻译文本（如果不存在，使用默认值）
+        my_profile = t('my_profile', user=user) if t('my_profile', user=user) != 'my_profile' else "📊 我的資料"
+        my_profile_desc = t('my_profile_desc', user=user) if t('my_profile_desc', user=user) != 'my_profile_desc' else "查看個人信息"
+    
+        # 获取更多翻译文本
+        stats = t('stats', user=user) if t('stats', user=user) != 'stats' else "📈 統計數據"
+        stats_desc = t('stats_desc', user=user) if t('stats_desc', user=user) != 'stats_desc' else "查看統計數據"
+        settings = t('settings', user=user) if t('settings', user=user) != 'settings' else "⚙️ 設置"
+        settings_desc = t('settings_desc', user=user) if t('settings_desc', user=user) != 'settings_desc' else "個人設置"
+    
+    text = f"""
+{profile_center}
 
-*功能：*
-• 📊 我的資料 - 查看個人信息
-• 📈 統計數據 - 查看統計數據
-• ⚙️ 設置 - 個人設置
+*{functions_label}*
+• {my_profile} - {my_profile_desc}
+• {stats} - {stats_desc}
+• {settings} - {settings_desc}
 
-請選擇操作：
+{select_operation}:
 """
     
     await query.edit_message_text(

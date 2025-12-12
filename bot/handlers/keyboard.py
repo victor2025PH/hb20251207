@@ -513,17 +513,42 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['send_packet_step'] = 'type'
         
         # 直接發送類型選擇消息，不使用 show_packet_type_selection（避免 edit_message_text 問題）
+        from bot.utils.i18n import t
         currency_upper = currency.upper()
+        
+        # 在会话内获取翻译文本
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                current_balance = t('current_balance', user=user)
+                select_type = t('select_type', user=user)
+                random_amount = t('random_amount', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                random_amount_desc = t('random_amount_desc', user=user)
+                fixed_amount_desc = t('fixed_amount_desc', user=user)
+                select_type_prompt = t('select_type', user=user)
+            else:
+                # 如果查询失败，使用默认值
+                send_packet_title = "➕ 發紅包"
+                current_balance = "當前餘額："
+                select_type = "選擇紅包類型："
+                random_amount = "手氣最佳"
+                fixed_amount = "紅包炸彈"
+                random_amount_desc = "隨機金額分配，領取完成後金額最大的用戶將被標記為\"最佳手氣\""
+                fixed_amount_desc = "固定金額分配，如果領取金額的小數點後最後一位數字與炸彈數字相同，將觸發炸彈"
+                select_type_prompt = "請選擇類型："
+        
         text = f"""
-➕ *發紅包 - {currency_upper}*
+*{send_packet_title} - {currency_upper}*
 
-*當前餘額：* `{balance:.4f}` {currency_upper}
+*{current_balance}* `{balance:.4f}` {currency_upper}
 
-*選擇紅包類型：*
-• 🎲 手氣最佳 - 隨機金額分配，領取完成後金額最大的用戶將被標記為"最佳手氣"
-• 💣 紅包炸彈 - 固定金額分配，如果領取金額的小數點後最後一位數字與炸彈數字相同，將觸發炸彈
+*{select_type}*
+• {random_amount} - {random_amount_desc}
+• {fixed_amount} - {fixed_amount_desc}
 
-請選擇類型：
+{select_type_prompt}:
 """
         await update.message.reply_text(
             text,
@@ -550,10 +575,25 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                current_balance = t('current_balance', user=user)
+                random_amount = t('random_amount', user=user)
+                select_amount = t('select_amount', user=user)
+            else:
+                send_packet_title = "➕ 發紅包"
+                current_balance = "當前餘額："
+                random_amount = "手氣最佳"
+                select_amount = "請選擇或輸入金額："
+        
         await update.message.reply_text(
-            f"➕ *發紅包 - {currency_upper} - 手氣最佳*\n\n"
-            f"*當前餘額：* `{balance:.4f}` {currency_upper}\n\n"
-            f"請選擇或輸入金額：",
+            f"*{send_packet_title} - {currency_upper} - {random_amount}*\n\n"
+            f"*{current_balance}* `{balance:.4f}` {currency_upper}\n\n"
+            f"{select_amount}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_amount_keyboard(currency, 'random'),
         )
@@ -575,10 +615,25 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                current_balance = t('current_balance', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                select_amount = t('select_amount', user=user)
+            else:
+                send_packet_title = "➕ 發紅包"
+                current_balance = "當前餘額："
+                fixed_amount = "紅包炸彈"
+                select_amount = "請選擇或輸入金額："
+        
         await update.message.reply_text(
-            f"➕ *發紅包 - {currency_upper} - 紅包炸彈*\n\n"
-            f"*當前餘額：* `{balance:.4f}` {currency_upper}\n\n"
-            f"請選擇或輸入金額：",
+            f"*{send_packet_title} - {currency_upper} - {fixed_amount}*\n\n"
+            f"*{current_balance}* `{balance:.4f}` {currency_upper}\n\n"
+            f"{select_amount}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_amount_keyboard(currency, 'equal'),
         )
@@ -597,13 +652,28 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             currency = packet_data.get('currency', 'usdt')
             currency_upper = currency.upper()
             packet_type = packet_data.get('packet_type', 'random')
-            type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
+            # 获取翻译文本
+            from bot.utils.i18n import t
+            with get_db() as db:
+                user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+                if user:
+                    send_packet_title = t('send_packet_title', user=user)
+                    random_amount = t('random_amount', user=user)
+                    fixed_amount = t('fixed_amount', user=user)
+                    amount_label = t('amount_label', user=user)
+                    select_packet_count_range = t('select_packet_count_range', user=user)
+                    type_text = random_amount if packet_type == "random" else fixed_amount
+                else:
+                    send_packet_title = "➕ 發紅包"
+                    type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
+                    amount_label = "金額："
+                    select_packet_count_range = "請選擇紅包數量（1-100）："
             
             # 底部鍵盤模式 - 直接發送消息
             await update.message.reply_text(
-                f"➕ *發紅包 - {currency_upper} - {type_text}*\n\n"
-                f"*金額：* `{amount}` {currency_upper}\n\n"
-                f"請選擇紅包數量（1-100）：",
+                f"*{send_packet_title} - {currency_upper} - {type_text}*\n\n"
+                f"*{amount_label}* `{amount}` {currency_upper}\n\n"
+                f"{select_packet_count_range}",
                 parse_mode="Markdown",
                 reply_markup=get_send_packet_count_keyboard(currency, packet_type, str(amount)),
             )
@@ -648,16 +718,47 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
                     packet_data['bomb_number'] = None  # 單雷，需要特殊處理
                 context.user_data['send_packet'] = packet_data
             
+            # 获取翻译文本
+            from bot.utils.i18n import t
+            with get_db() as db:
+                user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+                if user:
+                    send_packet_title = t('send_packet_title', user=user)
+                    select_group = t('select_group', user=user)
+                    packet_info = t('packet_info', user=user)
+                    currency_label = t('currency_label', user=user)
+                    type_label = t('type_label', user=user)
+                    amount_label = t('amount_label', user=user)
+                    quantity_label = t('quantity_label', user=user)
+                    blessing_label = t('blessing_label', user=user)
+                    enter_group_link_id = t('enter_group_link_id', user=user)
+                    random_amount = t('random_amount', user=user)
+                    fixed_amount = t('fixed_amount', user=user)
+                    shares_text = t('shares', user=user)
+                    type_text = random_amount if packet_type == "random" else fixed_amount
+                else:
+                    send_packet_title = "➕ 發紅包"
+                    select_group = "選擇群組"
+                    packet_info = "紅包信息："
+                    currency_label = "幣種："
+                    type_label = "類型："
+                    amount_label = "金額："
+                    quantity_label = "數量："
+                    blessing_label = "祝福語："
+                    enter_group_link_id = "請輸入群組 ID 或鏈接："
+                    type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
+                    shares_text = "份"
+            
             # 底部鍵盤模式 - 直接發送消息
             await update.message.reply_text(
-                f"➕ *發紅包 - 選擇群組*\n\n"
-                f"*紅包信息：*\n"
-                f"• 幣種：{currency_upper}\n"
-                f"• 類型：{type_text}\n"
-                f"• 金額：{amount} {currency_upper}\n"
-                f"• 數量：{count} 份\n"
-                f"• 祝福語：{message}\n\n"
-                f"請輸入群組 ID 或鏈接：",
+                f"*{send_packet_title} - {select_group}*\n\n"
+                f"*{packet_info}*\n"
+                f"• {currency_label}{currency_upper}\n"
+                f"• {type_label}{type_text}\n"
+                f"• {amount_label}{amount} {currency_upper}\n"
+                f"• {quantity_label}{count} {shares_text}\n"
+                f"• {blessing_label}{message}\n\n"
+                f"{enter_group_link_id}",
                 parse_mode="Markdown",
                 reply_markup=get_send_packet_group_keyboard(),
             )
@@ -678,16 +779,45 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         amount = packet_data.get('amount', 0)
         message = packet_data.get('message', '恭喜發財！🧧')
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                select_group = t('select_group', user=user)
+                packet_info = t('packet_info', user=user)
+                currency_label = t('currency_label', user=user)
+                type_label = t('type_label', user=user)
+                amount_label = t('amount_label', user=user)
+                quantity_label = t('quantity_label', user=user)
+                blessing_label = t('blessing_label', user=user)
+                enter_group_link_id = t('enter_group_link_id', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                shares_text = t('shares', user=user)
+            else:
+                send_packet_title = "➕ 發紅包"
+                select_group = "選擇群組"
+                packet_info = "紅包信息："
+                currency_label = "幣種："
+                type_label = "類型："
+                amount_label = "金額："
+                quantity_label = "數量："
+                blessing_label = "祝福語："
+                enter_group_link_id = "請輸入群組 ID 或鏈接："
+                fixed_amount = "紅包炸彈"
+                shares_text = "份"
+        
         # 底部鍵盤模式 - 直接發送消息
         await update.message.reply_text(
-            f"➕ *發紅包 - 選擇群組*\n\n"
-            f"*紅包信息：*\n"
-            f"• 幣種：{currency_upper}\n"
-            f"• 類型：紅包炸彈（5份雙雷）\n"
-            f"• 金額：{amount} {currency_upper}\n"
-            f"• 數量：5 份\n"
-            f"• 祝福語：{message}\n\n"
-            f"請輸入群組 ID 或鏈接：",
+            f"*{send_packet_title} - {select_group}*\n\n"
+            f"*{packet_info}*\n"
+            f"• {currency_label}{currency_upper}\n"
+            f"• {type_label}{fixed_amount}（5{shares_text}雙雷）\n"
+            f"• {amount_label}{amount} {currency_upper}\n"
+            f"• {quantity_label}5 {shares_text}\n"
+            f"• {blessing_label}{message}\n\n"
+            f"{enter_group_link_id}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_group_keyboard(),
         )
@@ -705,16 +835,45 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         amount = packet_data.get('amount', 0)
         message = packet_data.get('message', '恭喜發財！🧧')
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                select_group = t('select_group', user=user)
+                packet_info = t('packet_info', user=user)
+                currency_label = t('currency_label', user=user)
+                type_label = t('type_label', user=user)
+                amount_label = t('amount_label', user=user)
+                quantity_label = t('quantity_label', user=user)
+                blessing_label = t('blessing_label', user=user)
+                enter_group_link_id = t('enter_group_link_id', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                shares_text = t('shares', user=user)
+            else:
+                send_packet_title = "➕ 發紅包"
+                select_group = "選擇群組"
+                packet_info = "紅包信息："
+                currency_label = "幣種："
+                type_label = "類型："
+                amount_label = "金額："
+                quantity_label = "數量："
+                blessing_label = "祝福語："
+                enter_group_link_id = "請輸入群組 ID 或鏈接："
+                fixed_amount = "紅包炸彈"
+                shares_text = "份"
+        
         # 底部鍵盤模式 - 直接發送消息
         await update.message.reply_text(
-            f"➕ *發紅包 - 選擇群組*\n\n"
-            f"*紅包信息：*\n"
-            f"• 幣種：{currency_upper}\n"
-            f"• 類型：紅包炸彈（10份單雷）\n"
-            f"• 金額：{amount} {currency_upper}\n"
-            f"• 數量：10 份\n"
-            f"• 祝福語：{message}\n\n"
-            f"請輸入群組 ID 或鏈接：",
+            f"*{send_packet_title} - {select_group}*\n\n"
+            f"*{packet_info}*\n"
+            f"• {currency_label}{currency_upper}\n"
+            f"• {type_label}{fixed_amount}（10{shares_text}單雷）\n"
+            f"• {amount_label}{amount} {currency_upper}\n"
+                f"• {quantity_label}10 {shares_text}\n"
+                f"• {blessing_label}{message}\n\n"
+                f"{enter_group_link_id}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_group_keyboard(),
         )
@@ -808,10 +967,23 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                current_balance = t('current_balance', user=user)
+                select_type = t('select_type', user=user)
+            else:
+                send_packet_title = "➕ 發紅包"
+                current_balance = "當前餘額："
+                select_type = "請選擇紅包類型："
+        
         await update.message.reply_text(
-            f"➕ *發紅包 - {currency_upper}*\n\n"
-            f"*當前餘額：* `{balance:.4f}` {currency_upper}\n\n"
-            f"請選擇紅包類型：",
+            f"*{send_packet_title} - {currency_upper}*\n\n"
+            f"*{current_balance}* `{balance:.4f}` {currency_upper}\n\n"
+            f"{select_type}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_type_keyboard(),
         )
@@ -822,20 +994,32 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         currency = packet_data.get('currency', 'usdt')
         currency_upper = currency.upper()
         packet_type = packet_data.get('packet_type', 'random')
-        type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
         context.user_data['send_packet_step'] = 'amount'
         
-        # 底部鍵盤模式 - 直接發送消息
+        # 获取翻译文本
+        from bot.utils.i18n import t
         from shared.database.connection import get_db
         from shared.database.models import User
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                current_balance = t('current_balance', user=user)
+                select_amount = t('select_amount', user=user)
+                random_amount = t('random_amount', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                type_text = random_amount if packet_type == "random" else fixed_amount
+            else:
+                send_packet_title = "➕ 發紅包"
+                current_balance = "當前餘額："
+                select_amount = "請選擇或輸入金額："
+                type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
         
         await update.message.reply_text(
-            f"➕ *發紅包 - {currency_upper} - {type_text}*\n\n"
-            f"*當前餘額：* `{balance:.4f}` {currency_upper}\n\n"
-            f"請選擇或輸入金額：",
+            f"*{send_packet_title} - {currency_upper} - {type_text}*\n\n"
+            f"*{current_balance}* `{balance:.4f}` {currency_upper}\n\n"
+            f"{select_amount}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_amount_keyboard(currency, packet_type),
         )
@@ -846,15 +1030,31 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         currency = packet_data.get('currency', 'usdt')
         currency_upper = currency.upper()
         packet_type = packet_data.get('packet_type', 'random')
-        type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
         amount = packet_data.get('amount', 0)
         context.user_data['send_packet_step'] = 'count'
         
+        # 获取翻译文本
+        from bot.utils.i18n import t
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            if user:
+                send_packet_title = t('send_packet_title', user=user)
+                amount_label = t('amount_label', user=user)
+                select_packet_count = t('select_packet_count', user=user)
+                random_amount = t('random_amount', user=user)
+                fixed_amount = t('fixed_amount', user=user)
+                type_text = random_amount if packet_type == "random" else fixed_amount
+            else:
+                send_packet_title = "➕ 發紅包"
+                amount_label = "金額："
+                select_packet_count = "請選擇紅包數量："
+                type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
+        
         # 底部鍵盤模式 - 直接發送消息
         await update.message.reply_text(
-            f"➕ *發紅包 - {currency_upper} - {type_text}*\n\n"
-            f"*金額：* `{amount}` {currency_upper}\n\n"
-            f"請選擇紅包數量：",
+            f"*{send_packet_title} - {currency_upper} - {type_text}*\n\n"
+            f"*{amount_label}* `{amount}` {currency_upper}\n\n"
+            f"{select_packet_count}",
             parse_mode="Markdown",
             reply_markup=get_send_packet_count_keyboard(currency, packet_type, str(amount)),
         )
