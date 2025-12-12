@@ -164,8 +164,8 @@ async def show_wallet_menu(query, db_user):
     # 在會話內重新查詢用戶以確保數據最新
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
-            if not user:
-                await query.edit_message_text(t('error_occurred', user=db_user))
+        if not user:
+            await query.edit_message_text(t('error_occurred', user=db_user))
             return
         
         usdt = float(user.balance_usdt or 0)
