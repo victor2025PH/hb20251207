@@ -95,6 +95,16 @@ const translations: Record<Language, Record<string, string>> = {
     already_claimed: '您已經領取過這個紅包了',
     grab_red_packet: '搶紅包',
     grab_red_packet_text: '🎁 搶 {senderName} 的紅包！"{message}"',
+    packet_not_found: '紅包不存在',
+    packet_expired: '紅包不存在或已過期',
+    need_login: '需要登錄',
+    please_login_telegram: '請確保您已通過 Telegram 登錄',
+    please_login_miniapp: '搶紅包需要登錄。請通過 Telegram MiniApp 訪問或先登錄。',
+    go_to_login: '前往登錄',
+    return_to_packets: '返回紅包列表',
+    claiming: '正在搶紅包...',
+    anonymous_user: '匿名用戶',
+    default_blessing: '恭喜發財！',
     
     // 能量運勢
     energy_full: '已滿',

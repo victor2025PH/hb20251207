@@ -226,9 +226,9 @@ export default function ClaimRedPacketPage() {
           }}
           amount={claimAmount}
           currency={packetInfo.currency?.toUpperCase() || 'USDT'}
-          senderName={packetInfo.sender_name || '匿名用戶'}
+          senderName={packetInfo.sender_name || t('anonymous_user')}
           senderLevel={Math.floor(Math.random() * 50) + 1}
-          message={packetInfo.message || '恭喜發財！'}
+          message={packetInfo.message || t('default_blessing')}
           senderAvatar={`https://api.dicebear.com/7.x/avataaars/svg?seed=${packetInfo.sender_id}`}
         />
       )}
