@@ -50,14 +50,16 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user = result.scalar_one_or_none()
         
         if not db_user:
+            from bot.utils.i18n import t
             await update.message.reply_text(
-                "❌ 您還沒有註冊，請先使用機器人的其他功能完成註冊。"
+                t('not_registered_yet', user=None) if t('not_registered_yet', user=None) != 'not_registered_yet' else "❌ 您還沒有註冊，請先使用機器人的其他功能完成註冊。"
             )
             return
         
         if db_user.is_banned:
+            from bot.utils.i18n import t
             await update.message.reply_text(
-                "❌ 您的帳戶已被封禁，無法使用此功能。"
+                t('account_banned', user=db_user)
             )
             return
         
@@ -81,9 +83,12 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Magic link generated for user {tg_id}")
         
         # 發送訊息
+        from bot.utils.i18n import t
+        login_now_button = t('login_now_button', user=db_user)
+        copy_link_button = t('copy_link_button', user=db_user)
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌐 立即登入", url=login_url)],
-            [InlineKeyboardButton("📋 複製連結", callback_data=f"copy_link:{token[:10]}")],
+            [InlineKeyboardButton(login_now_button, url=login_url)],
+            [InlineKeyboardButton(copy_link_button, callback_data=f"copy_link:{token[:10]}")],
         ])
         
         message_text = (
