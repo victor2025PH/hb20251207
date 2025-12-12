@@ -144,6 +144,7 @@ interface ReferralTreeNodeProps {
 }
 
 function ReferralTreeNodeComponent({ node, level, expandedNodes, onToggle }: ReferralTreeNodeProps) {
+  const { t } = useTranslation();
   const isExpanded = expandedNodes.has(node.user_id);
   const hasChildren = node.referrals && node.referrals.length > 0;
 
