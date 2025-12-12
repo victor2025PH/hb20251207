@@ -32,10 +32,75 @@ interface PacketDisplay {
   is_claimed?: boolean  // 當前用戶是否已領取
 }
 
+// 任務名稱到 task_type 的映射（根據後端任務配置）
+const taskNameToTypeMap: Record<string, string> = {
+  '每日簽到': 'checkin',
+  '搶紅包': 'claim_packet',
+  '發送紅包': 'send_packet',
+  '群組發包': 'send_packet_group',
+  '社交達人': 'invite_3_friends',
+  '搶包達人': 'claim_3_packets',
+  '搶包挑戰': 'claim_5_packets',
+  '炸彈紅包': 'send_bomb_packet',
+  '手氣最佳': 'claim_luckiest',
+  '分享應用': 'share_app',
+  '分享紅包': 'share_packet',
+  '邀請好友': 'invite_friend',
+  '邀請達人': 'invite_5',
+  '邀請大師': 'invite_10',
+  '發包達人': 'send_10',
+  '發包挑戰': 'send_3_packets',
+  '簽到達人': 'checkin_7',
+  '幸運轉盤': 'play_lucky_wheel',
+  '遊戲獲勝': 'win_game',
+  '紅包互動': 'comment_packet',
+  '關注好友': 'follow_user',
+}
+
+// 解析並翻譯任務消息
+function translateTaskMessage(message: string, t: (key: string) => string): string {
+  // 檢查是否是任務紅包（以 🎯 開頭）
+  if (!message.startsWith('🎯')) {
+    return message
+  }
+  
+  // 移除 🎯 前綴
+  const content = message.replace(/^🎯\s*/, '')
+  
+  // 解析任務名稱和描述（格式：任務名稱 - 任務描述）
+  const parts = content.split(' - ')
+  if (parts.length < 2) {
+    return message // 如果格式不對，返回原消息
+  }
+  
+  const taskName = parts[0].trim()
+  const taskDescription = parts.slice(1).join(' - ').trim()
+  
+  // 根據任務名稱查找 task_type
+  const taskType = taskNameToTypeMap[taskName]
+  if (!taskType) {
+    return message // 如果找不到對應的 task_type，返回原消息
+  }
+  
+  // 獲取翻譯
+  const translatedName = t(`task_${taskType}_name`) !== `task_${taskType}_name` 
+    ? t(`task_${taskType}_name`) 
+    : taskName
+  const translatedDesc = t(`task_${taskType}_description`) !== `task_${taskType}_description`
+    ? t(`task_${taskType}_description`)
+    : taskDescription
+  
+  // 返回翻譯後的消息
+  return `🎯 ${translatedName} - ${translatedDesc}`
+}
+
 // 將 API 紅包轉換為顯示格式
 function convertToDisplay(packet: RedPacket, t: (key: string) => string): PacketDisplay {
   const packetType = packet.type === 'random' ? 'lucky' : 'ordinary'
   const isBomb = packet.type === 'fixed' && (packet as any).bomb_number !== undefined
+  
+  // 翻譯消息（如果是任務紅包）
+  const translatedMessage = translateTaskMessage(packet.message || '', t)
   
   return {
     id: packet.id,
@@ -43,7 +108,7 @@ function convertToDisplay(packet: RedPacket, t: (key: string) => string): Packet
     senderName: packet.sender_name || t('anonymous_user'),
     senderAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${packet.sender_id}`,
     senderLevel: Math.floor(Math.random() * 50) + 1, // TODO: 從 API 獲取真實等級
-    message: packet.message || t('default_blessing'),
+    message: translatedMessage || t('default_blessing'),
     totalQuantity: packet.quantity,
     remainingQuantity: packet.remaining,
     type: isBomb ? 'exclusive' : packetType,
