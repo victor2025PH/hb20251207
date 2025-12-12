@@ -1,5 +1,6 @@
 import { X, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from '../providers/I18nProvider'
 
 interface AlertModalProps {
   isOpen: boolean
@@ -16,6 +17,7 @@ export default function AlertModal({
   type = 'info',
   title
 }: AlertModalProps) {
+  const { t } = useTranslation()
   if (!isOpen) return null
 
   const icons = {
@@ -90,7 +92,7 @@ export default function AlertModal({
               'bg-blue-500 hover:bg-blue-600'
             } text-white`}
           >
-            確定
+            {t('confirm')}
           </button>
         </motion.div>
       </div>

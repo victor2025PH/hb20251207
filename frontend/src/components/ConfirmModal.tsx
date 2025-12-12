@@ -1,5 +1,6 @@
 import { X, AlertCircle, HelpCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from '../providers/I18nProvider'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -18,10 +19,13 @@ export default function ConfirmModal({
   onConfirm,
   message,
   title,
-  confirmText = '確定',
-  cancelText = '取消',
+  confirmText,
+  cancelText,
   type = 'warning'
 }: ConfirmModalProps) {
+  const { t } = useTranslation()
+  const finalConfirmText = confirmText || t('confirm')
+  const finalCancelText = cancelText || t('cancel')
   if (!isOpen) return null
 
   const handleConfirm = () => {
@@ -90,7 +94,7 @@ export default function ConfirmModal({
               onClick={handleCancel}
               className="flex-1 py-2.5 px-4 rounded-xl font-medium bg-white/10 hover:bg-white/20 text-gray-200 transition-colors"
             >
-              {cancelText}
+              {finalCancelText}
             </button>
             <button
               onClick={handleConfirm}
@@ -100,7 +104,7 @@ export default function ConfirmModal({
                   : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
-              {confirmText}
+              {finalConfirmText}
             </button>
           </div>
         </motion.div>
