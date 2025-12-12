@@ -494,8 +494,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             help_contact = t('help_contact', user_id=user_id)
         else:
             # 默認中文
-        help_title = "🧧 *Lucky Red 使用指南*"
-        help_basic_commands = "*基本命令：*"
+            help_title = "🧧 *Lucky Red 使用指南*"
+            help_basic_commands = "*基本命令：*"
         help_command_start = "/start - 開始使用"
         help_command_wallet = "/wallet - 打開錢包"
         help_command_packets = "/packets - 打開紅包"
