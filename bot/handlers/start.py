@@ -41,7 +41,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
             return
         
