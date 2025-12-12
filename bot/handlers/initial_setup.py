@@ -15,6 +15,7 @@ from bot.keyboards.unified import get_unified_keyboard
 
 async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """显示初始设置界面（语言 + 键盘模式）"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user = update.effective_user
     chat_type = update.effective_chat.type
     
@@ -22,7 +23,6 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     with get_db() as db:
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user:
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user))
             return
         

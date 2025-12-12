@@ -26,13 +26,13 @@ async def switch_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Error answering query: {e}")
     
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
     
     # 获取用户
     user = await get_user_from_update(update, context)
     if not user:
-        from bot.utils.i18n import t
         await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
         return
     

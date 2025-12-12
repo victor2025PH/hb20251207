@@ -19,14 +19,12 @@ def is_admin(user_id: int) -> bool:
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /admin 命令"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user = update.effective_user
     
     if not is_admin(user.id):
-        from bot.utils.i18n import t
         await update.message.reply_text(t('no_admin_permission', user=None) if t('no_admin_permission', user=None) != 'no_admin_permission' else "⛔ 你沒有管理員權限")
         return
-    
-    from bot.utils.i18n import t
     admin_panel_title = t('admin_panel_title', user=user) if t('admin_panel_title', user=user) != 'admin_panel_title' else "⚙️ *管理員面板*"
     available_commands_label = t('available_commands_label', user=user) if t('available_commands_label', user=user) != 'available_commands_label' else "*可用命令：*"
     adjust_command_usage = t('adjust_command_usage', user=user) if t('adjust_command_usage', user=user) != 'adjust_command_usage' else "/adjust <@用戶名或ID> <金額> - 調整餘額"

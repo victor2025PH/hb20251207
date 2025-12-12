@@ -119,11 +119,11 @@ async def do_checkin(db_user, db=None, return_result=False):
 
 async def do_checkin_with_message(user, message, is_callback=False):
     """執行簽到並發送消息（保持向後兼容）"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     with get_db() as db:
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         
         if not db_user:
-            from bot.utils.i18n import t
             text = t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊"
             if is_callback:
                 await message.reply_text(text)

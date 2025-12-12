@@ -22,12 +22,12 @@ API_BASE = settings.api_url  # 從配置讀取 API URL
 
 async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /wallet 命令"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     from bot.utils.user_helpers import get_user_from_update
     
     # 獲取用戶（帶緩存）
     db_user = await get_user_from_update(update, context)
     if not db_user:
-        from bot.utils.i18n import t
         await update.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
         return
     
@@ -35,7 +35,6 @@ async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user))
             return
         
