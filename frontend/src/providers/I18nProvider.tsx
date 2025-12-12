@@ -84,6 +84,12 @@ const translations: Record<Language, Record<string, string>> = {
     charging: '充電中',
     hold_charge: '長按充能',
     super_charge: '長按超級充能',
+    bot_not_in_group: '⚠️ 機器人不在群組中\n\n您仍然可以選擇此群組，發送紅包時會生成分享鏈接，您可以手動分享到群組中。',
+    user_not_in_group: '⚠️ 您尚未加入此群組\n\n是否現在加入？',
+    user_not_in_group_continue: '⚠️ 您尚未加入此群組\n\n是否仍然選擇此群組？',
+    join: '加入',
+    cancel: '取消',
+    bot_not_in_group_share: '機器人不在群組中，無法直接發送紅包消息。\n\n是否分享紅包鏈接？',
     
     // 能量運勢
     energy_full: '已滿',

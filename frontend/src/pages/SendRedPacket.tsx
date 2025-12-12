@@ -140,7 +140,7 @@ export default function SendRedPacket() {
         // 如果 Bot 不在群組中，提示用戶（但不阻止選擇，可以通過鏈接發送）
         if (chat.bot_in_group === false) {
           await showAlert(
-            '⚠️ 機器人不在群組中\n\n您仍然可以選擇此群組，發送紅包時會生成分享鏈接，您可以手動分享到群組中。',
+            t('bot_not_in_group'),
             'warning'
           )
           // 不 return，繼續選擇流程
@@ -152,10 +152,10 @@ export default function SendRedPacket() {
           if (groupLink) {
             const telegram = window.Telegram?.WebApp
             const shouldJoin = await showConfirm(
-              '⚠️ 您尚未加入此群組\n\n是否現在加入？',
+              t('user_not_in_group'),
               undefined,
-              '加入',
-              '取消'
+              t('join'),
+              t('cancel')
             )
             if (shouldJoin && telegram) {
               telegram.openLink(groupLink)
@@ -165,7 +165,7 @@ export default function SendRedPacket() {
               // 繼續選擇流程
             }
           } else {
-            const shouldContinue = await showConfirm('⚠️ 您尚未加入此群組\n\n是否仍然選擇此群組？')
+            const shouldContinue = await showConfirm(t('user_not_in_group_continue'))
             if (!shouldContinue) {
               return
             }
