@@ -28,7 +28,8 @@ async def earn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from bot.utils.user_helpers import get_user_from_update
     db_user = await get_user_from_update(update, context)
     if not db_user:
-        await query.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
         return
     
     if action == "checkin":
@@ -45,33 +46,43 @@ async def earn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_checkin_result(query, result):
     """處理簽到結果"""
+    from bot.utils.i18n import t
+    daily_checkin_title = t('daily_checkin_title', user=query.from_user)
+    checkin_success_checkmark = t('checkin_success_checkmark', user=query.from_user)
+    reward_earned_label = t('reward_earned_label', user=query.from_user)
+    energy_reward = t('energy_reward', user=query.from_user, points=result['points'])
+    consecutive_checkin_label = t('consecutive_checkin_label', user=query.from_user, days=result.get('consecutive', 0))
+    checkin_7day_bonus_hint = t('checkin_7day_bonus_hint', user=query.from_user)
+    unknown_error = t('unknown_error', user=query.from_user)
+    return_main = t('return_main', user=query.from_user)
+    
     if result["success"]:
         text = f"""
-📅 *每日簽到*
+{daily_checkin_title}
 
-✅ 簽到成功！
+{checkin_success_checkmark}
 
-*獲得獎勵：*
-• +{result['points']} 能量
+{reward_earned_label}
+{energy_reward}
 
-*連續簽到：* {result.get('consecutive', 0)} 天
+{consecutive_checkin_label}
 
-💡 連續簽到7天可獲得額外獎勵！
+{checkin_7day_bonus_hint}
 """
     else:
         text = f"""
-📅 *每日簽到*
+{daily_checkin_title}
 
-{result.get('message', '未知錯誤')}
+{result.get('message', unknown_error)}
 
-*連續簽到：* {result.get('consecutive', 0)} 天
+{consecutive_checkin_label}
 
-💡 連續簽到7天可獲得額外獎勵！
+{checkin_7day_bonus_hint}
 """
     
     keyboard = [
         [
-            InlineKeyboardButton("◀️ 返回", callback_data="menu:earn"),
+            InlineKeyboardButton(return_main, callback_data="menu:earn"),
         ],
     ]
     
@@ -110,31 +121,44 @@ async def show_invite_info(query, db_user):
     
     invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={invite_code}"
     
+    from bot.utils.i18n import t
+    invite_info_title = t('invite_info_title', user=user)
+    invite_statistics_label = t('invite_statistics_label', user=user)
+    invited_count = t('invited_count', user=user, count=invite_count)
+    total_earnings = t('total_earnings', user=user, earnings=invite_earnings)
+    invite_rules_title = t('invite_rules_title', user=user)
+    invite_rules_description = t('invite_rules_description', user=user)
+    invite_link_label = t('invite_link', user=user)
+    click_to_share = t('click_to_share', user=user) if t('click_to_share', user=user) != 'click_to_share' else "點擊下方按鈕分享給好友："
+    share_invite_link = t('share_invite_link', user=user)
+    invite_share_text = t('invite_share_text', user=user) if t('invite_share_text', user=user) != 'invite_share_text' else "快來玩搶紅包遊戲！"
+    return_main = t('return_main', user=user)
+    
     text = f"""
-👥 *邀請好友*
+{invite_info_title}
 
-*我的邀請統計：*
-• 已邀請：{invite_count} 人
-• 累計收益：{invite_earnings:.4f} USDT
+{invite_statistics_label}
+{invited_count}
+{total_earnings}
 
-*邀請規則：*
-好友通過你的鏈接註冊後，你將獲得其所有交易的 10% 返佣！
+{invite_rules_title}
+{invite_rules_description}
 
-*專屬邀請鏈接：*
+{invite_link_label}
 `{invite_link}`
 
-點擊下方按鈕分享給好友：
+{click_to_share}
 """
     
     keyboard = [
         [
             InlineKeyboardButton(
-                "📤 分享給好友",
-                url=f"https://t.me/share/url?url={invite_link}&text=快來玩搶紅包遊戲！"
+                share_invite_link,
+                url=f"https://t.me/share/url?url={invite_link}&text={invite_share_text}"
             ),
         ],
         [
-            InlineKeyboardButton("◀️ 返回", callback_data="menu:earn"),
+            InlineKeyboardButton(return_main, callback_data="menu:earn"),
         ],
     ]
     
