@@ -327,7 +327,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
                     from bot.utils.i18n import t
-                await update.message.reply_text(t('error_occurred', user=db_user))
+                    await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
                 query = create_mock_query(update)
