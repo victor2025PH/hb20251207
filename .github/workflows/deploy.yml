@@ -378,21 +378,33 @@ jobs:
             fi
             
             # ==========================================
-            # 步骤 6: 重启服务 (Simple & Safe)
+            # 步骤 6: 启动/重启服务
             # ==========================================
             echo ""
             echo "=========================================="
-            echo "步骤 6: 重启服务"
+            echo "步骤 6: 启动/重启服务"
             echo "=========================================="
-            echo "🔄 尝试重启 API 服务..."
             
-            # 直接尝试重启。如果成功则打印成功；如果失败（服务不存在），则打印警告但不要退出。
-            # 注意：必须写在同一行，不要使用反斜杠换行，避免语法错误。
-            sudo systemctl restart "${API_SERVICE_NAME}" && echo "✅ API 服务重启成功" || echo "⚠️ API 服务未运行或不存在，请手动检查 (代码已成功部署)"
+            # 启动/重启 API 服务
+            echo "🔄 检查并启动 API 服务..."
+            if sudo systemctl is-active --quiet "${API_SERVICE_NAME}"; then
+              sudo systemctl restart "${API_SERVICE_NAME}" && echo "✅ API 服务重启成功" || echo "⚠️ API 服务重启失败"
+            else
+              sudo systemctl start "${API_SERVICE_NAME}" && echo "✅ API 服务启动成功" || echo "⚠️ API 服务启动失败，请检查服务配置"
+            fi
+            # 确保服务开机自启
+            sudo systemctl enable "${API_SERVICE_NAME}" 2>/dev/null || true
             
             echo ""
-            echo "🔄 尝试重启 Bot 服务..."
-            sudo systemctl restart "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务重启成功" || echo "⚠️ Bot 服务未运行或不存在，请手动检查 (代码已成功部署)"
+            # 启动/重启 Bot 服务
+            echo "🔄 检查并启动 Bot 服务..."
+            if sudo systemctl is-active --quiet "${BOT_SERVICE_NAME}"; then
+              sudo systemctl restart "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务重启成功" || echo "⚠️ Bot 服务重启失败"
+            else
+              sudo systemctl start "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务启动成功" || echo "⚠️ Bot 服务启动失败，请检查服务配置"
+            fi
+            # 确保服务开机自启
+            sudo systemctl enable "${BOT_SERVICE_NAME}" 2>/dev/null || true
             
             echo ""
             echo "=========================================="
