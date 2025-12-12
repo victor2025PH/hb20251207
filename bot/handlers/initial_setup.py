@@ -22,7 +22,8 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     with get_db() as db:
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user:
-            await update.message.reply_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await update.message.reply_text(t('error_occurred', user=db_user))
             return
         
         current_lang = get_user_language(user=db_user)
@@ -55,7 +56,7 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = f"""
 {welcome_to_lucky_red_text}
 
-Hi {user.first_name}！
+        {t('hi_greeting', user=db_user, name=user.first_name)}
 
 {please_select_language_first_text}
 
@@ -90,19 +91,19 @@ def get_initial_setup_keyboard(current_lang: str = "zh-TW"):
     keyboard = [
         [
             InlineKeyboardButton(
-                f"{'✅' if current_lang == 'zh-TW' else ''} 繁體中文",
+                f"{'✅' if current_lang == 'zh-TW' else ''} {t('lang_zh_tw', user=None) if t('lang_zh_tw', user=None) != 'lang_zh_tw' else '繁體中文'}",
                 callback_data="setup:lang:zh-TW"
             ),
         ],
         [
             InlineKeyboardButton(
-                f"{'✅' if current_lang == 'zh-CN' else ''} 简体中文",
+                f"{'✅' if current_lang == 'zh-CN' else ''} {t('lang_zh_cn', user=None) if t('lang_zh_cn', user=None) != 'lang_zh_cn' else '简体中文'}",
                 callback_data="setup:lang:zh-CN"
             ),
         ],
         [
             InlineKeyboardButton(
-                f"{'✅' if current_lang == 'en' else ''} English",
+                f"{'✅' if current_lang == 'en' else ''} {t('lang_en', user=None) if t('lang_en', user=None) != 'lang_en' else 'English'}",
                 callback_data="setup:lang:en"
             ),
         ],
@@ -126,7 +127,7 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
         if temp_user:
             answer_text = t('setting_language', user=temp_user)
         else:
-            answer_text = "正在設置語言..."
+            answer_text = t('setting_language', user=temp_user) if temp_user else t('setting_language', user=None) if t('setting_language', user=None) != 'setting_language' else "正在設置語言..."
     
     try:
         await query.answer(answer_text)
@@ -147,7 +148,8 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
     if not success:
         logger.error(f"[SETUP] Failed to update language for user {user_id} to {lang_code}")
         try:
-            await query.message.reply_text("❌ 設置語言失敗，請稍後再試")
+            from bot.utils.i18n import t
+            await query.message.reply_text(t('language_set_failed', user=temp_user) if temp_user else t('language_set_failed', user=None) if t('language_set_failed', user=None) != 'language_set_failed' else "❌ 設置語言失敗，請稍後再試")
         except Exception as reply_error:
             logger.error(f"[SETUP] Failed to send error message: {reply_error}")
         return
@@ -163,11 +165,11 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
         # 这样即使会话关闭，我们也能使用这些值
         current_lang = get_user_language(user=user)
         lang_names = {
-            "zh-TW": "繁體中文",
-            "zh-CN": "简体中文",
-            "en": "English",
+            "zh-TW": t('lang_zh_tw', user=user),
+            "zh-CN": t('lang_zh_cn', user=user),
+            "en": t('lang_en', user=user),
         }
-        lang_name = lang_names.get(current_lang, "繁體中文")
+        lang_name = lang_names.get(current_lang, t('lang_zh_tw', user=user))
         
         # 在会话内获取所有需要的翻译文本
         lang_changed_text = t('lang_changed', user=user, lang=lang_name)
@@ -248,10 +250,11 @@ def get_mode_selection_keyboard(db_user=None):
         except Exception as e:
             logger.warning(f"Error getting translations for keyboard, using fallback: {e}")
             # 回退到默认文本
-            mode_keyboard_text = "⌨️ 底部键盘"
-            mode_inline_text = "🔘 内联按钮"
-            mode_miniapp_text = "📱 MiniApp"
-            mode_auto_text = "🔄 自动"
+            from bot.utils.i18n import t
+            mode_keyboard_text = t('mode_keyboard', user=None) if t('mode_keyboard', user=None) != 'mode_keyboard' else "⌨️ 底部键盘"
+            mode_inline_text = t('mode_inline', user=None) if t('mode_inline', user=None) != 'mode_inline' else "🔘 内联按钮"
+            mode_miniapp_text = t('mode_miniapp', user=None) if t('mode_miniapp', user=None) != 'mode_miniapp' else "📱 MiniApp"
+            mode_auto_text = t('mode_auto', user=None) if t('mode_auto', user=None) != 'mode_auto' else "🔄 自动"
         
         keyboard = [
             [
