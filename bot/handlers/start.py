@@ -18,6 +18,7 @@ settings = get_settings()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /start 命令"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user = update.effective_user
     
     # 處理邀請碼
@@ -199,7 +200,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
             return
         
@@ -240,8 +240,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _ = db_user_refreshed.language_code
         _ = db_user_refreshed.interaction_mode
         
-        # 在会话内获取翻译文本
-        from bot.utils.i18n import t
+        # 在会话内获取翻译文本（t 已在函数开头导入）
         welcome_msg = t('welcome', user=db_user_refreshed)
         
         # 獲取所有歡迎消息的翻譯文本
@@ -277,8 +276,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 根据用户选择的模式决定显示方式
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
         
-        # 创建内联按钮（主菜单 + 切换模式）- 使用翻译
-        from bot.utils.i18n import t
+        # 创建内联按钮（主菜单 + 切换模式）- 使用翻译（t 已在函数开头导入）
         inline_keyboard = [
             [
                 InlineKeyboardButton(t("menu_wallet", user=db_user_refreshed), callback_data="menu:wallet"),
