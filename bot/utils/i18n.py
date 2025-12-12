@@ -155,6 +155,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "choose_your_preferred_interaction": "💡 選擇您喜歡的交互方式：",
         "using_inline_buttons": "使用內聯按鈕進行操作 👇",
         "select_function_or_command": "選擇功能或輸入命令...",
+        "functions": "功能：",
         "select_packet_operation": "選擇紅包操作...",
     },
     "zh-CN": {
@@ -337,6 +338,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "using_inline_buttons": "Using inline buttons 👇",
         "select_function_or_command": "Select function or enter command...",
         "select_packet_operation": "Select red packet operation...",
+        "functions": "Functions:",
         # 初始设置
         "welcome_to_lucky_red": "🧧 Welcome to Lucky Red!",
         "please_select_language_first": "Please select your language first, then choose your preferred interaction method:",

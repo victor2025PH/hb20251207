@@ -226,21 +226,24 @@ async def show_packets_menu(query, db_user):
         my_packets_text = t('my_packets', user=user)
         select_operation_text = t('select_operation', user=user)
         
-        # 获取功能描述
+        # 获取功能描述（翻译文本中已包含图标，不需要重复添加）
         view_packets_desc = t('view_packets_desc', user=user)
         send_packet_desc = t('send_packet_desc', user=user)
         my_packets_desc = t('my_packets_desc', user=user)
+        functions_label = t('functions', user=user)
         
         # 在会话内生成键盘（get_packets_menu 内部会调用 t()，需要访问 user 属性）
         reply_markup = get_packets_menu(user=user)
         
+        # 移除翻译文本中的图标，只保留文本部分（避免重复显示图标）
+        # 注意：view_packets_text, send_packet_text, my_packets_text 已经包含图标
         text = f"""
 🧧 *{packets_center_text}*
 
-*功能：*
-• 📋 {view_packets_text} - {view_packets_desc}
-• ➕ {send_packet_text} - {send_packet_desc}
-• 🎁 {my_packets_text} - {my_packets_desc}
+*{functions_label}*
+• {view_packets_text} - {view_packets_desc}
+• {send_packet_text} - {send_packet_desc}
+• {my_packets_text} - {my_packets_desc}
 
 {select_operation_text}:
 """
