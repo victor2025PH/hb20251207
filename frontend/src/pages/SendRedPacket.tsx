@@ -225,7 +225,7 @@ export default function SendRedPacket() {
       setShowChatModal(false)
       setSearchQuery('')
       haptic('success')
-      showAlert('✅ 已選擇 ' + chat.title, 'success')
+      showAlert(t('selected', { name: chat.title }), 'success')
     } catch (error: any) {
       haptic('error')
       console.error('選擇群組失敗:', error)
@@ -236,8 +236,8 @@ export default function SendRedPacket() {
           const shouldJoin = await showConfirm(
             t('join_group_first') + '\n\n' + t('open_group_link'),
             undefined,
-            '加入',
-            '取消'
+            t('join'),
+            t('cancel')
           )
           if (shouldJoin && telegram) {
             telegram.openLink(groupLink)
@@ -246,7 +246,7 @@ export default function SendRedPacket() {
           showAlert(t('join_group_first'), 'warning')
         }
       } else {
-        const errorMessage = typeof error.message === 'string' ? error.message : String(error.message || '選擇失敗，請重試')
+        const errorMessage = typeof error.message === 'string' ? error.message : String(error.message || t('select_failed'))
         showAlert(errorMessage, 'error')
       }
     }
@@ -328,7 +328,7 @@ export default function SendRedPacket() {
         haptic('light')
         
         // 顯示詳細的刪除提示
-        showAlert(`已刪除「${chatName}」`, 'success')
+        showAlert(t('chat_deleted', { name: chatName }), 'success')
         console.log('[deleteChatFromHistory] Deleted chat from history:', { chatId, chatName, beforeCount, afterCount })
         
         // 如果刪除的是當前選中的群組，清除選中狀態
@@ -337,11 +337,11 @@ export default function SendRedPacket() {
         }
       } else {
         console.warn('[deleteChatFromHistory] Chat not found in history:', chatId)
-        showAlert('未找到該群組記錄', 'warning')
+        showAlert(t('chat_not_found'), 'warning')
       }
     } catch (error) {
       console.error('[deleteChatFromHistory] Error deleting chat history:', error)
-      showAlert('刪除失敗', 'error')
+      showAlert(t('delete_failed'), 'error')
     }
   }
 
@@ -361,7 +361,7 @@ export default function SendRedPacket() {
       // 檢查消息是否成功發送到群組
       if (selectedChat && !sendToPublic) {
         if (data.message_sent) {
-          showAlert('紅包已成功發送到群組！', 'success')
+          showAlert(t('packet_sent_to_group_success'), 'success')
         } else if (data.share_link) {
           // 機器人不在群組中，顯示分享鏈接
           const telegram = window.Telegram?.WebApp
@@ -375,7 +375,7 @@ export default function SendRedPacket() {
             telegram.openLink(data.share_link)
           }
         } else {
-          showAlert('紅包創建成功，但未能發送到群組，請檢查機器人是否在群組中', 'warning')
+          showAlert(t('packet_created_but_not_sent'), 'warning')
         }
       } else {
         showAlert(t('success'), 'success')
@@ -387,17 +387,17 @@ export default function SendRedPacket() {
       haptic('error')
       let errorMessage = typeof error.message === 'string' ? error.message : String(error.message || '發送失敗，請重試')
       
-      // 將常見的英文錯誤信息翻譯成中文
+      // 將常見的英文錯誤信息翻譯
       if (errorMessage.includes('Insufficient balance') || errorMessage.includes('insufficient balance')) {
-        errorMessage = '餘額不足，請先充值'
+        errorMessage = t('insufficient_balance')
       } else if (errorMessage.includes('User not found')) {
-        errorMessage = '用戶不存在，請重新登錄'
+        errorMessage = t('user_not_found')
       } else if (errorMessage.includes('Unauthorized')) {
-        errorMessage = '認證失敗，請重新登錄'
+        errorMessage = t('unauthorized')
       } else if (errorMessage.includes('Bomb number is required')) {
-        errorMessage = '請選擇炸彈數字'
+        errorMessage = t('bomb_number_required')
       } else if (errorMessage.includes('Bomb red packet count must be')) {
-        errorMessage = '紅包炸彈數量必須是 5 個（雙雷）或 10 個（單雷）'
+        errorMessage = t('bomb_packet_count_error')
       }
       
       showAlert(errorMessage, 'error')
@@ -407,7 +407,7 @@ export default function SendRedPacket() {
   const handleSubmit = () => {
     // 必须选择群组/用户，或者选择发送到公开页面
     if (!selectedChat && !sendToPublic) {
-      showAlert(t('select_group') + ' 或選擇發送到公開頁面', 'warning')
+      showAlert(t('select_group_or_public'), 'warning')
       return
     }
     if (!amount || parseFloat(amount) <= 0) {
@@ -423,14 +423,14 @@ export default function SendRedPacket() {
       return
     }
     
-    // 驗證紅包炸彈數量：必須是5個（雙雷）或10個（單雷）
-    if (packetType === 'fixed') {
-      const count = parseInt(quantity)
-      if (count !== 5 && count !== 10) {
-        showAlert('紅包炸彈數量必須是 5 個（雙雷）或 10 個（單雷）', 'warning')
-        return
+      // 驗證紅包炸彈數量：必須是5個（雙雷）或10個（單雷）
+      if (packetType === 'fixed') {
+        const count = parseInt(quantity)
+        if (count !== 5 && count !== 10) {
+          showAlert(t('bomb_packet_count_error'), 'warning')
+          return
+        }
       }
-    }
 
     haptic('medium')
     sendMutation.mutate({
@@ -463,7 +463,7 @@ export default function SendRedPacket() {
         <div>
           <label className="block text-gray-300 text-base mb-2 font-medium flex items-center gap-2">
             <Users size={16} className="text-gray-400" />
-            {t('select_group')} / 發送位置
+            {t('send_location')}
           </label>
           
           {/* 發送到公開頁面選項 */}
@@ -484,7 +484,7 @@ export default function SendRedPacket() {
             >
               <div className="flex items-center gap-2">
                 <Gift size={18} />
-                <span className="font-medium">發送到公開頁面</span>
+                <span className="font-medium">{t('send_to_public_page')}</span>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                 sendToPublic ? 'border-orange-500 bg-orange-500' : 'border-gray-500'
@@ -494,7 +494,7 @@ export default function SendRedPacket() {
             </button>
             {sendToPublic && (
               <p className="text-xs text-gray-400 mt-1 px-4">
-                公開紅包會顯示在紅包頁面，所有用戶都可以領取
+                {t('public_packet_description')}
               </p>
             )}
           </div>
@@ -532,7 +532,7 @@ export default function SendRedPacket() {
               <Info size={14} className="relative z-10" />
               <span className="relative z-10 font-semibold flex items-center gap-1">
                 <TelegramStar size={14} withSpray={true} />
-                獲取方式
+                {t('currency_get_method')}
                 <TelegramStar size={14} withSpray={true} />
               </span>
               {/* 發光特效 */}
@@ -734,8 +734,8 @@ export default function SendRedPacket() {
                 return chatHistory.length > 0 ? (
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-gray-400">最近使用的群組</h4>
-                      <span className="text-xs text-gray-500">{chatHistory.length} 個</span>
+                      <h4 className="text-sm font-medium text-gray-400">{t('recent_groups')}</h4>
+                      <span className="text-xs text-gray-500">{t('groups_count', { count: chatHistory.length })}</span>
                     </div>
                     {chatHistory.map((chat: ChatInfo) => (
                       <div
@@ -764,10 +764,10 @@ export default function SendRedPacket() {
                               {chat.status_message && (
                                 <div className="text-xs mt-1">
                                   {chat.user_in_group && (
-                                    <span className="text-green-400 mr-2">✓ 你在群中</span>
+                                    <span className="text-green-400 mr-2">✓ {t('you_in_group')}</span>
                                   )}
                                   {chat.bot_in_group && (
-                                    <span className="text-blue-400">✓ 機器人在</span>
+                                    <span className="text-blue-400">✓ {t('bot_in_group_short')}</span>
                                   )}
                                 </div>
                               )}
@@ -788,14 +788,14 @@ export default function SendRedPacket() {
                                   setSendToPublic(false)  // 選擇群組時，取消公開頁面選項
                                   setShowChatModal(false)
                                   setSearchQuery('')
-                                  showAlert('群組信息已更新', 'success')
+                                  showAlert(t('chat_info_updated'), 'success')
                                 }
                               } catch (error) {
-                                showAlert('更新失敗，請重試', 'error')
+                                showAlert(t('update_failed'), 'error')
                               }
                             }}
                             className="p-2 hover:bg-white/5 active:bg-white/10 rounded-lg transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            title="更新群組信息"
+                            title={t('update_chat_info')}
                           >
                             <RefreshCw size={16} className="text-gray-400" />
                           </button>
@@ -806,10 +806,10 @@ export default function SendRedPacket() {
                               
                               // 添加確認對話框
                               const confirmed = await showConfirm(
-                                `確定要刪除「${chat.title || chat.username || `Chat ${chat.id}`}」的記錄嗎？`,
-                                '刪除群組記錄',
-                                '刪除',
-                                '取消'
+                                t('confirm_delete_chat', { name: chat.title || chat.username || `Chat ${chat.id}` }),
+                                t('delete_chat_record'),
+                                t('delete'),
+                                t('cancel')
                               )
                               
                               if (confirmed) {
@@ -817,7 +817,7 @@ export default function SendRedPacket() {
                               }
                             }}
                             className="p-2 hover:bg-red-500/20 active:bg-red-500/30 rounded-lg transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            title="刪除記錄"
+                            title={t('delete_record')}
                           >
                             <Trash2 size={16} className="text-red-400" />
                           </button>
@@ -828,8 +828,8 @@ export default function SendRedPacket() {
                 ) : (
                   <div className="p-8 text-center text-gray-500">
                     <Users size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">暫無歷史記錄</p>
-                    <p className="text-xs mt-1">發送紅包後會自動保存</p>
+                    <p className="text-sm">{t('no_history')}</p>
+                    <p className="text-xs mt-1">{t('auto_save_after_send')}</p>
                   </div>
                 )
               })()}
@@ -846,10 +846,10 @@ export default function SendRedPacket() {
                   {(searchChatsError || searchUsersError) && (
                     <div className="p-4 m-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <div className="text-red-400 text-sm">
-                        {searchChatsError?.message || searchUsersError?.message || '搜索失敗'}
+                        {searchChatsError?.message || searchUsersError?.message || t('search_failed')}
                       </div>
                       <div className="text-gray-500 text-xs mt-1">
-                        請檢查網絡連接或稍後再試
+                        {t('check_network_and_retry')}
                       </div>
                     </div>
                   )}
@@ -882,7 +882,7 @@ export default function SendRedPacket() {
                                 <span className={`text-xs font-medium ${
                                   isUser ? 'text-green-400' : 'text-blue-400'
                                 }`}>
-                                  {isUser ? '用戶' : '群組'}
+                                  {isUser ? t('user') : t('group')}
                                 </span>
                                 {/* 群組狀態指示器（僅對群組顯示） */}
                                 {!isUser && (
@@ -896,7 +896,7 @@ export default function SendRedPacket() {
                                         ) : (
                                           <XCircle size={12} />
                                         )}
-                                        {item.user_in_group ? '已加入' : '未加入'}
+                                        {item.user_in_group ? t('joined') : t('not_joined')}
                                       </span>
                                     )}
                                     {item.bot_in_group !== undefined && (
@@ -904,7 +904,7 @@ export default function SendRedPacket() {
                                         item.bot_in_group ? 'text-green-400' : 'text-red-400'
                                       }`}>
                                         <Bot size={12} />
-                                        {item.bot_in_group ? '機器人在' : '機器人不在'}
+                                        {item.bot_in_group ? t('bot_in_group_short') : t('bot_not_in_group_short')}
                                       </span>
                                     )}
                                   </>
@@ -927,7 +927,7 @@ export default function SendRedPacket() {
                     <div className="p-8 text-center text-gray-400">
                       <div>{t('no_groups_found')}</div>
                       <div className="text-xs text-gray-500 mt-2">
-                        請嘗試使用群組鏈接或 @username 格式
+                        {t('try_group_link_or_username')}
                       </div>
                     </div>
                   )}
@@ -1177,7 +1177,7 @@ export default function SendRedPacket() {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center">
                     <span className="text-white font-bold text-sm">USDT</span>
                   </div>
-                  <h4 className="text-white font-semibold text-base">USDT 獲取方式</h4>
+                  <h4 className="text-white font-semibold text-base">{t('currency_usdt_get_methods')}</h4>
                 </div>
                 <p className="text-gray-300 text-xs mb-3 leading-relaxed">
                   {t('currency_usdt_desc')}
@@ -1222,7 +1222,7 @@ export default function SendRedPacket() {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
                     <span className="text-white font-bold text-sm">TON</span>
                   </div>
-                  <h4 className="text-white font-semibold text-base">TON 獲取方式</h4>
+                  <h4 className="text-white font-semibold text-base">{t('currency_ton_get_methods')}</h4>
                 </div>
                 <p className="text-gray-300 text-xs mb-3 leading-relaxed">
                   {t('currency_ton_desc')}
@@ -1267,7 +1267,7 @@ export default function SendRedPacket() {
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center">
                     <TelegramStar size={16} withSpray={true} />
                   </div>
-                  <h4 className="text-white font-semibold text-base">Stars 獲取方式</h4>
+                  <h4 className="text-white font-semibold text-base">{t('currency_stars_get_methods')}</h4>
                 </div>
                 <p className="text-gray-300 text-xs mb-3 leading-relaxed">
                   {t('currency_stars_desc')}
