@@ -91,15 +91,24 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(copy_link_button, callback_data=f"copy_link:{token[:10]}")],
         ])
         
+        web_login_title = t('web_login_title', user=db_user)
+        click_to_login_in_browser = t('click_to_login_in_browser', user=db_user)
+        valid_for_minutes = t('valid_for_minutes', user=db_user, minutes=MAGIC_LINK_EXPIRE_MINUTES)
+        one_time_use_only = t('one_time_use_only', user=db_user)
+        web_login_tips = t('web_login_tips', user=db_user)
+        web_login_tip1 = t('web_login_tip1', user=db_user)
+        web_login_tip2 = t('web_login_tip2', user=db_user)
+        web_login_tip3 = t('web_login_tip3', user=db_user)
+        
         message_text = (
-            "🔐 **網頁版登入連結**\n\n"
-            f"點擊下方按鈕在瀏覽器中登入：\n\n"
-            f"⏱ 有效期：**{MAGIC_LINK_EXPIRE_MINUTES} 分鐘**\n"
-            f"🔒 此連結只能使用一次\n\n"
-            "💡 **提示：**\n"
-            "• 在網頁版中您可以進行充值、提現等操作\n"
-            "• 您的餘額會自動同步\n"
-            "• 連結失效後可再次使用 /web\\_login 獲取新連結"
+            f"{web_login_title}\n\n"
+            f"{click_to_login_in_browser}\n\n"
+            f"{valid_for_minutes}\n"
+            f"{one_time_use_only}\n\n"
+            f"{web_login_tips}\n"
+            f"{web_login_tip1}\n"
+            f"{web_login_tip2}\n"
+            f"{web_login_tip3}"
         )
         
         await update.message.reply_text(
