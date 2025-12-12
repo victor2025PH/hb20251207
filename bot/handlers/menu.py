@@ -106,8 +106,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_main_menu(query, db_user):
     """顯示主菜單"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     try:
-        from bot.utils.i18n import t
         # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
@@ -166,12 +166,12 @@ async def show_main_menu(query, db_user):
 
 async def show_wallet_menu(query, db_user):
     """顯示錢包菜單"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     # 在會話內重新查詢用戶以確保數據最新
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
-        if not user:
-            from bot.utils.i18n import t
-            await query.edit_message_text(t('error_occurred', user=db_user))
+            if not user:
+                await query.edit_message_text(t('error_occurred', user=db_user))
             return
         
         usdt = float(user.balance_usdt or 0)
@@ -181,7 +181,6 @@ async def show_wallet_menu(query, db_user):
         level = user.level
         xp = user.xp or 0
     
-    from bot.utils.i18n import t
     my_wallet_text = t('my_wallet', user=user)
     balance_colon = t('balance_colon', user=user)
     level_colon = t('level_colon', user=user)

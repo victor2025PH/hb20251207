@@ -30,6 +30,7 @@ from bot.utils.query_helper import create_mock_query
 
 async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理回覆鍵盤按鈕點擊"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     try:
         if not update.message:
             return
@@ -55,14 +56,12 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         db_user = await get_user_from_update(update, context)
         if not db_user:
             logger.warning(f"User {user_id} not found in database")
-            from bot.utils.i18n import t
             await update.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊", reply_markup=get_main_reply_keyboard(user=None))
             return
     except Exception as e:
         logger.error(f"Error in handle_reply_keyboard (initial): {e}", exc_info=True)
         try:
             if update.message:
-                from bot.utils.i18n import t
                 error_msg = t('error_occurred', user=None) if t('error_occurred', user=None) != 'error_occurred' else "發生錯誤，請稍後再試"
                 await update.message.reply_text(error_msg, reply_markup=get_main_reply_keyboard(user=None))
         except:
@@ -94,14 +93,12 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
-                    from bot.utils.i18n import t
                     await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
                 query = create_mock_query(update)
                 await show_wallet_menu(query, user)
             
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('select_operation_colon', user=user),
                 reply_markup=get_wallet_reply_keyboard(),
@@ -109,7 +106,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             logger.info(f"Successfully handled '💰 錢包' button for user {user_id}")
         except Exception as e:
             logger.error(f"Error handling '💰 錢包' button for user {user_id}: {e}", exc_info=True)
-            from bot.utils.i18n import t
             await update.message.reply_text(t('processing_error', user=db_user))
         return
     
@@ -123,21 +119,18 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
-                    from bot.utils.i18n import t
                     await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
                 query = create_mock_query(update)
                 await show_packets_menu(query, user)
             
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('select_operation_colon', user=user),
                 reply_markup=get_packets_reply_keyboard(user=user),
             )
         except Exception as e:
             logger.error(f"Error handling '🧧 紅包' button for user {user_id}: {e}", exc_info=True)
-            from bot.utils.i18n import t
             await update.message.reply_text(t('processing_error', user=db_user))
         return
     
@@ -152,14 +145,12 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
-                    from bot.utils.i18n import t
                     await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
                 query = create_mock_query(update)
                 await show_earn_menu(query, user)
             
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('select_operation_colon', user=user),
                 reply_markup=get_earn_reply_keyboard(),
@@ -167,7 +158,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             logger.info(f"Successfully handled '📈 賺取' button for user {user_id}")
         except Exception as e:
             logger.error(f"Error handling '📈 賺取' button for user {user_id}: {e}", exc_info=True)
-            from bot.utils.i18n import t
             await update.message.reply_text(t('processing_error', user=db_user))
         return
     
@@ -177,7 +167,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             from bot.handlers.menu import show_game_menu
             query = create_mock_query(update)
             await show_game_menu(query, db_user)
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('select_game', user=db_user),
                 reply_markup=get_game_reply_keyboard(),
@@ -185,7 +174,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             logger.info(f"Successfully handled '🎮 遊戲' button for user {user_id}")
         except Exception as e:
             logger.error(f"Error handling '🎮 遊戲' button for user {user_id}: {e}", exc_info=True)
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user))
         return
     
@@ -195,7 +183,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             from bot.handlers.menu import show_profile_menu
             query = create_mock_query(update)
             await show_profile_menu(query, db_user)
-            from bot.utils.i18n import t
             await update.message.reply_text(
                 t('select_view', user=db_user),
                 reply_markup=get_profile_reply_keyboard(),
@@ -203,7 +190,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             logger.info(f"Successfully handled '👤 我的' button for user {user_id}")
         except Exception as e:
             logger.error(f"Error handling '👤 我的' button for user {user_id}: {e}", exc_info=True)
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user))
         return
     
@@ -217,7 +203,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         from shared.config.settings import get_settings
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
         settings = get_settings()
-        from bot.utils.i18n import t
         open_lucky_red = t('open_lucky_red', user=db_user)
         open_app_prompt = t('open_app_prompt', user=db_user)
         keyboard = [[
@@ -241,7 +226,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         from bot.handlers.menu import show_main_menu
         query = create_mock_query(update)
         await show_main_menu(query, db_user)
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('returned_to_main_menu', user=db_user),
             reply_markup=get_main_reply_keyboard(user=db_user),
@@ -250,7 +234,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
     
     # 錢包子菜單
     elif text == "💵 充值":
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('select_currency_colon', user=db_user),
             reply_markup=get_deposit_reply_keyboard(),
@@ -258,7 +241,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     elif text == "💸 提現":
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('select_withdraw_currency', user=db_user),
             reply_markup=get_withdraw_reply_keyboard(),
@@ -269,7 +251,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         from bot.handlers.wallet import show_transaction_history
         query = create_mock_query(update)
         await show_transaction_history(query, db_user)
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('select_operation_colon', user=db_user),
             reply_markup=get_wallet_reply_keyboard(),
@@ -278,7 +259,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
     
     elif text == "🔄 兌換":
         from bot.handlers.wallet import show_exchange_menu
-        from bot.utils.i18n import t
         query = create_mock_query(update)
         await show_exchange_menu(query, db_user)
         await update.message.reply_text(
@@ -289,7 +269,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
     
     elif text == "◀️ 返回錢包":
         from bot.handlers.menu import show_wallet_menu
-        from bot.utils.i18n import t
         query = create_mock_query(update)
         await show_wallet_menu(query, db_user)
         await update.message.reply_text(
@@ -303,7 +282,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         from bot.handlers.packets import show_packets_list
         query = create_mock_query(update)
         await show_packets_list(query, db_user)
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('select_operation_colon', user=db_user),
             reply_markup=get_packets_reply_keyboard(),
@@ -326,7 +304,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
-                    from bot.utils.i18n import t
                     await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
@@ -353,7 +330,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if not user:
-                    from bot.utils.i18n import t
                     await update.message.reply_text(t('error_occurred', user=db_user))
                     return
                 
@@ -513,7 +489,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if not user:
-                from bot.utils.i18n import t
                 await update.message.reply_text(t('error_occurred', user=db_user))
                 return
             
@@ -525,7 +500,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         if balance <= 0:
             currency_name = "USDT" if currency == "usdt" else "TON" if currency == "ton" else "能量"
             logger.info(f"User {db_user.tg_id} has insufficient balance for {currency}: {balance}")
-            from bot.utils.i18n import t
             insufficient_balance_title = t('insufficient_balance_title', user=user)
             please_recharge_first = t('please_recharge_first', user=user)
             balance_warning = t('balance_warning', user=user, currency=currency_name, balance=balance)
@@ -546,7 +520,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['send_packet_step'] = 'type'
         
         # 直接發送類型選擇消息，不使用 show_packet_type_selection（避免 edit_message_text 問題）
-        from bot.utils.i18n import t
         currency_upper = currency.upper()
         
         # 在会话内获取翻译文本
@@ -609,7 +582,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
@@ -649,7 +621,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
@@ -686,7 +657,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             currency_upper = currency.upper()
             packet_type = packet_data.get('packet_type', 'random')
             # 获取翻译文本
-            from bot.utils.i18n import t
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
                 if user:
@@ -813,7 +783,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         message = packet_data.get('message', '恭喜發財！🧧')
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
@@ -869,7 +838,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         message = packet_data.get('message', '恭喜發財！🧧')
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
@@ -937,7 +905,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
     # 綁定群組
     elif text == "📌 綁定群組":
         context.user_data['send_packet_step'] = 'bind_group'
-        from bot.utils.i18n import t
         bind_group_instruction = t('bind_group_instruction', user=db_user)
         enter_group_id_button = t('enter_group_id_button', user=db_user)
         return_button = t('return_main', user=db_user)
@@ -956,7 +923,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['waiting_for_group'] = True
         # 关键：明确标记这是底部键盘流程
         context.user_data['use_inline_buttons'] = False
-        from bot.utils.i18n import t
         enter_group_id_or_link = t('enter_group_id_or_link', user=db_user)
         cancel_button = t('cancel', user=db_user)
         await update.message.reply_text(
@@ -974,7 +940,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         from bot.handlers.menu import show_packets_menu
         query = create_mock_query(update)
         await show_packets_menu(query, db_user)
-        from bot.utils.i18n import t
         await update.message.reply_text(
             t('returned_to_packets', user=db_user),
             reply_markup=get_packets_reply_keyboard(),
@@ -1009,7 +974,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
@@ -1075,7 +1039,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data['send_packet_step'] = 'count'
         
         # 获取翻译文本
-        from bot.utils.i18n import t
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
             if user:
