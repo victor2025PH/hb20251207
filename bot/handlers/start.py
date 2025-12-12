@@ -384,8 +384,10 @@ async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYP
     from bot.utils.i18n import t
     db_user = await get_user_from_update(update, context)
     if db_user:
-        open_app_message = t('open_app_message', user=db_user, page=command)
-        open_app_button = t('open_app_button', user=db_user)
+        # 使用 user_id 而不是 user 对象，避免会话分离问题
+        user_id = db_user.tg_id if hasattr(db_user, 'tg_id') else update.effective_user.id
+        open_app_message = t('open_app_message', user_id=user_id, page=command)
+        open_app_button = t('open_app_button', user_id=user_id)
         keyboard = [[
             InlineKeyboardButton(
                 open_app_button,
@@ -411,29 +413,86 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not db_user:
         db_user = await get_user_from_update(update, context, use_cache=False)
     
-    if db_user:
-        help_title = t('help_title', user=db_user)
-        help_basic_commands = t('help_basic_commands', user=db_user)
-        help_command_start = t('help_command_start', user=db_user)
-        help_command_wallet = t('help_command_wallet', user=db_user)
-        help_command_packets = t('help_command_packets', user=db_user)
-        help_command_earn = t('help_command_earn', user=db_user)
-        help_command_game = t('help_command_game', user=db_user)
-        help_command_profile = t('help_command_profile', user=db_user)
-        help_command_send = t('help_command_send', user=db_user)
-        help_command_checkin = t('help_command_checkin', user=db_user)
-        help_command_invite = t('help_command_invite', user=db_user)
-        help_how_to_send = t('help_how_to_send', user=db_user)
-        help_send_step1 = t('help_send_step1', user=db_user)
-        help_send_step2 = t('help_send_step2', user=db_user)
-        help_send_step3 = t('help_send_step3', user=db_user)
-        help_how_to_claim = t('help_how_to_claim', user=db_user)
-        help_claim_description = t('help_claim_description', user=db_user)
-        help_daily_checkin = t('help_daily_checkin', user=db_user)
-        help_checkin_description = t('help_checkin_description', user=db_user)
-        help_invite_rebate = t('help_invite_rebate', user=db_user)
-        help_invite_description = t('help_invite_description', user=db_user)
-        help_contact = t('help_contact', user=db_user)
+    # 在会话内获取所有翻译文本，避免会话分离错误
+    user_id = update.effective_user.id if update.effective_user else None
+    if db_user and user_id:
+        with get_db() as db:
+            # 重新查询用户以确保在会话内
+            session_user = db.query(User).filter(User.tg_id == user_id).first()
+            if session_user:
+                # 在会话内获取所有翻译文本
+                help_title = t('help_title', user=session_user)
+                help_basic_commands = t('help_basic_commands', user=session_user)
+                help_command_start = t('help_command_start', user=session_user)
+                help_command_wallet = t('help_command_wallet', user=session_user)
+                help_command_packets = t('help_command_packets', user=session_user)
+                help_command_earn = t('help_command_earn', user=session_user)
+                help_command_game = t('help_command_game', user=session_user)
+                help_command_profile = t('help_command_profile', user=session_user)
+                help_command_send = t('help_command_send', user=session_user)
+                help_command_checkin = t('help_command_checkin', user=session_user)
+                help_command_invite = t('help_command_invite', user=session_user)
+                help_how_to_send = t('help_how_to_send', user=session_user)
+                help_send_step1 = t('help_send_step1', user=session_user)
+                help_send_step2 = t('help_send_step2', user=session_user)
+                help_send_step3 = t('help_send_step3', user=session_user)
+                help_how_to_claim = t('help_how_to_claim', user=session_user)
+                help_claim_description = t('help_claim_description', user=session_user)
+                help_daily_checkin = t('help_daily_checkin', user=session_user)
+                help_checkin_description = t('help_checkin_description', user=session_user)
+                help_invite_rebate = t('help_invite_rebate', user=session_user)
+                help_invite_description = t('help_invite_description', user=session_user)
+                help_contact = t('help_contact', user=session_user)
+            else:
+                # 如果查询失败，使用 user_id
+                help_title = t('help_title', user_id=user_id)
+                help_basic_commands = t('help_basic_commands', user_id=user_id)
+                help_command_start = t('help_command_start', user_id=user_id)
+                help_command_wallet = t('help_command_wallet', user_id=user_id)
+                help_command_packets = t('help_command_packets', user_id=user_id)
+                help_command_earn = t('help_command_earn', user_id=user_id)
+                help_command_game = t('help_command_game', user_id=user_id)
+                help_command_profile = t('help_command_profile', user_id=user_id)
+                help_command_send = t('help_command_send', user_id=user_id)
+                help_command_checkin = t('help_command_checkin', user_id=user_id)
+                help_command_invite = t('help_command_invite', user_id=user_id)
+                help_how_to_send = t('help_how_to_send', user_id=user_id)
+                help_send_step1 = t('help_send_step1', user_id=user_id)
+                help_send_step2 = t('help_send_step2', user_id=user_id)
+                help_send_step3 = t('help_send_step3', user_id=user_id)
+                help_how_to_claim = t('help_how_to_claim', user_id=user_id)
+                help_claim_description = t('help_claim_description', user_id=user_id)
+                help_daily_checkin = t('help_daily_checkin', user_id=user_id)
+                help_checkin_description = t('help_checkin_description', user_id=user_id)
+                help_invite_rebate = t('help_invite_rebate', user_id=user_id)
+                help_invite_description = t('help_invite_description', user_id=user_id)
+                help_contact = t('help_contact', user_id=user_id)
+    else:
+        # 使用 user_id 获取翻译
+        if user_id:
+            help_title = t('help_title', user_id=user_id)
+            help_basic_commands = t('help_basic_commands', user_id=user_id)
+            help_command_start = t('help_command_start', user_id=user_id)
+            help_command_wallet = t('help_command_wallet', user_id=user_id)
+            help_command_packets = t('help_command_packets', user_id=user_id)
+            help_command_earn = t('help_command_earn', user_id=user_id)
+            help_command_game = t('help_command_game', user_id=user_id)
+            help_command_profile = t('help_command_profile', user_id=user_id)
+            help_command_send = t('help_command_send', user_id=user_id)
+            help_command_checkin = t('help_command_checkin', user_id=user_id)
+            help_command_invite = t('help_command_invite', user_id=user_id)
+            help_how_to_send = t('help_how_to_send', user_id=user_id)
+            help_send_step1 = t('help_send_step1', user_id=user_id)
+            help_send_step2 = t('help_send_step2', user_id=user_id)
+            help_send_step3 = t('help_send_step3', user_id=user_id)
+            help_how_to_claim = t('help_how_to_claim', user_id=user_id)
+            help_claim_description = t('help_claim_description', user_id=user_id)
+            help_daily_checkin = t('help_daily_checkin', user_id=user_id)
+            help_checkin_description = t('help_checkin_description', user_id=user_id)
+            help_invite_rebate = t('help_invite_rebate', user_id=user_id)
+            help_invite_description = t('help_invite_description', user_id=user_id)
+            help_contact = t('help_contact', user_id=user_id)
+        else:
     else:
         # 默認中文
         help_title = "🧧 *Lucky Red 使用指南*"
