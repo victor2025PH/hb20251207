@@ -86,17 +86,26 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         packet_uuid = packet.uuid
     
-    # 發送紅包消息
+    # 使用用戶的語言設置發送紅包消息
+    from bot.utils.i18n import t
+    
+    sent_red_packet_text = t('sent_red_packet', user=user, name=user.first_name or user.username or f'用戶{user.tg_id}')
+    amount_label = t('amount_label_short', user=user)
+    quantity_label = t('quantity_label_short', user=user)
+    shares_label = t('shares_label', user=user)
+    click_to_claim = t('click_to_claim', user=user)
+    claim_button_text = t('claim_red_packet', user=user)
+    
     text = f"""
-🧧 *{user.first_name} 發了一個紅包*
+🧧 *{sent_red_packet_text}*
 
-💰 {amount} USDT | 👥 {count} 份
+{amount_label}{amount} USDT | {quantity_label}{count} {shares_label}
 📝 {message}
 
-點擊下方按鈕搶紅包！
+{click_to_claim}
 """
     
-    keyboard = [[InlineKeyboardButton("🧧 搶紅包", callback_data=f"claim:{packet_uuid}")]]
+    keyboard = [[InlineKeyboardButton(claim_button_text, callback_data=f"claim:{packet_uuid}")]]
     
     await update.message.reply_text(
         text,
@@ -552,17 +561,59 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
+    # 使用發送者的語言設置更新消息
+    from bot.utils.i18n import t
+    # 在會話內重新查詢發送者以獲取語言設置
+    with get_db() as db:
+        sender_user = db.query(User).filter(User.id == packet.sender_id).first()
+        if sender_user:
+            # 獲取翻譯文本
+            sent_red_packet_text = t('sent_red_packet', user=sender_user, name=sender_name)
+            amount_label = t('amount_label_short', user=sender_user)
+            quantity_label = t('quantity_label_short', user=sender_user)
+            shares_label = t('shares_label', user=sender_user)
+            claimed_red_packet = t('claimed_red_packet', user=sender_user)
+            user_claimed = t('user_claimed', user=sender_user)
+            user_claimed_with_amount = t('user_claimed_with_amount', user=sender_user)
+            user_claimed_bomb = t('user_claimed_bomb', user=sender_user)
+            red_packet_completed = t('red_packet_completed', user=sender_user)
+            red_packet_leaderboard = t('red_packet_leaderboard', user=sender_user)
+            best_luck = t('best_luck', user=sender_user)
+            best_luck_marker = t('best_luck_marker', user=sender_user)
+            bomb_number_display = t('bomb_number_display', user=sender_user)
+            claim_red_packet_remaining = t('claim_red_packet_remaining', user=sender_user)
+            double_thunder_text = t('double_thunder_text', user=sender_user)
+            single_thunder_text = t('single_thunder_text', user=sender_user)
+        else:
+            # 如果查詢失敗，使用默認值（中文）
+            sent_red_packet_text = f"{sender_name} 發了一個紅包"
+            amount_label = "💰 金額："
+            quantity_label = "👥 數量："
+            shares_label = "份"
+            claimed_red_packet = "已搶包："
+            user_claimed = "{name} 搶到了紅包"
+            user_claimed_with_amount = "{name} 搶到了 {amount:.2f} {currency}！"
+            user_claimed_bomb = "{name} 搶到了 {amount:.2f} {currency}，💣 踩雷了！需賠付 {penalty:.2f} {currency}"
+            red_packet_completed = "✅ 紅包已搶完"
+            red_packet_leaderboard = "📊 搶包排行榜："
+            best_luck = "🏆 {name} 是本次最佳手氣！"
+            best_luck_marker = "🏆 {name} (最佳手氣)"
+            bomb_number_display = "💣 炸彈數字: {number} | {thunder_type}"
+            claim_red_packet_remaining = "🧧 搶紅包 ({remaining} 份剩餘)"
+            double_thunder_text = "雙雷"
+            single_thunder_text = "單雷"
+    
     # 更新消息（使用已保存的變量，而不是數據庫對象）
     text = f"""
-🧧 *{sender_name} 發了一個紅包*
+🧧 *{sent_red_packet_text}*
 
-💰 {total_amount:.2f} {currency_symbol} | 👥 {claimed_count}/{total_count} 份
+{amount_label}{total_amount:.2f} {currency_symbol} | {quantity_label}{claimed_count}/{total_count} {shares_label}
 """
     
     # 如果是紅包炸彈，顯示炸彈信息
     if packet_type == RedPacketType.EQUAL and packet_bomb_number is not None:
-        thunder_type = "單雷" if total_count == 10 else "雙雷"
-        text += f"💣 炸彈數字: {packet_bomb_number} | {thunder_type}\n"
+        thunder_type = single_thunder_text if total_count == 10 else double_thunder_text
+        text += bomb_number_display.format(number=packet_bomb_number, thunder_type=thunder_type) + "\n"
     
     text += f"📝 {packet_message}\n\n"
     
@@ -570,7 +621,7 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if packet_status == RedPacketStatus.COMPLETED:
         # 紅包已搶完：顯示完整的排行榜和金額
         if claimers_info_sorted:
-            text += "📊 搶包排行榜：\n"
+            text += f"{red_packet_leaderboard}\n"
             for idx, claimer in enumerate(claimers_info_sorted, 1):
                 # 構建顯示文本
                 rank_icon = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
@@ -578,34 +629,34 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 # 添加最佳手氣標記（僅手氣最佳類型）
                 if claimer['is_luckiest'] and packet_type == RedPacketType.RANDOM:
-                    name_text = f"🏆 {name_text} (最佳手氣)"
+                    name_text = best_luck_marker.format(name=name_text)
                 
                 # 添加踩雷標記
                 if claimer['is_bomb'] and claimer['penalty']:
-                    text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}，💣 踩雷了！需賠付 {claimer['penalty']:.2f} {currency_symbol}\n"
+                    text += f"{rank_icon} {user_claimed_bomb.format(name=name_text, amount=claimer['amount'], currency=currency_symbol, penalty=claimer['penalty'])}\n"
                 else:
-                    text += f"{rank_icon} {name_text} 搶到了 {claimer['amount']:.2f} {currency_symbol}！\n"
+                    text += f"{rank_icon} {user_claimed_with_amount.format(name=name_text, amount=claimer['amount'], currency=currency_symbol)}\n"
             text += "\n"
             
             # 如果紅包已搶完且是手氣最佳類型，顯示最佳手氣提示
             if packet_type == RedPacketType.RANDOM:
                 luckiest_claimer = next((c for c in claimers_info_sorted if c['is_luckiest']), None)
                 if luckiest_claimer:
-                    text += f"🏆 *{luckiest_claimer['name']}* 是本次最佳手氣！\n"
+                    text += f"{best_luck.format(name=luckiest_claimer['name'])}\n"
         
-        text += "✅ 紅包已搶完"
+        text += red_packet_completed
         keyboard = []
     else:
         # 紅包未完成：只顯示誰搶到了紅包，不顯示金額
         if claimers_info_sorted:
-            text += "📋 已搶包：\n"
+            text += f"{claimed_red_packet}\n"
             for claimer in claimers_info_sorted:
                 # 只顯示名字，不顯示金額
-                text += f"🧧 {claimer['name']} 搶到了紅包\n"
+                text += f"🧧 {user_claimed.format(name=claimer['name'])}\n"
             text += "\n"
         
         remaining = total_count - claimed_count
-        keyboard = [[InlineKeyboardButton(f"🧧 搶紅包 ({remaining} 份剩餘)", callback_data=f"claim:{packet_uuid}")]]
+        keyboard = [[InlineKeyboardButton(claim_red_packet_remaining.format(remaining=remaining), callback_data=f"claim:{packet_uuid}")]]
     
     # 更新群組消息
     try:

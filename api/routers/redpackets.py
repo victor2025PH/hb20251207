@@ -314,21 +314,35 @@ async def create_red_packet(
                             packet_type_str = get_enum_value(request.packet_type)
                             currency_str = get_enum_value(packet.currency)
                             
-                            # 構建群組中的紅包消息
-                            type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
+                            # 使用發送者的語言設置構建群組消息
+                            from bot.utils.i18n import t
+                            # 獲取發送者的語言設置
+                            sender_lang = sender.language_code if sender.language_code else "en"
+                            
+                            # 構建群組中的紅包消息（使用發送者的語言）
+                            random_packet_type = t('random_packet_type', user=sender)
+                            bomb_packet_type = t('bomb_packet_type', user=sender)
+                            type_text = random_packet_type if packet_type_str == "random" else bomb_packet_type
+                            
+                            amount_label = t('amount_label_short', user=sender)
+                            quantity_label = t('quantity_label_short', user=sender)
+                            shares_label = t('shares_label', user=sender)
+                            click_to_claim = t('click_to_claim', user=sender)
+                            claim_button_text = t('claim_red_packet', user=sender)
+                            
                             group_message = f"""
 🧧 *{packet.message}*
 
 {type_text}
-💰 金額：{float(packet.total_amount):.2f} {currency_str.upper()}
-👥 數量：{packet.total_count} 份
+{amount_label}{float(packet.total_amount):.2f} {currency_str.upper()}
+{quantity_label}{packet.total_count} {shares_label}
 
-🎁 點擊下方按鈕搶紅包！
+{click_to_claim}
 """
                             # 構建搶紅包按鈕
                             claim_keyboard = [[
                                 InlineKeyboardButton(
-                                    "🧧 搶紅包",
+                                    claim_button_text,
                                     callback_data=f"claim:{packet.uuid}"
                                 )
                             ]]

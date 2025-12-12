@@ -72,23 +72,40 @@ class GroupNotificationService:
         if not packet.chat_id:
             return False
         
-        type_text = "🎲 手氣紅包" if packet.packet_type.value == "random" else "💣 炸彈紅包"
+        # 使用發送者的語言設置
+        from bot.utils.i18n import t
+        sender_lang = sender.language_code if sender.language_code else "en"
         
-        text = f"""🧧 *{packet.message or '恭喜發財'}*
+        # 獲取翻譯文本
+        random_packet_type = t('random_packet_type', user=sender)
+        bomb_packet_type = t('bomb_packet_type', user=sender)
+        type_text = random_packet_type if packet.packet_type.value == "random" else bomb_packet_type
+        
+        total_amount_label = t('total_amount_label', user=sender)
+        quantity_label = t('quantity_label_short', user=sender)
+        sender_label = t('sender_label', user=sender)
+        shares_label = t('shares_label', user=sender)
+        click_to_claim = t('click_to_claim', user=sender)
+        claim_button_text = t('claim_red_packet', user=sender)
+        
+        # 默認祝福語
+        default_message = t('default_blessing', user=sender) if t('default_blessing', user=sender) != 'default_blessing' else ('恭喜發財' if sender_lang.startswith('zh') else 'Best Wishes!')
+        
+        text = f"""🧧 *{packet.message or default_message}*
 
 {type_text}
-💰 總金額：{float(packet.total_amount):.2f} {packet.currency.value.upper()}
-👥 數量：{packet.total_count} 份
-👤 發送者：{sender.first_name or sender.username or f'用戶{sender.tg_id}'}
+{total_amount_label}{float(packet.total_amount):.2f} {packet.currency.value.upper()}
+{quantity_label}{packet.total_count} {shares_label}
+{sender_label}{sender.first_name or sender.username or f'用戶{sender.tg_id}'}
 
-🎁 點擊下方按鈕搶紅包！"""
+{click_to_claim}"""
 
         miniapp_url = getattr(settings, 'MINIAPP_URL', 'https://mini.usdt2026.cc')
         
         reply_markup = {
             "inline_keyboard": [[
                 {
-                    "text": "🧧 搶紅包",
+                    "text": claim_button_text,
                     "url": f"{miniapp_url}/claim/{packet.uuid}"
                 }
             ]]
