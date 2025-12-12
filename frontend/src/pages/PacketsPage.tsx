@@ -98,7 +98,7 @@ export default function PacketsPage() {
       if (!result.success) {
         setLoadingId(null)
         playSound('click')
-        showAlert(result.message || '領取失敗', 'error')
+        showAlert(result.message || t('claim_failed'), 'error')
         return
       }
       
@@ -107,7 +107,7 @@ export default function PacketsPage() {
         console.error('[claimRedPacket] Invalid amount:', result)
         setLoadingId(null)
         playSound('click')
-        showAlert('領取失敗：金額無效', 'error')
+        showAlert(t('claim_failed_invalid_amount'), 'error')
         return
       }
       
@@ -117,7 +117,7 @@ export default function PacketsPage() {
       
       // 顯示結果
       setClaimAmount(result.amount)
-      setClaimMessage(result.message || `恭喜獲得 ${result.amount} ${selectedPacket?.currency || 'USDT'}！`)
+      setClaimMessage(result.message || t('claim_success', { amount: result.amount, currency: selectedPacket?.currency || 'USDT' }))
       setShowResultModal(true)
       setLoadingId(null)
       
@@ -191,8 +191,8 @@ export default function PacketsPage() {
     
     const shareUrl = `${window.location.origin}/claim/${packet.uuid}`
     const shareData = {
-      title: '搶紅包',
-      text: `🎁 搶 ${packet.senderName} 的紅包！"${packet.message}"`,
+      title: t('grab_red_packet'),
+      text: t('grab_red_packet_text', { senderName: packet.senderName, message: packet.message }),
       url: shareUrl,
     }
 
@@ -212,7 +212,7 @@ export default function PacketsPage() {
   const handleGrab = async (e: React.MouseEvent, packet: PacketDisplay) => {
     // 如果已領取，不允許再次領取
     if (packet.is_claimed) {
-      showAlert('您已經領取過這個紅包了', 'info')
+      showAlert(t('already_claimed'), 'info')
       return
     }
     

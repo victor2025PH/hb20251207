@@ -90,6 +90,11 @@ const translations: Record<Language, Record<string, string>> = {
     join: '加入',
     cancel: '取消',
     bot_not_in_group_share: '機器人不在群組中，無法直接發送紅包消息。\n\n是否分享紅包鏈接？',
+    claim_failed: '領取失敗',
+    claim_failed_invalid_amount: '領取失敗：金額無效',
+    already_claimed: '您已經領取過這個紅包了',
+    grab_red_packet: '搶紅包',
+    grab_red_packet_text: '🎁 搶 {senderName} 的紅包！"{message}"',
     
     // 能量運勢
     energy_full: '已滿',
