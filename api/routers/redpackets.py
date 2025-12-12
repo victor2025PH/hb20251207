@@ -41,7 +41,7 @@ class CreateRedPacketRequest(BaseModel):
     packet_type: Union[RedPacketType, str] = RedPacketType.RANDOM
     total_amount: float = Field(..., gt=0)
     total_count: int = Field(..., ge=1, le=100)
-    message: str = Field(default="恭喜發財！🧧", max_length=256)
+    message: str = Field(default="", max_length=256)  # 默认值将在创建时使用 i18n
     chat_id: Optional[int] = None
     chat_title: Optional[str] = None
     bomb_number: Optional[int] = None  # 紅包炸彈數字（0-9）
@@ -869,7 +869,20 @@ async def claim_red_packet(
     
     # 構建消息
     if is_bomb:
-        message = f"💣 踩雷了！獲得 {amount} {packet.currency.value.upper()}，但需賠付 {penalty_amount} {packet.currency.value.upper()}！"
+        # 使用 i18n 翻译消息
+        from bot.utils.i18n import t
+        try:
+            # 尝试从发送者获取语言
+            sender_result = await db.execute(select(User).where(User.id == packet.sender_id))
+            sender = sender_result.scalar_one_or_none()
+            if sender:
+                bomb_triggered_msg = t('bomb_triggered_message', user=sender, amount=float(amount), currency=packet.currency.value.upper(), penalty=float(penalty_amount)) if t('bomb_triggered_message', user=sender) != 'bomb_triggered_message' else f"💣 踩雷了！獲得 {amount} {packet.currency.value.upper()}，但需賠付 {penalty_amount} {packet.currency.value.upper()}！"
+            else:
+                bomb_triggered_msg = f"💣 踩雷了！獲得 {amount} {packet.currency.value.upper()}，但需賠付 {penalty_amount} {packet.currency.value.upper()}！"
+        except:
+            bomb_triggered_msg = f"💣 踩雷了！獲得 {amount} {packet.currency.value.upper()}，但需賠付 {penalty_amount} {packet.currency.value.upper()}！"
+        
+        message = bomb_triggered_msg
     else:
         message = f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
         if is_luckiest:

@@ -874,6 +874,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "traditional_chinese": "Traditional Chinese",
         "simplified_chinese": "Simplified Chinese",
         "english": "English",
+        "bomb_triggered_message": "💣 Bomb triggered! Got {amount} {currency}, but need to pay {penalty} {currency}!",
         "shares": "shares",
         "enter_group_link_id": "📝 Enter Group Link/ID",
         "search_group": "🔍 Search Group",
