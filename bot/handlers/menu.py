@@ -40,7 +40,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 获取用户
         db_user = await get_user_from_update(update, context)
         if not db_user:
-            await query.message.reply_text("請先使用 /start 註冊")
+            from bot.utils.i18n import t
+            await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
             return
         
         # 如果是键盘模式，尝试恢复底部键盘
@@ -59,7 +60,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard_message = t("main_menu", user=db_user) if t("main_menu", user=db_user) != "main_menu" else "主菜單"
             elif action == "profile":
                 reply_keyboard = get_profile_reply_keyboard()
-                keyboard_message = "個人中心"
+                keyboard_message = t("profile_center", user=db_user)
             
             if reply_keyboard and query.message:
                 try:
@@ -89,14 +90,16 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"[MENU_CALLBACK] Unknown action: {action}")
             try:
                 if query.message:
-                    await query.message.reply_text(f"未知操作: {action}")
+                    from bot.utils.i18n import t
+                    await query.message.reply_text(f"{t('unknown_action', user=db_user)}: {action}")
             except:
                 pass
     except Exception as e:
         logger.error(f"[MENU_CALLBACK] Error processing action '{action}': {e}", exc_info=True)
         try:
             if query.message:
-                await query.message.reply_text("發生錯誤，請稍後再試")
+                from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
         except:
             pass
 
@@ -113,7 +116,8 @@ async def show_main_menu(query, db_user):
                     await query.edit_message_text(t("error", user=db_user))
                 except:
                     if hasattr(query, 'message') and query.message:
-                        await query.message.reply_text("發生錯誤，請稍後再試")
+                        from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
                 return
             
             # 在会话内访问所有需要的属性
@@ -149,11 +153,13 @@ async def show_main_menu(query, db_user):
     except Exception as e:
         logger.error(f"Error in show_main_menu: {e}", exc_info=True)
         try:
-            await query.edit_message_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await query.edit_message_text(t('error_occurred', user=db_user))
         except:
             try:
                 if query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
             except:
                 pass
 
@@ -164,7 +170,8 @@ async def show_wallet_menu(query, db_user):
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            await query.edit_message_text("發生錯誤，請稍後再試")
+            from bot.utils.i18n import t
+            await query.edit_message_text(t('error_occurred', user=db_user))
             return
         
         usdt = float(user.balance_usdt or 0)
@@ -174,19 +181,27 @@ async def show_wallet_menu(query, db_user):
         level = user.level
         xp = user.xp or 0
     
+    from bot.utils.i18n import t
+    my_wallet_text = t('my_wallet', user=user)
+    balance_colon = t('balance_colon', user=user)
+    level_colon = t('level_colon', user=user)
+    xp_colon = t('xp_colon', user=user)
+    energy_colon = t('energy_colon', user=user)
+    select_operation = t('select_operation', user=user)
+    
     text = f"""
-💰 *我的錢包*
+{my_wallet_text}
 
-*餘額：*
+{balance_colon}
 • USDT: `{usdt:.4f}`
 • TON: `{ton:.4f}`
 • Stars: `{stars}`
-• 能量: `{points}`
+• {energy_colon} `{points}`
 
-*等級：* Lv.{level}
-*經驗：* {xp} XP
+{level_colon} Lv.{level}
+{xp_colon} {xp} XP
 
-請選擇操作：
+{select_operation}:
 """
     
     await query.edit_message_text(
@@ -210,7 +225,8 @@ async def show_packets_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -270,7 +286,8 @@ async def show_earn_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
@@ -319,7 +336,8 @@ async def show_game_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
@@ -363,7 +381,8 @@ async def show_profile_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text("發生錯誤，請稍後再試")
+                    from bot.utils.i18n import t
+                await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
