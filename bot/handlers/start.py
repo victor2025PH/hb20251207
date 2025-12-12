@@ -233,16 +233,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_initial_setup(update, context)
             return
         
-        # 在会话内预先加载所有需要的属性，并获取翻译文本
+        # 在会话内预先加载所有需要的属性，并获取所有翻译文本
         _ = db_user_refreshed.id
         _ = db_user_refreshed.tg_id
         _ = db_user_refreshed.language_code
         _ = db_user_refreshed.interaction_mode
         
-        # 在会话内获取翻译文本（t 已在函数开头导入）
+        # 在会话内获取所有翻译文本（必须在会话内完成，避免会话分离错误）
         welcome_msg = t('welcome', user=db_user_refreshed)
-        
-        # 獲取所有歡迎消息的翻譯文本
         welcome_greeting = t('welcome_greeting', user=db_user_refreshed, name=user.first_name or 'User')
         welcome_description = t('welcome_description', user=db_user_refreshed)
         welcome_feature_send = t('welcome_feature_send', user=db_user_refreshed)
@@ -251,6 +249,26 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_feature_invite = t('welcome_feature_invite', user=db_user_refreshed)
         welcome_call_to_action = t('welcome_call_to_action', user=db_user_refreshed)
         
+        # 获取用户的有效模式（在会话内）
+        from bot.utils.mode_helper import get_effective_mode
+        from bot.keyboards.unified import get_unified_keyboard
+        
+        effective_mode = get_effective_mode(db_user_refreshed, update.effective_chat.type)
+        chat_type = update.effective_chat.type
+        
+        # 根据用户选择的模式决定显示方式
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+        
+        # 在会话内获取所有按钮文本
+        menu_wallet_text = t("menu_wallet", user=db_user_refreshed)
+        menu_packets_text = t("menu_packets", user=db_user_refreshed)
+        menu_earn_text = t("menu_earn", user=db_user_refreshed)
+        menu_game_text = t("menu_game", user=db_user_refreshed)
+        menu_profile_text = t("menu_profile", user=db_user_refreshed)
+        menu_switch_mode_text = t("menu_switch_mode", user=db_user_refreshed)
+        please_use_bottom_keyboard_text = t("please_use_bottom_keyboard", user=db_user_refreshed)
+        
+        # 构建欢迎消息文本（在会话内）
         welcome_text = f"""
 🧧 {welcome_msg}
 
@@ -265,76 +283,72 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {welcome_call_to_action}
 """
         
-        # 获取用户的有效模式（在会话内）
-        from bot.utils.mode_helper import get_effective_mode
-        from bot.keyboards.unified import get_unified_keyboard
-        
-        effective_mode = get_effective_mode(db_user_refreshed, update.effective_chat.type)
-        chat_type = update.effective_chat.type
-        
-        # 根据用户选择的模式决定显示方式
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-        
-        # 创建内联按钮（主菜单 + 切换模式）- 使用翻译（t 已在函数开头导入）
+        # 创建内联按钮（在会话内）
         inline_keyboard = [
             [
-                InlineKeyboardButton(t("menu_wallet", user=db_user_refreshed), callback_data="menu:wallet"),
-                InlineKeyboardButton(t("menu_packets", user=db_user_refreshed), callback_data="menu:packets"),
+                InlineKeyboardButton(menu_wallet_text, callback_data="menu:wallet"),
+                InlineKeyboardButton(menu_packets_text, callback_data="menu:packets"),
             ],
             [
-                InlineKeyboardButton(t("menu_earn", user=db_user_refreshed), callback_data="menu:earn"),
-                InlineKeyboardButton(t("menu_game", user=db_user_refreshed), callback_data="menu:game"),
+                InlineKeyboardButton(menu_earn_text, callback_data="menu:earn"),
+                InlineKeyboardButton(menu_game_text, callback_data="menu:game"),
             ],
             [
-                InlineKeyboardButton(t("menu_profile", user=db_user_refreshed), callback_data="menu:profile"),
+                InlineKeyboardButton(menu_profile_text, callback_data="menu:profile"),
             ],
             [
-                InlineKeyboardButton(t("menu_switch_mode", user=db_user_refreshed), callback_data="switch_mode"),
+                InlineKeyboardButton(menu_switch_mode_text, callback_data="switch_mode"),
             ],
         ]
         
-        try:
-            # 根据模式决定是否显示底部键盘
-            if effective_mode == "keyboard":
-                # 键盘模式：显示底部键盘和内联按钮
-                reply_keyboard = [
-                    [
-                        KeyboardButton(t("menu_wallet", user=db_user_refreshed)),
-                        KeyboardButton(t("menu_packets", user=db_user_refreshed)),
-                    ],
-                    [
-                        KeyboardButton(t("menu_earn", user=db_user_refreshed)),
-                        KeyboardButton(t("menu_game", user=db_user_refreshed)),
-                    ],
-                    [
-                        KeyboardButton(t("menu_profile", user=db_user_refreshed)),
-                    ],
-                ]
-                
-                # 发送欢迎消息（带内联按钮）
-                result = await update.message.reply_text(
-                    welcome_text,
-                    parse_mode=None,  # 不使用 Markdown，避免解析错误
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                )
-                logger.info(f"✓ Inline keyboard sent successfully to user {user.id}")
-                
-                # 发送底部键盘
-                await update.message.reply_text(
-                    t("please_use_bottom_keyboard", user=db_user_refreshed),
-                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True),
-                )
-            else:
-                # 内联按钮模式或 MiniApp 模式：只显示内联按钮，不显示底部键盘
-                result = await update.message.reply_text(
-                    welcome_text,
-                    parse_mode=None,  # 不使用 Markdown，避免解析错误
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                )
-                logger.info(f"✓ Inline keyboard sent successfully to user {user.id} (inline mode, no bottom keyboard)")
-        except Exception as e:
-            logger.error(f"✗ Error sending keyboard to user {user.id}: {e}", exc_info=True)
-            await update.message.reply_text(welcome_text, parse_mode="Markdown")
+        # 根据模式准备底部键盘（在会话内）
+        reply_keyboard = None
+        if effective_mode == "keyboard":
+            reply_keyboard = [
+                [
+                    KeyboardButton(menu_wallet_text),
+                    KeyboardButton(menu_packets_text),
+                ],
+                [
+                    KeyboardButton(menu_earn_text),
+                    KeyboardButton(menu_game_text),
+                ],
+                [
+                    KeyboardButton(menu_profile_text),
+                ],
+            ]
+        
+        # 会话在这里结束，但我们已经获取了所有需要的翻译文本
+    
+    # 会话外发送消息（使用预先获取的翻译文本）
+    try:
+        # 根据模式决定是否显示底部键盘
+        if effective_mode == "keyboard":
+            # 键盘模式：显示底部键盘和内联按钮
+            # 发送欢迎消息（带内联按钮）
+            result = await update.message.reply_text(
+                welcome_text,
+                parse_mode=None,  # 不使用 Markdown，避免解析错误
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            )
+            logger.info(f"✓ Inline keyboard sent successfully to user {user.id}")
+            
+            # 发送底部键盘
+            await update.message.reply_text(
+                please_use_bottom_keyboard_text,
+                reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True),
+            )
+        else:
+            # 内联按钮模式或 MiniApp 模式：只显示内联按钮，不显示底部键盘
+            result = await update.message.reply_text(
+                welcome_text,
+                parse_mode=None,  # 不使用 Markdown，避免解析错误
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            )
+            logger.info(f"✓ Inline keyboard sent successfully to user {user.id} (inline mode, no bottom keyboard)")
+    except Exception as e:
+        logger.error(f"✗ Error sending keyboard to user {user.id}: {e}", exc_info=True)
+        await update.message.reply_text(welcome_text, parse_mode="Markdown")
 
 
 async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
