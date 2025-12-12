@@ -180,7 +180,7 @@ export default function SendRedPacket() {
           setShowChatModal(false)
           setSearchQuery('')
           haptic('success')
-          showAlert('✅ 已選擇 ' + chat.title, 'success')
+          showAlert(t('selected', { name: chat.title }), 'success')
           return
         }
       }
@@ -385,7 +385,7 @@ export default function SendRedPacket() {
     },
     onError: (error: Error) => {
       haptic('error')
-      let errorMessage = typeof error.message === 'string' ? error.message : String(error.message || '發送失敗，請重試')
+      let errorMessage = typeof error.message === 'string' ? error.message : String(error.message || t('send_failed'))
       
       // 將常見的英文錯誤信息翻譯
       if (errorMessage.includes('Insufficient balance') || errorMessage.includes('insufficient balance')) {

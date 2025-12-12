@@ -928,8 +928,15 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 def get_user_language(user: Optional[User] = None, user_id: Optional[int] = None) -> str:
     """獲取用戶語言"""
     if user:
-        # 优先使用 user_id 重新查询，避免会话分离问题
-        # 如果提供了 user 对象，尝试获取 tg_id，然后重新查询
+        # 优先尝试从 __dict__ 中获取已加载的属性，避免触发 SQLAlchemy 延迟加载
+        try:
+            if hasattr(user, '__dict__') and 'language_code' in user.__dict__:
+                lang = user.__dict__['language_code'] or "zh-TW"
+                return lang if lang in TRANSLATIONS else "zh-TW"
+        except Exception:
+            pass
+        
+        # 如果 __dict__ 中没有，尝试使用 user_id 重新查询
         if hasattr(user, 'tg_id') and user.tg_id:
             try:
                 with get_db() as db:
@@ -937,32 +944,12 @@ def get_user_language(user: Optional[User] = None, user_id: Optional[int] = None
                     if db_user:
                         # 在会话内安全访问 language_code
                         lang = db_user.language_code or "zh-TW"
-                    else:
-                        lang = "zh-TW"
+                        return lang if lang in TRANSLATIONS else "zh-TW"
             except Exception as e:
                 logger.error(f"Error getting user language from database: {e}")
-                lang = "zh-TW"
-        else:
-            # 如果没有 tg_id，尝试直接访问（可能已经预先加载）
-            try:
-                # 使用 inspect 检查对象是否在会话中
-                from sqlalchemy import inspect
-                insp = inspect(user)
-                if insp.persistent or insp.detached:
-                    # 对象已脱离会话，尝试访问可能失败
-                    # 如果 language_code 已经加载，可以直接访问
-                    if hasattr(user, '__dict__') and 'language_code' in user.__dict__:
-                        lang = user.__dict__['language_code'] or "zh-TW"
-                    else:
-                        # 属性未加载，使用默认值
-                        lang = "zh-TW"
-                else:
-                    # 对象仍在会话中，可以安全访问
-                    lang = getattr(user, 'language_code', None) or "zh-TW"
-            except Exception as e:
-                # 如果访问失败，使用默认值
-                logger.debug(f"Error accessing user.language_code, using default: {e}")
-                lang = "zh-TW"
+        
+        # 如果都失败了，使用默认值
+        lang = "zh-TW"
     elif user_id:
         try:
             with get_db() as db:
