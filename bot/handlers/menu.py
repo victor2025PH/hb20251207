@@ -16,6 +16,7 @@ from bot.keyboards import (
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理菜單回調"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     from bot.utils.decorators import handle_errors
     from bot.utils.user_helpers import get_user_from_update
     
@@ -40,7 +41,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 获取用户
         db_user = await get_user_from_update(update, context)
         if not db_user:
-            from bot.utils.i18n import t
             await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
             return
         
@@ -50,7 +50,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if effective_mode == "keyboard":
             from bot.keyboards.reply_keyboards import get_main_reply_keyboard, get_profile_reply_keyboard
-            from bot.utils.i18n import t
             
             reply_keyboard = None
             keyboard_message = ""
@@ -90,7 +89,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"[MENU_CALLBACK] Unknown action: {action}")
             try:
                 if query.message:
-                    from bot.utils.i18n import t
                     await query.message.reply_text(f"{t('unknown_action', user=db_user)}: {action}")
             except:
                 pass
@@ -98,7 +96,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"[MENU_CALLBACK] Error processing action '{action}': {e}", exc_info=True)
         try:
             if query.message:
-                from bot.utils.i18n import t
                 await query.message.reply_text(t('error_occurred', user=db_user))
         except:
             pass
@@ -116,8 +113,7 @@ async def show_main_menu(query, db_user):
                     await query.edit_message_text(t("error", user=db_user))
                 except:
                     if hasattr(query, 'message') and query.message:
-                        from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                        await query.message.reply_text(t('error_occurred', user=db_user))
                 return
             
             # 在会话内访问所有需要的属性
@@ -153,13 +149,11 @@ async def show_main_menu(query, db_user):
     except Exception as e:
         logger.error(f"Error in show_main_menu: {e}", exc_info=True)
         try:
-            from bot.utils.i18n import t
             await query.edit_message_text(t('error_occurred', user=db_user))
         except:
             try:
                 if query.message:
-                    from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             except:
                 pass
 
@@ -224,8 +218,7 @@ async def show_packets_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内访问所有需要的属性
@@ -285,8 +278,7 @@ async def show_earn_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
@@ -335,8 +327,7 @@ async def show_game_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
@@ -380,8 +371,7 @@ async def show_profile_menu(query, db_user):
                 await query.edit_message_text(t("error", user=db_user))
             except:
                 if hasattr(query, 'message') and query.message:
-                    from bot.utils.i18n import t
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user=db_user))
             return
         
         # 在会话内获取翻译文本
