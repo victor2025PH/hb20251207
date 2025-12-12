@@ -416,19 +416,30 @@ async def create_red_packet(
                         packet_type_str = get_enum_value(request.packet_type)
                         currency_str = get_enum_value(packet.currency)
                         
-                        type_text = "🎲 手氣最佳" if packet_type_str == "random" else "💣 紅包炸彈"
+                        # 使用發送者的語言設置構建群組消息
+                        from bot.utils.i18n import t
+                        random_packet_type = t('random_packet_type', user=sender)
+                        bomb_packet_type = t('bomb_packet_type', user=sender)
+                        type_text = random_packet_type if packet_type_str == "random" else bomb_packet_type
+                        
+                        amount_label = t('amount_label_short', user=sender)
+                        quantity_label = t('quantity_label_short', user=sender)
+                        shares_label = t('shares_label', user=sender)
+                        click_to_claim = t('click_to_claim', user=sender)
+                        claim_button_text = t('claim_red_packet', user=sender)
+                        
                         group_message = f"""
 🧧 *{packet.message}*
 
 {type_text}
-💰 金額：{float(packet.total_amount):.2f} {currency_str.upper()}
-👥 數量：{packet.total_count} 份
+{amount_label}{float(packet.total_amount):.2f} {currency_str.upper()}
+{quantity_label}{packet.total_count} {shares_label}
 
-🎁 點擊下方按鈕搶紅包！
+{click_to_claim}
 """
                         claim_keyboard = [[
                             InlineKeyboardButton(
-                                "🧧 搶紅包",
+                                claim_button_text,
                                 callback_data=f"claim:{packet.uuid}"
                             )
                         ]]
@@ -888,9 +899,30 @@ async def claim_red_packet(
         
         message = bomb_triggered_msg
     else:
-        message = f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
-        if is_luckiest:
-            message += " 🎉 手氣最佳！"
+        # 使用 i18n 翻译消息
+        from bot.utils.i18n import t
+        try:
+            # 尝试从发送者获取语言
+            sender_result = await db.execute(select(User).where(User.id == packet.sender_id))
+            sender = sender_result.scalar_one_or_none()
+            if sender:
+                claim_success_msg = t('claim_success', user=sender, amount=float(amount), currency=packet.currency.value.upper())
+                if is_luckiest:
+                    best_luck_marker = t('best_luck_marker', user=sender)
+                    message = f"{claim_success_msg} {best_luck_marker}"
+                else:
+                    message = claim_success_msg
+            else:
+                # 回退到默认文本
+                message = f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
+                if is_luckiest:
+                    message += " 🎉 手氣最佳！"
+        except Exception as e:
+            logger.warning(f"Error getting translation for claim message: {e}")
+            # 回退到默认文本
+            message = f"恭喜獲得 {amount} {packet.currency.value.upper()}！"
+            if is_luckiest:
+                message += " 🎉 手氣最佳！"
     
     return ClaimResult(
         success=True,
