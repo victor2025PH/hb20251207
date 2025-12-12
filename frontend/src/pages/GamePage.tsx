@@ -7,44 +7,44 @@ import { useTranslation } from '../providers/I18nProvider'
 import { useSound } from '../hooks/useSound'
 import PageTransition from '../components/PageTransition'
 
-// 內置小遊戲列表
-const miniGames = [
-  {
-    id: 'lucky-wheel',
-    name: '幸運轉盤',
-    icon: '🎡',
-    color: 'from-purple-500 to-pink-500',
-    path: '/lucky-wheel',
-    isNew: true,
-  },
-  {
-    id: 'dice',
-    name: '骰子大戰',
-    icon: '🎲',
-    color: 'from-blue-500 to-cyan-500',
-    path: '/game/dice',
-    comingSoon: true,
-  },
-  {
-    id: 'guess',
-    name: '猜大小',
-    icon: '🔮',
-    color: 'from-green-500 to-emerald-500',
-    path: '/game/guess',
-    comingSoon: true,
-  },
-  {
-    id: 'scratch',
-    name: '刮刮樂',
-    icon: '🎫',
-    color: 'from-yellow-500 to-orange-500',
-    path: '/game/scratch',
-    comingSoon: true,
-  },
-]
-
 export default function GamePage() {
   const { t } = useTranslation()
+  
+  // 內置小遊戲列表（使用 i18n）
+  const miniGames = [
+    {
+      id: 'lucky-wheel',
+      name: t('lucky_wheel'),
+      icon: '🎡',
+      color: 'from-purple-500 to-pink-500',
+      path: '/lucky-wheel',
+      isNew: true,
+    },
+    {
+      id: 'dice',
+      name: t('dice_battle'),
+      icon: '🎲',
+      color: 'from-blue-500 to-cyan-500',
+      path: '/game/dice',
+      comingSoon: true,
+    },
+    {
+      id: 'guess',
+      name: t('guess_size'),
+      icon: '🔮',
+      color: 'from-green-500 to-emerald-500',
+      path: '/game/guess',
+      comingSoon: true,
+    },
+    {
+      id: 'scratch',
+      name: t('scratch_card'),
+      icon: '🎫',
+      color: 'from-yellow-500 to-orange-500',
+      path: '/game/scratch',
+      comingSoon: true,
+    },
+  ]
   const { playSound } = useSound()
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
@@ -216,8 +216,8 @@ export default function GamePage() {
         <div className="px-4 py-3 bg-[#0d0d1a]">
           <div className="flex items-center gap-1.5 mb-2">
             <Gamepad2 className="w-4 h-4 text-green-400" />
-            <h2 className="text-sm font-bold text-white">紅包小遊戲</h2>
-            <span className="ml-auto text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full">免費玩</span>
+            <h2 className="text-sm font-bold text-white">{t('mini_games')}</h2>
+            <span className="ml-auto text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full">{t('free_play')}</span>
           </div>
 
           <div className="grid grid-cols-4 gap-2">
@@ -316,7 +316,7 @@ export default function GamePage() {
               exit={{ opacity: 0, y: 50 }}
               className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm px-6 py-3 rounded-xl border border-white/10 z-50"
             >
-              <p className="text-white text-sm">🚧 即將推出，敬請期待！</p>
+              <p className="text-white text-sm">{t('coming_soon')}</p>
             </motion.div>
           )}
         </AnimatePresence>
