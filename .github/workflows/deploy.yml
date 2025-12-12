@@ -387,7 +387,7 @@ jobs:
             
             # 启动/重启 API 服务
             echo "🔄 检查并启动 API 服务..."
-            if sudo systemctl is-active --quiet "${API_SERVICE_NAME}"; then
+            if sudo systemctl is-active --quiet "${API_SERVICE_NAME}" 2>/dev/null; then
               sudo systemctl restart "${API_SERVICE_NAME}" && echo "✅ API 服务重启成功" || echo "⚠️ API 服务重启失败"
             else
               sudo systemctl start "${API_SERVICE_NAME}" && echo "✅ API 服务启动成功" || echo "⚠️ API 服务启动失败，请检查服务配置"
@@ -398,7 +398,7 @@ jobs:
             echo ""
             # 启动/重启 Bot 服务
             echo "🔄 检查并启动 Bot 服务..."
-            if sudo systemctl is-active --quiet "${BOT_SERVICE_NAME}"; then
+            if sudo systemctl is-active --quiet "${BOT_SERVICE_NAME}" 2>/dev/null; then
               sudo systemctl restart "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务重启成功" || echo "⚠️ Bot 服务重启失败"
             else
               sudo systemctl start "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务启动成功" || echo "⚠️ Bot 服务启动失败，请检查服务配置"
