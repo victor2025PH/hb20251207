@@ -269,12 +269,12 @@ async def handle_group_input(update, db_user, text, context):
 """
         
         # 检查是否应该使用内联按钮
-        # 关键修复：如果update有callback_query，说明是从内联按钮来的；否则是从底部键盘来的
-        # 同时检查use_inline_buttons标志，但优先检查是否有callback_query
-        has_callback_query = hasattr(update, 'callback_query') and update.callback_query is not None
-        use_inline = context.user_data.get('use_inline_buttons', False) or has_callback_query
+        # 关键修复：优先检查use_inline_buttons标志
+        # 如果用户通过内联按钮流程进入（从send_packet_menu_callback开始），use_inline_buttons应该是True
+        # 此时即使输入群组ID是通过文本消息，也应该使用内联按钮确认
+        use_inline = context.user_data.get('use_inline_buttons', False)
         
-        logger.info(f"handle_group_input: use_inline={use_inline}, has_callback_query={has_callback_query}, use_inline_buttons_flag={context.user_data.get('use_inline_buttons', False)}")
+        logger.info(f"handle_group_input: use_inline={use_inline}, use_inline_buttons_flag={context.user_data.get('use_inline_buttons', False)}")
         
         if use_inline:
             # 使用内联按钮（内联按钮流程）
