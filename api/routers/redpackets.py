@@ -183,6 +183,10 @@ async def create_red_packet(
         source_type = RedPacketSource.USER_PRIVATE
     
     # 創建紅包
+    from bot.utils.i18n import t
+    # 如果消息为空，使用默认祝福语
+    default_message = request.message if request.message else t('default_blessing', user=sender)
+    
     packet_uuid = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(hours=24)
     packet = RedPacket(
@@ -192,7 +196,7 @@ async def create_red_packet(
         packet_type=request.packet_type,
         total_amount=Decimal(str(request.total_amount)),
         total_count=request.total_count,
-        message=request.message,
+        message=default_message,
         chat_id=request.chat_id,  # 公開紅包時為 NULL
         chat_title=request.chat_title,
         bomb_number=request.bomb_number if request.packet_type == RedPacketType.EQUAL else None,
