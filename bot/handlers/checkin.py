@@ -50,7 +50,7 @@ async def do_checkin(db_user, db=None, return_result=False):
         if return_result:
             return {
                 "success": False,
-                "message": f"您今天已經簽到了！連續簽到: {streak} 天",
+                "message": f"您今天已經簽到了！連續簽到: {streak} 天",  # 这个会在 do_checkin_with_message 中翻译
                 "points": 0,
                 "consecutive": streak
             }
@@ -106,7 +106,7 @@ async def do_checkin(db_user, db=None, return_result=False):
             "success": True,
             "points": reward,
             "consecutive": new_streak,
-            "message": f"簽到成功！獲得 {reward} 能量"
+            "message": f"簽到成功！獲得 {reward} 能量"  # 这个会在 do_checkin_with_message 中翻译
         }
     
     return {
@@ -123,7 +123,8 @@ async def do_checkin_with_message(user, message, is_callback=False):
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         
         if not db_user:
-            text = "請先使用 /start 註冊"
+            from bot.utils.i18n import t
+            text = t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊"
             if is_callback:
                 await message.reply_text(text)
             else:
@@ -134,12 +135,16 @@ async def do_checkin_with_message(user, message, is_callback=False):
         
         # 檢查是否已簽到
         if db_user.last_checkin and db_user.last_checkin.date() == today:
+            from bot.utils.i18n import t
             streak = db_user.checkin_streak or 1
+            checkin_already_title = t('checkin_already_title', user=db_user)
+            consecutive_checkin_days = t('consecutive_checkin_days', user=db_user, streak=streak)
+            remember_tomorrow = t('remember_tomorrow', user=db_user)
             text = f"""
-📅 *今日已簽到*
+{checkin_already_title}
 
-連續簽到: {streak} 天
-明天記得來哦！
+{consecutive_checkin_days}
+{remember_tomorrow}
 """
             if is_callback:
                 await message.edit_text(text, parse_mode="Markdown")
@@ -149,19 +154,27 @@ async def do_checkin_with_message(user, message, is_callback=False):
         
         result = await do_checkin(db_user, db, return_result=True)
         
+        from bot.utils.i18n import t
         if result["success"]:
+            checkin_success_title = t('checkin_success_title', user=db_user)
+            checkin_day_label = t('checkin_day_label', user=db_user, day=result['consecutive'])
+            checkin_reward_energy = t('checkin_reward_energy', user=db_user, points=result['points'])
+            checkin_7day_bonus = t('checkin_7day_bonus', user=db_user)
             text = f"""
-🎉 *簽到成功！*
+{checkin_success_title}
 
-📅 第 {result['consecutive']} 天
-🎁 獲得 {result['points']} 能量
+{checkin_day_label}
+{checkin_reward_energy}
 
-連續簽到7天可獲得額外獎勵！
+{checkin_7day_bonus}
 """
         else:
-            text = f"📅 *{result['message']}*"
+            checkin_already_title = t('checkin_already_title', user=db_user)
+            consecutive_checkin_days = t('consecutive_checkin_days', user=db_user, streak=result.get('consecutive', 1))
+            text = f"{checkin_already_title}\n\n{consecutive_checkin_days}"
         
-        keyboard = [[InlineKeyboardButton("💰 查看錢包", callback_data="wallet:view")]]
+        view_wallet_button = t('view_wallet_button', user=db_user)
+        keyboard = [[InlineKeyboardButton(view_wallet_button, callback_data="wallet:view")]]
         
         if is_callback:
             await message.edit_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
