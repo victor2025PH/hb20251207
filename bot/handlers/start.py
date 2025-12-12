@@ -493,8 +493,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             help_invite_description = t('help_invite_description', user_id=user_id)
             help_contact = t('help_contact', user_id=user_id)
         else:
-    else:
-        # 默認中文
+            # 默認中文
         help_title = "🧧 *Lucky Red 使用指南*"
         help_basic_commands = "*基本命令：*"
         help_command_start = "/start - 開始使用"
