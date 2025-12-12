@@ -28,14 +28,22 @@ interface TaskStatus {
   claimed_at?: string
 }
 
-const categoryConfig = {
-  daily: { name: '每日任務', color: 'from-orange-500 to-red-500', icon: '📅' },
-  social: { name: '社交任務', color: 'from-blue-500 to-cyan-500', icon: '👥' },
-  viral: { name: '傳播任務', color: 'from-purple-500 to-pink-500', icon: '📤' },
-  game: { name: '遊戲任務', color: 'from-green-500 to-emerald-500', icon: '🎮' },
-  challenge: { name: '挑戰任務', color: 'from-yellow-500 to-orange-500', icon: '🔥' },
-  achievement: { name: '成就任務', color: 'from-indigo-500 to-purple-500', icon: '🏆' },
+// 任務翻譯映射函數
+function getTaskTranslation(t: (key: string) => string, taskType: string, field: 'name' | 'description'): string {
+  const taskKey = `task_${taskType}_${field}`
+  const translation = t(taskKey)
+  // 如果翻譯不存在，返回原始鍵（前端會顯示後端返回的值）
+  return translation !== taskKey ? translation : ''
 }
+
+const categoryConfig = (t: (key: string) => string) => ({
+  daily: { name: t('category_daily') || 'Daily', color: 'from-orange-500 to-red-500', icon: '📅' },
+  social: { name: t('category_social') || 'Social', color: 'from-blue-500 to-cyan-500', icon: '👥' },
+  viral: { name: t('category_viral') || 'Viral', color: 'from-purple-500 to-pink-500', icon: '📤' },
+  game: { name: t('category_game') || 'Game', color: 'from-green-500 to-emerald-500', icon: '🎮' },
+  challenge: { name: t('category_challenge') || 'Challenge', color: 'from-yellow-500 to-orange-500', icon: '🔥' },
+  achievement: { name: t('category_achievement') || 'Achievement', color: 'from-indigo-500 to-purple-500', icon: '🏆' },
+})
 
 export default function TasksPage() {
   const navigate = useNavigate()
@@ -52,12 +60,12 @@ export default function TasksPage() {
   const claimMutation = useMutation({
     mutationFn: (taskType: string) => claimTaskPacket(taskType),
     onSuccess: (result, taskType) => {
-      showAlert(result.message || '領取成功！', 'success')
+      showAlert(result.message || t('claim_success_message'), 'success')
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['balance'] })
     },
     onError: (error: any) => {
-      showAlert(error.message || '領取失敗', 'error')
+      showAlert(error.message || t('claim_failed'), 'error')
     },
   })
 
@@ -85,7 +93,7 @@ export default function TasksPage() {
         <div className="h-full flex items-center justify-center bg-brand-dark">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">載入任務中...</p>
+            <p className="text-gray-400">{t('loading_tasks')}</p>
           </div>
         </div>
       </PageTransition>
@@ -97,12 +105,12 @@ export default function TasksPage() {
       <PageTransition>
         <div className="h-full flex items-center justify-center bg-brand-dark">
           <div className="text-center">
-            <p className="text-red-400 mb-4">載入失敗</p>
+            <p className="text-red-400 mb-4">{t('load_failed')}</p>
             <button
               onClick={() => queryClient.invalidateQueries({ queryKey: ['tasks'] })}
               className="px-4 py-2 bg-orange-500 rounded-lg text-white"
             >
-              重試
+              {t('retry')}
             </button>
           </div>
         </div>
@@ -120,7 +128,7 @@ export default function TasksPage() {
           </button>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <Trophy className="text-orange-400" size={20} />
-            {t('tasks') || '任務中心'}
+            {t('tasks')}
           </h1>
           <div className="w-10" />
         </div>
@@ -137,10 +145,11 @@ export default function TasksPage() {
                     : 'bg-white/5 text-gray-400 hover:bg-white/10'
                 }`}
               >
-                全部
+                {t('all')}
               </button>
               {categories.map((category) => {
-                const config = categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.daily
+                const configs = categoryConfig(t)
+                const config = configs[category as keyof typeof configs] || configs.daily
                 return (
                   <button
                     key={category}
@@ -165,7 +174,7 @@ export default function TasksPage() {
           {filteredTasks.length === 0 ? (
             <div className="text-center py-12">
               <Trophy size={48} className="text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">暫無可用任務</p>
+              <p className="text-gray-400">{t('no_tasks_available')}</p>
             </div>
           ) : (
             filteredTasks.map((task) => (
@@ -174,6 +183,7 @@ export default function TasksPage() {
                 task={task}
                 onClaim={() => claimMutation.mutate(task.task_type)}
                 isClaiming={claimMutation.isPending}
+                t={t}
               />
             ))
           )}
@@ -187,15 +197,24 @@ function TaskCard({
   task,
   onClaim,
   isClaiming,
+  t,
 }: {
   task: TaskStatus
   onClaim: () => void
   isClaiming: boolean
+  t: (key: string) => string
 }) {
   const progressPercent = Math.min((task.progress.current / task.progress.target) * 100, 100)
   const category = task.category || 'daily'
-  const config = categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.daily
+  const configs = categoryConfig(t)
+  const config = configs[category as keyof typeof configs] || configs.daily
   const icon = task.icon || config.icon
+  
+  // 獲取任務名稱和描述的翻譯
+  const taskNameKey = `task_${task.task_type}_name`
+  const taskDescKey = `task_${task.task_type}_description`
+  const translatedName = t(taskNameKey) !== taskNameKey ? t(taskNameKey) : task.task_name
+  const translatedDesc = t(taskDescKey) !== taskDescKey ? t(taskDescKey) : task.task_description
 
   return (
     <motion.div
@@ -216,17 +235,17 @@ function TaskCard({
         {/* 任務信息 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-white font-semibold">{task.task_name}</h3>
+            <h3 className="text-white font-semibold">{translatedName}</h3>
             {task.completed && (
               <CheckCircle size={18} className="text-green-400" />
             )}
           </div>
-          <p className="text-gray-400 text-sm mb-3">{task.task_description}</p>
+          <p className="text-gray-400 text-sm mb-3">{translatedDesc}</p>
 
           {/* 進度條 */}
           <div className="mb-3">
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-400">進度</span>
+              <span className="text-gray-400">{t('progress')}</span>
               <span className="text-white font-medium">
                 {task.progress.current} / {task.progress.target}
               </span>
@@ -257,11 +276,11 @@ function TaskCard({
                 disabled={isClaiming}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r ${config.color} text-white hover:opacity-90 transition-opacity disabled:opacity-50`}
               >
-                {isClaiming ? '領取中...' : '領取'}
+                {isClaiming ? t('claiming') : t('claim')}
               </button>
             ) : task.completed ? (
               <span className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-700 text-gray-400">
-                已領取
+                {t('claimed')}
               </span>
             ) : (
               <button
@@ -279,7 +298,7 @@ function TaskCard({
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
               >
-                去完成
+                {t('go_complete')}
               </button>
             )}
           </div>

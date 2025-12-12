@@ -33,17 +33,17 @@ interface PacketDisplay {
 }
 
 // 將 API 紅包轉換為顯示格式
-function convertToDisplay(packet: RedPacket): PacketDisplay {
+function convertToDisplay(packet: RedPacket, t: (key: string) => string): PacketDisplay {
   const packetType = packet.type === 'random' ? 'lucky' : 'ordinary'
   const isBomb = packet.type === 'fixed' && (packet as any).bomb_number !== undefined
   
   return {
     id: packet.id,
     uuid: packet.uuid ?? packet.id.toString(), // 使用 uuid，如果不存在则使用 id
-    senderName: packet.sender_name || '匿名用戶',
+    senderName: packet.sender_name || t('anonymous_user'),
     senderAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${packet.sender_id}`,
     senderLevel: Math.floor(Math.random() * 50) + 1, // TODO: 從 API 獲取真實等級
-    message: packet.message || '恭喜發財！🧧',
+    message: packet.message || t('default_blessing'),
     totalQuantity: packet.quantity,
     remainingQuantity: packet.remaining,
     type: isBomb ? 'exclusive' : packetType,
@@ -81,7 +81,7 @@ export default function PacketsPage() {
   // 轉換為顯示格式，並去重（基於 uuid）
   const packetsMap = new Map<string, PacketDisplay>()
   ;(rawPackets || []).forEach((packet: RedPacket) => {
-    const display = convertToDisplay(packet)
+    const display = convertToDisplay(packet, t)
     const key = display.uuid || display.id.toString()
     // 如果已存在，保留創建時間更早的（避免重複）
     if (!packetsMap.has(key) || packetsMap.get(key)!.timestamp > display.timestamp) {
@@ -129,7 +129,7 @@ export default function PacketsPage() {
     onError: (error: any) => {
       setLoadingId(null)
       playSound('click')
-      const errorMessage = error.response?.data?.detail || error.message || '領取失敗'
+      const errorMessage = error.response?.data?.detail || error.message || t('claim_failed')
       showAlert(errorMessage, 'error')
     }
   })
@@ -242,7 +242,7 @@ export default function PacketsPage() {
     // 确保使用 uuid，如果没有 uuid 则使用 id 转换为字符串
     const packetId = packet.uuid || String(packet.id)
     if (!packetId) {
-      showAlert('紅包 ID 無效', 'error')
+      showAlert(t('invalid_packet_id'), 'error')
       return
     }
     claimMutation.mutate(packetId)
@@ -254,7 +254,7 @@ export default function PacketsPage() {
       <PageTransition>
         <div className="h-full flex flex-col items-center justify-center p-6">
           <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-400 mt-4">載入中...</p>
+          <p className="text-gray-400 mt-4">{t('loading')}</p>
         </div>
       </PageTransition>
     )
@@ -265,13 +265,13 @@ export default function PacketsPage() {
     return (
       <PageTransition>
         <div className="h-full flex flex-col items-center justify-center p-6">
-          <p className="text-red-400 mb-4">載入失敗</p>
+          <p className="text-red-400 mb-4">{t('load_failed')}</p>
           <button
             onClick={() => refetch()}
             className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg"
           >
             <RefreshCw size={16} />
-            重試
+            {t('retry')}
           </button>
         </div>
       </PageTransition>
@@ -320,8 +320,8 @@ export default function PacketsPage() {
         {filteredPackets.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
             <Gift size={48} className="mb-4 opacity-50" />
-            <p>暫無紅包</p>
-            <p className="text-sm mt-2">發送一個紅包試試吧！</p>
+            <p>{t('no_packets')}</p>
+            <p className="text-sm mt-2">{t('send_packet_try')}</p>
           </div>
         )}
 
@@ -402,7 +402,7 @@ export default function PacketsPage() {
                           {packet.amount} {packet.currency}
                         </span>
                         <span className="text-gray-500 text-xs">
-                          {packet.remainingQuantity}/{packet.totalQuantity} 份
+                          {packet.remainingQuantity}/{packet.totalQuantity} {t('unit')}
                         </span>
                       </div>
 
@@ -459,7 +459,7 @@ export default function PacketsPage() {
                       }`}>
                         <TypeIcon size={12} className={packet.isBomb ? 'text-red-400' : style.color} />
                         <span className={`text-xs font-bold ${packet.isBomb ? 'text-red-400' : style.color}`}>
-                          {packet.isBomb ? '炸彈' : t(style.labelKey)}
+                          {packet.isBomb ? t('bomb') : t(style.labelKey)}
                         </span>
                       </div>
                     </div>
@@ -482,7 +482,7 @@ export default function PacketsPage() {
                       {loadingId === packet.id ? (
                         <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : isGrabbed || packet.is_claimed ? (
-                        packet.status === 'expired' ? t('expired') : '已領取'
+                        packet.status === 'expired' ? t('expired') : t('claimed')
                       ) : (
                         t('grab')
                       )}
