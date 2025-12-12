@@ -426,7 +426,6 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: '提交中...',
     submit_withdraw: '提交提現',
     withdraw_submitted: '提現申請已提交，請等待審核',
-    enter_receiving_address: '請輸入收款地址',
     enter_amount: '請輸入金額',
     
     // 通用
@@ -843,7 +842,6 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: '提交中...',
     submit_withdraw: '提交提现',
     withdraw_submitted: '提现申请已提交，请等待审核',
-    enter_receiving_address: '请输入收款地址',
     enter_amount: '请输入金额',
     
     // 通用
@@ -1266,7 +1264,6 @@ const translations: Record<Language, Record<string, string>> = {
     submitting: 'Submitting...',
     submit_withdraw: 'Submit Withdrawal',
     withdraw_submitted: 'Withdrawal submitted, please wait for review',
-    enter_receiving_address: 'Please enter receiving address',
     enter_amount: 'Please enter amount',
     
     // Common
@@ -1296,7 +1293,7 @@ const translations: Record<Language, Record<string, string>> = {
 interface I18nContextType {
   language: Language
   setLanguage: (lang: Language) => void
-  t: (key: string) => string
+  t: (key: string, params?: Record<string, string | number>) => string
 }
 
 const I18nContext = createContext<I18nContextType | null>(null)
@@ -1328,8 +1325,14 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('language', lang)
   }, [])
 
-  const t = useCallback((key: string): string => {
-    return translations[language][key] || key
+  const t = useCallback((key: string, params?: Record<string, string | number>): string => {
+    let text = translations[language][key] || key
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue))
+      })
+    }
+    return text
   }, [language])
 
   useEffect(() => {

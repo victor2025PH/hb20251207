@@ -117,7 +117,8 @@ export default function PacketsPage() {
       
       // 顯示結果
       setClaimAmount(result.amount)
-      setClaimMessage(result.message || t('claim_success', { amount: result.amount, currency: selectedPacket?.currency || 'USDT' }))
+      const claimSuccessMsg = t('claim_success', { amount: result.amount, currency: selectedPacket?.currency || 'USDT' })
+      setClaimMessage(result.message || claimSuccessMsg)
       setShowResultModal(true)
       setLoadingId(null)
       
@@ -192,7 +193,7 @@ export default function PacketsPage() {
     const shareUrl = `${window.location.origin}/claim/${packet.uuid}`
     const shareData = {
       title: t('grab_red_packet'),
-      text: t('grab_red_packet_text', { senderName: packet.senderName, message: packet.message }),
+      text: t('grab_red_packet_text', { senderName: packet.senderName, message: packet.message }) || `🎁 搶 ${packet.senderName} 的紅包！"${packet.message}"`,
       url: shareUrl,
     }
 
