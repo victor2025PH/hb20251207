@@ -32,7 +32,8 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 獲取用戶
     db_user = await get_user_from_update(update, context)
     if not db_user:
-        await query.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
         return
     
     # 更新用戶語言
@@ -42,7 +43,8 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not success:
         logger.error(f"[LANGUAGE] Failed to update language for user {user_id} to {lang_code}")
         try:
-            await query.message.reply_text("❌ 設置語言失敗，請稍後再試")
+            from bot.utils.i18n import t
+            await query.message.reply_text(t('language_set_failed', user=db_user) if t('language_set_failed', user=db_user) != 'language_set_failed' else "❌ 設置語言失敗，請稍後再試")
         except Exception as reply_error:
             logger.error(f"[LANGUAGE] Failed to send error message: {reply_error}")
         return

@@ -32,7 +32,8 @@ async def switch_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     # 获取用户
     user = await get_user_from_update(update, context)
     if not user:
-        await query.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
         return
     
     # 显示模式选择界面（三种模式：内联按钮、底部键盘、MiniApp）
@@ -190,24 +191,40 @@ async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = update.effective_user
     chat_type = update.effective_chat.type
     
+    from bot.utils.i18n import t
+    from bot.utils.user_helpers import get_user_from_update
+    db_user = await get_user_from_update(update, context)
+    if not db_user:
+        db_user = user
+    
+    welcome_title = t('welcome_to_lucky_red', user=db_user) if t('welcome_to_lucky_red', user=db_user) != 'welcome_to_lucky_red' else f"🧧 *歡迎來到 Lucky Red！*"
+    hi_greeting = t('hi_greeting', user=db_user, name=user.first_name) if t('hi_greeting', user=db_user) != 'hi_greeting' else f"Hi {user.first_name}！"
+    select_interaction_mode = t('select_interaction_mode', user=db_user) if t('select_interaction_mode', user=db_user) != 'select_interaction_mode' else "請選擇您喜歡的交互方式："
+    keyboard_mode_desc = t('keyboard_mode_welcome_desc', user=db_user) if t('keyboard_mode_welcome_desc', user=db_user) != 'keyboard_mode_welcome_desc' else "*⌨️ 底部鍵盤* - 傳統 bot 體驗，在群組中也能使用"
+    inline_mode_desc = t('inline_mode_welcome_desc', user=db_user) if t('inline_mode_welcome_desc', user=db_user) != 'inline_mode_welcome_desc' else "*🔘 內聯按鈕* - 流暢交互，點擊消息中的按鈕"
+    miniapp_mode_desc = t('miniapp_mode_welcome_desc', user=db_user) if t('miniapp_mode_welcome_desc', user=db_user) != 'miniapp_mode_welcome_desc' else "*📱 MiniApp* - 最豐富的功能，最佳體驗（僅私聊）"
+    auto_mode_desc = t('auto_mode_welcome_desc', user=db_user) if t('auto_mode_welcome_desc', user=db_user) != 'auto_mode_welcome_desc' else "*🔄 自動* - 根據上下文自動選擇最佳模式"
+    can_switch_mode_hint = t('can_switch_mode_hint', user=db_user) if t('can_switch_mode_hint', user=db_user) != 'can_switch_mode_hint' else "💡 您可以隨時使用「🔄 切換模式」按鈕切換"
+    miniapp_not_available_in_group_note = t('miniapp_not_available_in_group_note', user=db_user) if t('miniapp_not_available_in_group_note', user=db_user) != 'miniapp_not_available_in_group_note' else "\n⚠️ 注意：MiniApp 模式在群組中不可用"
+    
     text = f"""
-🧧 *歡迎來到 Lucky Red！*
+{welcome_title}
 
-Hi {user.first_name}！
+{hi_greeting}
 
-請選擇您喜歡的交互方式：
+{select_interaction_mode}
 
-*⌨️ 底部鍵盤* - 傳統 bot 體驗，在群組中也能使用
-*🔘 內聯按鈕* - 流暢交互，點擊消息中的按鈕
-*📱 MiniApp* - 最豐富的功能，最佳體驗（僅私聊）
-*🔄 自動* - 根據上下文自動選擇最佳模式
+{keyboard_mode_desc}
+{inline_mode_desc}
+{miniapp_mode_desc}
+{auto_mode_desc}
 
-💡 您可以隨時使用「🔄 切換模式」按鈕切換
+{can_switch_mode_hint}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += "\n⚠️ 注意：MiniApp 模式在群組中不可用"
+        text += miniapp_not_available_in_group_note
     
     try:
         await update.message.reply_text(
