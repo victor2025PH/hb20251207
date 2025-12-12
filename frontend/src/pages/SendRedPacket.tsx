@@ -366,10 +366,10 @@ export default function SendRedPacket() {
           // 機器人不在群組中，顯示分享鏈接
           const telegram = window.Telegram?.WebApp
           const shouldShare = await showConfirm(
-            '機器人不在群組中，無法直接發送紅包消息。\n\n是否分享紅包鏈接？',
+            t('bot_not_in_group_share'),
             undefined,
-            '分享',
-            '取消'
+            t('share'),
+            t('cancel')
           )
           if (shouldShare && telegram) {
             telegram.openLink(data.share_link)
