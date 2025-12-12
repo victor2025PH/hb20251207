@@ -390,6 +390,7 @@ jobs:
             set +e  # 临时禁用错误退出
             sudo systemctl is-active --quiet "${API_SERVICE_NAME}" 2>/dev/null
             API_IS_ACTIVE=$?
+            true  # 确保上一个命令的退出码不会导致脚本退出
             set -e  # 重新启用错误退出
             if [ $API_IS_ACTIVE -eq 0 ]; then
               sudo systemctl restart "${API_SERVICE_NAME}" && echo "✅ API 服务重启成功" || echo "⚠️ API 服务重启失败"
@@ -405,6 +406,7 @@ jobs:
             set +e  # 临时禁用错误退出
             sudo systemctl is-active --quiet "${BOT_SERVICE_NAME}" 2>/dev/null
             BOT_IS_ACTIVE=$?
+            true  # 确保上一个命令的退出码不会导致脚本退出
             set -e  # 重新启用错误退出
             if [ $BOT_IS_ACTIVE -eq 0 ]; then
               sudo systemctl restart "${BOT_SERVICE_NAME}" && echo "✅ Bot 服务重启成功" || echo "⚠️ Bot 服务重启失败"
