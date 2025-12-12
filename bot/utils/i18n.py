@@ -928,26 +928,40 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 def get_user_language(user: Optional[User] = None, user_id: Optional[int] = None) -> str:
     """獲取用戶語言"""
     if user:
-        try:
-            # 尝试安全地访问language_code属性
-            # 如果user对象已脱离会话，使用getattr应该仍然可以工作
-            # 但如果属性需要延迟加载，可能会失败，所以使用try-except
-            lang = getattr(user, 'language_code', None) or "zh-TW"
-        except Exception as e:
-            # 如果访问失败（例如对象已脱离会话），使用user_id重新查询
-            logger.debug(f"Error accessing user.language_code, falling back to user_id: {e}")
-            if hasattr(user, 'tg_id'):
-                try:
-                    with get_db() as db:
-                        db_user = db.query(User).filter(User.tg_id == user.tg_id).first()
-                        if db_user:
-                            lang = getattr(db_user, 'language_code', None) or "zh-TW"
-                        else:
-                            lang = "zh-TW"
-                except Exception as e2:
-                    logger.error(f"Error getting user language from database: {e2}")
-                    lang = "zh-TW"
-            else:
+        # 优先使用 user_id 重新查询，避免会话分离问题
+        # 如果提供了 user 对象，尝试获取 tg_id，然后重新查询
+        if hasattr(user, 'tg_id') and user.tg_id:
+            try:
+                with get_db() as db:
+                    db_user = db.query(User).filter(User.tg_id == user.tg_id).first()
+                    if db_user:
+                        # 在会话内安全访问 language_code
+                        lang = db_user.language_code or "zh-TW"
+                    else:
+                        lang = "zh-TW"
+            except Exception as e:
+                logger.error(f"Error getting user language from database: {e}")
+                lang = "zh-TW"
+        else:
+            # 如果没有 tg_id，尝试直接访问（可能已经预先加载）
+            try:
+                # 使用 inspect 检查对象是否在会话中
+                from sqlalchemy import inspect
+                insp = inspect(user)
+                if insp.persistent or insp.detached:
+                    # 对象已脱离会话，尝试访问可能失败
+                    # 如果 language_code 已经加载，可以直接访问
+                    if hasattr(user, '__dict__') and 'language_code' in user.__dict__:
+                        lang = user.__dict__['language_code'] or "zh-TW"
+                    else:
+                        # 属性未加载，使用默认值
+                        lang = "zh-TW"
+                else:
+                    # 对象仍在会话中，可以安全访问
+                    lang = getattr(user, 'language_code', None) or "zh-TW"
+            except Exception as e:
+                # 如果访问失败，使用默认值
+                logger.debug(f"Error accessing user.language_code, using default: {e}")
                 lang = "zh-TW"
     elif user_id:
         try:

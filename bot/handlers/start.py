@@ -41,7 +41,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
+            # 使用 user_id 而不是 user 对象，避免会话问题
+            await update.message.reply_text(t('error_occurred', user_id=user.id))
             return
         
         is_new_user = not db_user_refreshed.invited_by
@@ -199,7 +200,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user_refreshed:
             logger.error(f"User {user.id} not found after creation")
-            await update.message.reply_text(t('error_occurred', user=db_user_refreshed))
+            # 使用 user_id 而不是 user 对象，避免会话问题
+            await update.message.reply_text(t('error_occurred', user_id=user.id))
             return
         
         # 检查是否有 reset 参数（用于重新设置）
