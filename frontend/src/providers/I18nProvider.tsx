@@ -249,6 +249,7 @@ const translations: Record<Language, Record<string, string>> = {
     got_it: '知道了',
     dont_show_again: '以后不再弹出',
     congrats: '恭喜獲得！',
+    claim_success: '恭喜獲得 {amount} {currency}！',
     awesome: '太棒了！',
     
     // 語言名稱
@@ -1088,6 +1089,7 @@ const translations: Record<Language, Record<string, string>> = {
     got_it: 'Got It',
     dont_show_again: "Don't show again",
     congrats: 'Congratulations!',
+    claim_success: 'Congratulations! Got {amount} {currency}!',
     awesome: 'Awesome!',
     
     // Language names
