@@ -161,7 +161,7 @@ async def show_main_menu(query, db_user):
 async def show_wallet_menu(query, db_user):
     """顯示錢包菜單"""
     from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
-    # 在會話內重新查詢用戶以確保數據最新
+    # 在會話內重新查詢用戶以確保數據最新，並在會話內獲取所有翻譯文本
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
@@ -174,13 +174,16 @@ async def show_wallet_menu(query, db_user):
         points = user.balance_points or 0
         level = user.level
         xp = user.xp or 0
+        
+        # 在会话内获取所有翻译文本（避免会话分离错误）
+        my_wallet_text = t('my_wallet', user=user)
+        balance_colon = t('balance_colon', user=user)
+        level_colon = t('level_colon', user=user)
+        xp_colon = t('xp_colon', user=user)
+        energy_colon = t('energy_colon', user=user)
+        select_operation = t('select_operation', user=user)
     
-    my_wallet_text = t('my_wallet', user=user)
-    balance_colon = t('balance_colon', user=user)
-    level_colon = t('level_colon', user=user)
-    xp_colon = t('xp_colon', user=user)
-    energy_colon = t('energy_colon', user=user)
-    select_operation = t('select_operation', user=user)
+    # 会话外使用预先获取的翻译文本
     
     text = f"""
 {my_wallet_text}
