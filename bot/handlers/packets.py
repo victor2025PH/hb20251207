@@ -423,6 +423,7 @@ async def show_group_selection_from_message(update, db_user, context):
 
 async def confirm_and_send_from_message(update, db_user, context):
     """從消息確認並發送紅包"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     packet_data = context.user_data.get('send_packet', {})
     
     currency = packet_data.get('currency', 'usdt')
@@ -649,7 +650,6 @@ async def confirm_and_send_from_message(update, db_user, context):
             # 如果機器人不在群組中，提示用戶分享鏈接
             if not bot_in_group:
                 share_link = f"{settings.MINIAPP_URL}/claim/{packet_uuid}"
-                from bot.utils.i18n import t
                 red_packet_created = t('red_packet_created_success', user=user)
                 bot_not_in_group = t('bot_not_in_group_cannot_send', user=user)
                 share_link_label = t('share_link_label', user=user)
@@ -683,7 +683,6 @@ async def confirm_and_send_from_message(update, db_user, context):
                     InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
                 ],
             ]
-            from bot.utils.i18n import t
             red_packet_sent = t('red_packet_sent_success', user=user)
             packet_info = t('packet_info', user=user)
             uuid_label = t('uuid_label', user=user)
@@ -706,7 +705,6 @@ async def confirm_and_send_from_message(update, db_user, context):
         else:
             # 使用底部键盘返回
             from bot.keyboards.reply_keyboards import get_packets_reply_keyboard
-            from bot.utils.i18n import t
             red_packet_sent = t('red_packet_sent_success', user=user)
             packet_info = t('packet_info', user=user)
             uuid_label = t('uuid_label', user=user)
@@ -926,6 +924,7 @@ async def show_send_packet_guide(query, db_user):
 
 async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理發紅包菜單回調"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     # ⚠️ 关键修复：在函数最开始就引用 User，确保 Python 知道它是外部作用域的变量
     # 这必须在任何 try/except 之前，否则 Python 可能将其视为局部变量
     # 使用多种方式确保 Python 知道 User 是外部作用域的变量
@@ -1030,7 +1029,6 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                             await show_send_packet_guide(query, db_user)
                         except Exception as guide_error:
                             logger.error(f"[SEND_PACKET] Error in show_send_packet_guide: {guide_error}", exc_info=True)
-                            from bot.utils.i18n import t
                             await query.message.reply_text(t("error", user=db_user))
                 elif sub_action == "type":
                     currency = parts[3] if len(parts) > 3 else "usdt"
@@ -1256,8 +1254,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"[SEND_PACKET] Error processing callback: {e}", exc_info=True)
         try:
-            # 在会话内获取错误消息文本
-            from bot.utils.i18n import t
+            # 在会话内获取错误消息文本（t 已在函数开头导入）
             error_text = t('error_occurred', user=db_user)
             if user_id:
                 try:
@@ -2235,6 +2232,7 @@ async def show_group_link_input(query, db_user, context):
 
 async def confirm_and_send_packet(query, db_user, context):
     """確認並發送紅包"""
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     packet_data = context.user_data.get('send_packet', {})
     
     currency = packet_data.get('currency', 'usdt')
@@ -2457,7 +2455,6 @@ async def confirm_and_send_packet(query, db_user, context):
             # 发送者不在群组，阻止发送
             error_msg = str(e).lower()
             if "user not found" in error_msg or "forbidden" in error_msg:
-                from bot.utils.i18n import t
                 await query.edit_message_text(
                     t('sender_not_in_group_solution', user=db_user, chat_id=chat_id),
                     parse_mode="Markdown",
@@ -2471,7 +2468,6 @@ async def confirm_and_send_packet(query, db_user, context):
             sender_in_group = True
     except Exception as e:
         logger.error(f"Error checking group membership: {e}", exc_info=True)
-        from bot.utils.i18n import t
         await query.edit_message_text(
             t('check_group_permission_failed', user=db_user, error=str(e)[:100]),
             parse_mode="Markdown",
@@ -2483,7 +2479,6 @@ async def confirm_and_send_packet(query, db_user, context):
     
     # 最終檢查
     if not bot_in_group:
-        from bot.utils.i18n import t
         await query.edit_message_text(
             t('bot_not_in_group_add_first', user=db_user, chat_id=chat_id),
             parse_mode="Markdown",

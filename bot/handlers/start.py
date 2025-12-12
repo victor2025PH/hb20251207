@@ -483,9 +483,9 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from bot.utils.logging_helpers import log_user_action
     
     # 獲取用戶（帶緩存）
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     db_user = await get_user_from_update(update, context)
     if not db_user:
-        from bot.utils.i18n import t
         # 嘗試獲取用戶以使用翻譯，如果失敗則使用默認值
         try:
             with get_db() as db:
@@ -499,10 +499,10 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # 在會話內處理邀請碼和獲取統計信息
+    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
         if not user:
-            from bot.utils.i18n import t
             await update.message.reply_text(t('error_occurred', user=db_user))
             return
         
