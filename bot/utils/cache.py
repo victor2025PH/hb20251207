@@ -53,6 +53,10 @@ class UserCache:
                 _ = user.balance_usdt
                 _ = user.balance_ton
                 _ = user.balance_points
+                # 预先加载 language_code 和 interaction_mode 等可能被 i18n 使用的属性
+                _ = getattr(user, 'language_code', None)
+                _ = getattr(user, 'interaction_mode', None)
+                _ = getattr(user, 'last_interaction_mode', None)
                 # 將對象從會話中分離
                 db.expunge(user)
             except Exception as e:

@@ -80,6 +80,10 @@ async def get_or_create_user(
             _ = db_user.balance_usdt
             _ = db_user.balance_ton
             _ = db_user.balance_points
+            # 预先加载 language_code 和 interaction_mode 等可能被 i18n 使用的属性
+            _ = getattr(db_user, 'language_code', None)
+            _ = getattr(db_user, 'interaction_mode', None)
+            _ = getattr(db_user, 'last_interaction_mode', None)
             # 將對象從會話中分離
             db.expunge(db_user)
         except Exception as e:
