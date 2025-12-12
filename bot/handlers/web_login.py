@@ -159,15 +159,25 @@ async def sync_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # 構建同步狀態訊息
+        from bot.utils.i18n import t
+        account_sync_status = t('account_sync_status', user=db_user)
+        user_id_label_sync = t('user_id_label_sync', user=db_user, tg_id=db_user.tg_id)
+        usdt_balance_label_sync = t('usdt_balance_label_sync', user=db_user, balance=float(db_user.balance_usdt or 0))
+        ton_balance_label_sync = t('ton_balance_label_sync', user=db_user, balance=float(db_user.balance_ton or 0))
+        stars_balance_label_sync = t('stars_balance_label_sync', user=db_user, balance=db_user.balance_stars or 0)
+        points_balance_label_sync = t('points_balance_label_sync', user=db_user, balance=db_user.balance_points or 0)
+        account_auto_sync = t('account_auto_sync', user=db_user)
+        use_web_login_hint = t('use_web_login_hint', user=db_user)
+        
         message_text = (
-            "🔄 **帳戶同步狀態**\n\n"
-            f"👤 用戶 ID：`{db_user.tg_id}`\n"
-            f"💰 USDT 餘額：`{float(db_user.balance_usdt or 0):.4f}`\n"
-            f"💎 TON 餘額：`{float(db_user.balance_ton or 0):.4f}`\n"
-            f"⭐ Stars 餘額：`{db_user.balance_stars or 0}`\n"
-            f"🎯 積分餘額：`{db_user.balance_points or 0}`\n\n"
-            "✅ 您的帳戶在所有平台（Telegram、網頁版）自動同步\n\n"
-            "💡 使用 /web\\_login 在瀏覽器中登入網頁版"
+            f"{account_sync_status}\n\n"
+            f"{user_id_label_sync}\n"
+            f"{usdt_balance_label_sync}\n"
+            f"{ton_balance_label_sync}\n"
+            f"{stars_balance_label_sync}\n"
+            f"{points_balance_label_sync}\n\n"
+            f"{account_auto_sync}\n\n"
+            f"{use_web_login_hint}"
         )
         
         await update.message.reply_text(
