@@ -213,32 +213,71 @@ async def show_tasks(query, db_user):
         total_invites = db_user.invite_count or 0
     
     from bot.constants import TaskConstants
+    from bot.utils.i18n import t
+    
+    tasks_title = t('tasks_title', user=user)
+    daily_tasks_label = t('daily_tasks_label', user=user)
+    achievement_tasks_label = t('achievement_tasks_label', user=user)
+    my_statistics_label = t('my_statistics_label', user=user)
+    
+    # 每日任務
+    daily_checkin_task = t('daily_checkin_task', user=user)
+    task_completed = t('task_completed', user=user)
+    task_not_completed = t('task_not_completed', user=user)
+    checkin_status = task_completed if checked_today else task_not_completed
+    
+    claim_red_packet_task = t('claim_red_packet_task', user=user)
+    today_claimed_count = t('today_claimed_count', user=user, count=today_claimed)
+    energy_per_item = t('energy_per_item', user=user)
+    
+    send_red_packet_task = t('send_red_packet_task', user=user)
+    today_sent_count = t('today_sent_count', user=user, count=today_sent)
+    
+    # 成就任務
+    first_deposit_task = t('first_deposit_task', user=user)
+    first_deposit_status = task_completed if has_deposit else task_not_completed
+    
+    invite_master_task = t('invite_master_task', user=user)
+    invite_progress = f"{total_invites}/{TaskConstants.INVITE_MASTER_TARGET} 人"
+    invite_status = task_completed if total_invites >= TaskConstants.INVITE_MASTER_TARGET else t('task_need_more', user=user, count=TaskConstants.INVITE_MASTER_TARGET-total_invites)
+    
+    packet_master_task = t('packet_master_task', user=user)
+    packet_progress = f"{total_sent}/{TaskConstants.PACKET_MASTER_TARGET} 個"
+    packet_status = task_completed if total_sent >= TaskConstants.PACKET_MASTER_TARGET else t('task_need_more_packets', user=user, count=TaskConstants.PACKET_MASTER_TARGET-total_sent)
+    
+    # 統計
+    claimed_packets_count_label = t('claimed_packets_count_label', user=user, count=total_claimed)
+    sent_packets_count_label = t('sent_packets_count_label', user=user, count=total_sent)
+    invited_people_count_label = t('invited_people_count_label', user=user, count=total_invites)
+    
+    go_checkin_button = t('go_checkin_button', user=user)
+    return_main = t('return_main', user=user)
     
     text = f"""
-🎯 *任務中心*
+{tasks_title}
 
-*每日任務：*
-{"✅" if checked_today else "⏳"} 📅 每日簽到 - {checked_today and "已完成" or "未完成"} +{TaskConstants.DAILY_CHECKIN_REWARD} 能量
-{"✅" if today_claimed > 0 else "⏳"} 🎁 搶紅包 - 今日已搶 {today_claimed} 個 +{TaskConstants.DAILY_CLAIM_REWARD} 能量/個
-{"✅" if today_sent > 0 else "⏳"} 💰 發紅包 - 今日已發 {today_sent} 個 +{TaskConstants.DAILY_SEND_REWARD} 能量/個
+{daily_tasks_label}
+{"✅" if checked_today else "⏳"} {daily_checkin_task} - {checkin_status} +{TaskConstants.DAILY_CHECKIN_REWARD} 能量
+{"✅" if today_claimed > 0 else "⏳"} {claim_red_packet_task} - {today_claimed_count} +{TaskConstants.DAILY_CLAIM_REWARD} {energy_per_item}
+{"✅" if today_sent > 0 else "⏳"} {send_red_packet_task} - {today_sent_count} +{TaskConstants.DAILY_SEND_REWARD} {energy_per_item}
 
-*成就任務：*
-{"✅" if has_deposit else "⏳"} 🏆 首次充值 - {has_deposit and "已完成" or "未完成"} +{TaskConstants.ACHIEVEMENT_FIRST_DEPOSIT} 能量
-{"✅" if total_invites >= TaskConstants.INVITE_MASTER_TARGET else "⏳"} 👥 邀請達人 - {total_invites}/{TaskConstants.INVITE_MASTER_TARGET} 人 {total_invites >= TaskConstants.INVITE_MASTER_TARGET and "已完成" or f"還需{TaskConstants.INVITE_MASTER_TARGET-total_invites}人"} +{TaskConstants.ACHIEVEMENT_INVITE_MASTER} 能量
-{"✅" if total_sent >= TaskConstants.PACKET_MASTER_TARGET else "⏳"} 🎊 紅包大師 - {total_sent}/{TaskConstants.PACKET_MASTER_TARGET} 個 {total_sent >= TaskConstants.PACKET_MASTER_TARGET and "已完成" or f"還需{TaskConstants.PACKET_MASTER_TARGET-total_sent}個"} +{TaskConstants.ACHIEVEMENT_PACKET_MASTER} 能量
+{achievement_tasks_label}
+{"✅" if has_deposit else "⏳"} {first_deposit_task} - {first_deposit_status} +{TaskConstants.ACHIEVEMENT_FIRST_DEPOSIT} 能量
+{"✅" if total_invites >= TaskConstants.INVITE_MASTER_TARGET else "⏳"} {invite_master_task} - {invite_progress} {invite_status} +{TaskConstants.ACHIEVEMENT_INVITE_MASTER} 能量
+{"✅" if total_sent >= TaskConstants.PACKET_MASTER_TARGET else "⏳"} {packet_master_task} - {packet_progress} {packet_status} +{TaskConstants.ACHIEVEMENT_PACKET_MASTER} 能量
 
-*我的統計：*
-• 已搶紅包：{total_claimed} 個
-• 已發紅包：{total_sent} 個
-• 邀請人數：{total_invites} 人
+{my_statistics_label}
+{claimed_packets_count_label}
+{sent_packets_count_label}
+{invited_people_count_label}
 """
     
     keyboard = [
         [
-            InlineKeyboardButton("📅 去簽到", callback_data="earn:checkin"),
+            InlineKeyboardButton(go_checkin_button, callback_data="earn:checkin"),
         ],
         [
-            InlineKeyboardButton("◀️ 返回", callback_data="menu:earn"),
+            InlineKeyboardButton(return_main, callback_data="menu:earn"),
         ],
     ]
     
