@@ -134,6 +134,8 @@ def main():
     
     # 主菜單
     app.add_handler(CallbackQueryHandler(menu.menu_callback, pattern=r"^menu:"))
+    # 打開應用按鈕（必須在 menu: 之前，避免被 menu_callback 攔截）
+    app.add_handler(CallbackQueryHandler(start.open_app_menu_callback, pattern=r"^open_app_menu$"))
     # 初始設置（語言 + 鍵盤模式）
     from bot.handlers import initial_setup
     app.add_handler(CallbackQueryHandler(initial_setup.setup_language_callback, pattern=r"^setup:lang:"), group=1)
