@@ -478,9 +478,21 @@ async def handle_group_input(update, tg_id: int, text, context):
             )
     else:
         from bot.utils.i18n import t
+        from telegram import ReplyKeyboardRemove
         await update.message.reply_text(
             t('cannot_identify_group_id', user_id=tg_id),
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
+        )
+    except Exception as e:
+        logger.error(f"Error in handle_group_input: {e}", exc_info=True)
+        await handle_error_with_ui(
+            update=update,
+            context=context,
+            error=e,
+            error_context="[HANDLE_GROUP_INPUT] 处理群组输入时",
+            user_id=tg_id,
+            show_main_menu_button=True
         )
 
 
