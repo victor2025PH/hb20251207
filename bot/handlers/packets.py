@@ -947,12 +947,19 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     
     logger.info(f"[SEND_PACKET] Parsed: action={action}, sub_action={sub_action}, parts={parts}")
     
-    # 獲取用戶 ID（不返回 ORM 對象）
-    from bot.utils.user_helpers import get_user_id_from_update
-    tg_id = await get_user_id_from_update(update, context)
+    # 获取 Telegram ID（用于查询和翻译）
+    tg_id = update.effective_user.id if update.effective_user else None
     if not tg_id:
-        logger.error(f"[SEND_PACKET] User {user_id} not found")
-        await query.message.reply_text("請先使用 /start 註冊")
+        logger.error(f"[SEND_PACKET] No Telegram user ID")
+        await query.message.reply_text(t("please_register_first", user_id=None))
+        return
+    
+    # 验证用户是否存在（但不使用返回的数据库ID）
+    from bot.utils.user_helpers import get_user_id_from_update
+    db_user_id = await get_user_id_from_update(update, context)
+    if not db_user_id:
+        logger.error(f"[SEND_PACKET] User {tg_id} not found in database")
+        await query.message.reply_text(t("please_register_first", user_id=tg_id))
         return
     
     try:
@@ -960,11 +967,11 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
             logger.info(f"[SEND_PACKET] Showing send packet menu for user {user_id}")
             await show_send_packet_menu(query, tg_id)
         elif action == "send":
-            # 重新在会话内查询以确保数据最新
+            # 重新在会话内查询以确保数据最新（使用 Telegram ID）
             with get_db() as db:
-                db_user = db.query(User).filter(User.tg_id == user_id).first()
+                db_user = db.query(User).filter(User.tg_id == tg_id).first()
                 if not db_user:
-                    await query.message.reply_text("請先使用 /start 註冊")
+                    await query.message.reply_text(t("please_register_first", user_id=tg_id))
                     return
                 
                 # 标记用户使用的是内联按钮流程
