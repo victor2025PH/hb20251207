@@ -52,13 +52,13 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not db_user:
             await update.message.reply_text(
-                t('not_registered_yet', user=None) if t('not_registered_yet', user=None) != 'not_registered_yet' else "❌ 您還沒有註冊，請先使用機器人的其他功能完成註冊。"
+                t('not_registered_yet', user_id=tg_id)
             )
             return
         
         if db_user.is_banned:
             await update.message.reply_text(
-                t('account_banned', user=db_user)
+                t('account_banned', user_id=tg_id)
             )
             return
         
@@ -81,23 +81,22 @@ async def web_login_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         logger.info(f"Magic link generated for user {tg_id}")
         
-        # 發送訊息
-        from bot.utils.i18n import t
-        login_now_button = t('login_now_button', user=db_user)
-        copy_link_button = t('copy_link_button', user=db_user)
+        # 發送訊息（在會話內獲取翻譯，使用 user_id）
+        login_now_button = t('login_now_button', user_id=tg_id)
+        copy_link_button = t('copy_link_button', user_id=tg_id)
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton(login_now_button, url=login_url)],
             [InlineKeyboardButton(copy_link_button, callback_data=f"copy_link:{token[:10]}")],
         ])
         
-        web_login_title = t('web_login_title', user=db_user)
-        click_to_login_in_browser = t('click_to_login_in_browser', user=db_user)
-        valid_for_minutes = t('valid_for_minutes', user=db_user, minutes=MAGIC_LINK_EXPIRE_MINUTES)
-        one_time_use_only = t('one_time_use_only', user=db_user)
-        web_login_tips = t('web_login_tips', user=db_user)
-        web_login_tip1 = t('web_login_tip1', user=db_user)
-        web_login_tip2 = t('web_login_tip2', user=db_user)
-        web_login_tip3 = t('web_login_tip3', user=db_user)
+        web_login_title = t('web_login_title', user_id=tg_id)
+        click_to_login_in_browser = t('click_to_login_in_browser', user_id=tg_id)
+        valid_for_minutes = t('valid_for_minutes', user_id=tg_id, minutes=MAGIC_LINK_EXPIRE_MINUTES)
+        one_time_use_only = t('one_time_use_only', user_id=tg_id)
+        web_login_tips = t('web_login_tips', user_id=tg_id)
+        web_login_tip1 = t('web_login_tip1', user_id=tg_id)
+        web_login_tip2 = t('web_login_tip2', user_id=tg_id)
+        web_login_tip3 = t('web_login_tip3', user_id=tg_id)
         
         message_text = (
             f"{web_login_title}\n\n"
@@ -166,16 +165,17 @@ async def sync_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         
-        # 構建同步狀態訊息
+        # 構建同步狀態訊息（在會話內獲取翻譯，使用 user_id）
         from bot.utils.i18n import t
-        account_sync_status = t('account_sync_status', user=db_user)
-        user_id_label_sync = t('user_id_label_sync', user=db_user, tg_id=db_user.tg_id)
-        usdt_balance_label_sync = t('usdt_balance_label_sync', user=db_user, balance=float(db_user.balance_usdt or 0))
-        ton_balance_label_sync = t('ton_balance_label_sync', user=db_user, balance=float(db_user.balance_ton or 0))
-        stars_balance_label_sync = t('stars_balance_label_sync', user=db_user, balance=db_user.balance_stars or 0)
-        points_balance_label_sync = t('points_balance_label_sync', user=db_user, balance=db_user.balance_points or 0)
-        account_auto_sync = t('account_auto_sync', user=db_user)
-        use_web_login_hint = t('use_web_login_hint', user=db_user)
+        tg_id = user.id
+        account_sync_status = t('account_sync_status', user_id=tg_id)
+        user_id_label_sync = t('user_id_label_sync', user_id=tg_id, tg_id=db_user.tg_id)
+        usdt_balance_label_sync = t('usdt_balance_label_sync', user_id=tg_id, balance=float(db_user.balance_usdt or 0))
+        ton_balance_label_sync = t('ton_balance_label_sync', user_id=tg_id, balance=float(db_user.balance_ton or 0))
+        stars_balance_label_sync = t('stars_balance_label_sync', user_id=tg_id, balance=db_user.balance_stars or 0)
+        points_balance_label_sync = t('points_balance_label_sync', user_id=tg_id, balance=db_user.balance_points or 0)
+        account_auto_sync = t('account_auto_sync', user_id=tg_id)
+        use_web_login_hint = t('use_web_login_hint', user_id=tg_id)
         
         message_text = (
             f"{account_sync_status}\n\n"
