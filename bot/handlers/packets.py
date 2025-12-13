@@ -1584,6 +1584,11 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"[SEND_PACKET] Error processing callback: {e}", exc_info=True)
         try:
+            # 確保 t 函數在作用域內
+            from bot.utils.i18n import t
+            # 獲取 Telegram ID（如果還沒有）
+            if 'tg_id' not in locals():
+                tg_id = update.effective_user.id if update.effective_user else None
             # 使用 user_id 獲取錯誤消息文本
             error_text = t('error_occurred', user_id=tg_id)
             
