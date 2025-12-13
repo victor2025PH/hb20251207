@@ -57,7 +57,8 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 获取用户 ID
     tg_id = await get_user_id_from_update(update, context)
     if not tg_id:
-        await query.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        await query.message.reply_text(t("please_register_first", user_id=user_id))
         return
     
     from bot.utils.i18n import t
@@ -100,85 +101,35 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"[SET_MODE] Successfully updated user {user_id} mode to {mode}")
     
-    # 获取模式名称和描述（使用i18n）
+    # 获取模式名称和描述（使用i18n，使用用户选择的语言）
     mode_name = t(f"mode_{mode}", user_id=tg_id) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_name(mode)
     mode_desc = t(f"mode_{mode}_desc", user_id=tg_id) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_description(mode)
     
-    # 更新消息
+    # 选择模式后，显示主菜单（使用用户选择的语言）
+    from bot.handlers.menu import show_main_menu
+    
     try:
-        keyboard = get_unified_keyboard(mode, "main", chat_type, user_id=tg_id)
-        
-        # 根据键盘类型处理
-        from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
-        
-        if isinstance(keyboard, ReplyKeyboardMarkup):
-            # 底部键盘模式：先编辑消息显示确认（不带键盘），然后发送新消息带键盘
-            try:
-                await query.edit_message_text(
-                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
-                    f"💡 {mode_desc}\n\n"
-                    + t("please_use_bottom_keyboard", user_id=tg_id) + "\n"
-                    + t("you_can_switch_mode_in_main_menu", user_id=tg_id)
-                )
-            except Exception as edit_e:
-                logger.warning(f"Could not edit message: {edit_e}, sending new message")
-            
-            # 发送新消息带回复键盘（不能编辑消息添加 ReplyKeyboardMarkup）
-            await query.message.reply_text(
-                t("please_use_bottom_keyboard_colon", user_id=tg_id),
-                reply_markup=keyboard
-            )
-            logger.info(f"[SET_MODE] Sent ReplyKeyboardMarkup for user {user_id}")
-            
-        elif isinstance(keyboard, InlineKeyboardMarkup):
-            # 内联按钮模式：静默移除底部键盘，不显示提示消息
-            try:
-                # 尝试编辑消息移除键盘
-                await query.edit_message_reply_markup(reply_markup=None)
-            except:
-                # 如果编辑失败，说明当前消息没有键盘，不需要移除
-                pass
-            
-            # 然后编辑消息显示确认
-            await query.edit_message_text(
-                t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
-                f"💡 {mode_desc}\n\n"
-                + t("you_can_switch_mode_in_main_menu", user_id=tg_id),
-                reply_markup=keyboard
-            )
-            logger.info(f"[SET_MODE] Updated message with InlineKeyboardMarkup for user {user_id}")
-        else:
-            # 其他情况：尝试编辑消息
-            await query.edit_message_text(
-                t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
-                f"💡 {mode_desc}",
-                reply_markup=keyboard
-            )
-        
-        logger.info(f"[SET_MODE] Successfully updated message for user {user_id}")
-    except Exception as e:
-        logger.error(f"Error updating message: {e}", exc_info=True)
+        # 先显示确认消息
+        mode_set_text = t("mode_set_to", user_id=tg_id, mode=mode_name)
         try:
-            # 如果编辑失败，发送新消息
-            keyboard = get_unified_keyboard(mode, "main", chat_type, user_id=tg_id)
-            from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
-            
-            if isinstance(keyboard, ReplyKeyboardMarkup):
-                await query.message.reply_text(
-                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
-                    f"💡 {mode_desc}\n\n"
-                    + t("please_use_bottom_keyboard_colon", user_id=tg_id),
-                    reply_markup=keyboard
-                )
-            else:
-                await query.message.reply_text(
-                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
-                    f"💡 {mode_desc}",
-                    reply_markup=keyboard
-                )
+            await query.edit_message_text(
+                mode_set_text,
+                parse_mode=None
+            )
+        except Exception as edit_e:
+            logger.warning(f"Could not edit message: {edit_e}, will show main menu directly")
+        
+        # 然后显示主菜单（使用用户选择的语言）
+        await show_main_menu(query, tg_id)
+        logger.info(f"[SET_MODE] Successfully showed main menu for user {user_id} after setting mode to {mode}")
+        
+    except Exception as e:
+        logger.error(f"Error showing main menu: {e}", exc_info=True)
+        try:
+            # 如果显示主菜单失败，至少显示确认消息
+            await query.message.reply_text(t("mode_set_to", user_id=tg_id, mode=mode_name))
         except Exception as e2:
             logger.error(f"Error sending fallback message: {e2}", exc_info=True)
-            await query.message.reply_text(t("mode_set_to", user_id=tg_id, mode=mode_name))
 
 
 async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
