@@ -22,15 +22,17 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     user = update.effective_user
     
-    if not is_admin(user.id):
-        await update.message.reply_text(t('no_admin_permission', user=None) if t('no_admin_permission', user=None) != 'no_admin_permission' else "⛔ 你沒有管理員權限")
+    user_id = user.id if user else None
+    if not is_admin(user_id):
+        await update.message.reply_text(t('no_admin_permission', user_id=user_id))
         return
-    admin_panel_title = t('admin_panel_title', user=user) if t('admin_panel_title', user=user) != 'admin_panel_title' else "⚙️ *管理員面板*"
-    available_commands_label = t('available_commands_label', user=user) if t('available_commands_label', user=user) != 'available_commands_label' else "*可用命令：*"
-    adjust_command_usage = t('adjust_command_usage', user=user) if t('adjust_command_usage', user=user) != 'adjust_command_usage' else "/adjust <@用戶名或ID> <金額> - 調整餘額"
-    broadcast_command_usage = t('broadcast_command_usage', user=user) if t('broadcast_command_usage', user=user) != 'broadcast_command_usage' else "/broadcast <消息> - 群發消息"
-    stats_command_usage = t('stats_command_usage', user=user) if t('stats_command_usage', user=user) != 'stats_command_usage' else "/stats - 查看統計"
-    admin_backend_label = t('admin_backend_label', user=user) if t('admin_backend_label', user=user) != 'admin_backend_label' else "*管理後台：*"
+    
+    admin_panel_title = t('admin_panel_title', user_id=user_id)
+    available_commands_label = t('available_commands_label', user_id=user_id)
+    adjust_command_usage = t('adjust_command_usage', user_id=user_id)
+    broadcast_command_usage = t('broadcast_command_usage', user_id=user_id)
+    stats_command_usage = t('stats_command_usage', user_id=user_id)
+    admin_backend_label = t('admin_backend_label', user_id=user_id)
     
     text = f"""
 {admin_panel_title}
@@ -51,15 +53,16 @@ async def adjust_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /adjust 命令 - 調整用戶餘額"""
     admin_user = update.effective_user
     
-    if not is_admin(admin_user.id):
+    admin_user_id = admin_user.id if admin_user else None
+    if not is_admin(admin_user_id):
         from bot.utils.i18n import t
-        await update.message.reply_text(t('no_admin_permission', user=None) if t('no_admin_permission', user=None) != 'no_admin_permission' else "⛔ 你沒有管理員權限")
+        await update.message.reply_text(t('no_admin_permission', user_id=admin_user_id))
         return
     
     args = context.args
     if len(args) < 2:
         from bot.utils.i18n import t
-        adjust_usage = t('adjust_usage', user=admin_user) if t('adjust_usage', user=admin_user) != 'adjust_usage' else "用法: /adjust <@用戶名或ID> <金額>\n例如: /adjust @username 100\n或: /adjust 123456789 -50"
+        adjust_usage = t('adjust_usage', user_id=admin_user_id)
         await update.message.reply_text(adjust_usage)
         return
     
@@ -68,7 +71,7 @@ async def adjust_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = Decimal(args[1])
     except:
         from bot.utils.i18n import t
-        await update.message.reply_text(t('invalid_amount_format', user=admin_user) if t('invalid_amount_format', user=admin_user) != 'invalid_amount_format' else "金額格式錯誤")
+        await update.message.reply_text(t('invalid_amount_format', user_id=admin_user_id))
         return
     
     with get_db() as db:
@@ -80,7 +83,7 @@ async def adjust_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not db_user:
             from bot.utils.i18n import t
-            await update.message.reply_text(t('user_not_found', user=admin_user, target=target) if t('user_not_found', user=admin_user) != 'user_not_found' else f"找不到用戶: {target}")
+            await update.message.reply_text(t('user_not_found', user_id=admin_user_id, target=target))
             return
         
         old_balance = db_user.balance_usdt or Decimal(0)
@@ -90,11 +93,11 @@ async def adjust_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.commit()
     
     from bot.utils.i18n import t
-    balance_adjusted_success = t('balance_adjusted_success', user=admin_user)
-    user_label = t('user_label', user=admin_user, username=db_user.username or db_user.tg_id)
-    change_label = t('change_label', user=admin_user, amount=f"{'+' if amount >= 0 else ''}{amount}")
-    old_balance_label = t('old_balance_label', user=admin_user, old_balance=old_balance)
-    new_balance_label = t('new_balance_label', user=admin_user, new_balance=new_balance)
+    balance_adjusted_success = t('balance_adjusted_success', user_id=admin_user_id)
+    user_label = t('user_label', user_id=admin_user_id, username=db_user.username or db_user.tg_id)
+    change_label = t('change_label', user_id=admin_user_id, amount=f"{'+' if amount >= 0 else ''}{amount}")
+    old_balance_label = t('old_balance_label', user_id=admin_user_id, old_balance=old_balance)
+    new_balance_label = t('new_balance_label', user_id=admin_user_id, new_balance=new_balance)
     
     await update.message.reply_text(
         f"{balance_adjusted_success}\n\n"
@@ -109,9 +112,10 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /broadcast 命令 - 群發消息"""
     admin_user = update.effective_user
     
-    if not is_admin(admin_user.id):
+    admin_user_id = admin_user.id if admin_user else None
+    if not is_admin(admin_user_id):
         from bot.utils.i18n import t
-        await update.message.reply_text(t('no_admin_permission', user=None) if t('no_admin_permission', user=None) != 'no_admin_permission' else "⛔ 你沒有管理員權限")
+        await update.message.reply_text(t('no_admin_permission', user_id=admin_user_id))
         return
     
     if not context.args:
