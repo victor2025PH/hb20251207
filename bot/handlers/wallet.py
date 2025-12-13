@@ -22,20 +22,21 @@ API_BASE = settings.api_url  # 從配置讀取 API URL
 
 async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /wallet 命令"""
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
-    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.i18n import t
+    from bot.utils.user_helpers import get_user_id_from_update
     
-    # 獲取用戶（帶緩存）
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        await update.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
+    # 獲取用戶 ID（不返回 ORM 對象）
+    user_id = update.effective_user.id if update.effective_user else None
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        await update.message.reply_text(t('please_register_first', user_id=user_id))
         return
     
-    # 重新查詢用戶以確保數據最新（特別是餘額）
+    # 在會話內查詢用戶並獲取數據
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == user_id).first()
         if not user:
-            await update.message.reply_text(t('error_occurred', user=db_user))
+            await update.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
         usdt = float(user.balance_usdt or 0)
@@ -45,13 +46,13 @@ async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         level = user.level
         xp = user.xp or 0
     
-    from bot.utils.i18n import t
-    my_wallet_text = t('my_wallet', user=user)
-    balance_colon = t('balance_colon', user=user)
-    level_colon = t('level_colon', user=user)
-    xp_colon = t('xp_colon', user=user)
-    energy_colon = t('energy_colon', user=user)
-    select_operation = t('select_operation', user=user)
+    # 使用 user_id 獲取翻譯
+    my_wallet_text = t('my_wallet', user_id=tg_id)
+    balance_colon = t('balance_colon', user_id=tg_id)
+    level_colon = t('level_colon', user_id=tg_id)
+    xp_colon = t('xp_colon', user_id=tg_id)
+    energy_colon = t('energy_colon', user_id=tg_id)
+    select_operation = t('select_operation', user_id=tg_id)
     
     text = f"""
 {my_wallet_text}
@@ -78,7 +79,7 @@ async def wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wallet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理錢包回調"""
-    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.user_helpers import get_user_id_from_update
     
     query = update.callback_query
     await query.answer()
@@ -86,46 +87,40 @@ async def wallet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1] if len(parts) > 1 else ""
     
-    # 獲取用戶（帶緩存）
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
+    # 獲取用戶 ID（不返回 ORM 對象）
+    user_id = update.effective_user.id if update.effective_user else None
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
         await query.message.reply_text("請先使用 /start 註冊")
         return
     
-    # 重新查詢用戶以確保數據最新（特別是餘額）
-    with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
-        if not user:
-            await query.edit_message_text("發生錯誤，請稍後再試")
-            return
-    
     if action == "deposit":
-        await show_deposit_menu(query, user)
+        await show_deposit_menu(query, tg_id)
     elif action == "withdraw":
-        await show_withdraw_menu(query, user)
+        await show_withdraw_menu(query, tg_id)
     elif action == "history":
-        await show_transaction_history(query, user)
+        await show_transaction_history(query, tg_id)
     elif action == "exchange":
-        await show_exchange_menu(query, user)
+        await show_exchange_menu(query, tg_id)
     elif action.startswith("deposit_"):
         currency = action.split("_")[1]
-        await handle_deposit(query, user, currency, context)
+        await handle_deposit(query, tg_id, currency, context)
     elif action.startswith("withdraw_"):
         currency = action.split("_")[1]
-        await handle_withdraw_input(query, user, currency, context)
+        await handle_withdraw_input(query, tg_id, currency, context)
     elif action.startswith("exchange_"):
         pair = action.split("_", 1)[1]
-        await handle_exchange_input(query, user, pair, context)
+        await handle_exchange_input(query, tg_id, pair, context)
 
 
-async def show_deposit_menu(query, db_user):
-    """顯示充值菜單"""
+async def show_deposit_menu(query, tg_id: int):
+    """顯示充值菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    deposit_title = t('deposit_title', user=db_user)
-    select_deposit_currency = t('select_deposit_currency', user=db_user)
-    usdt_trc20 = t('usdt_trc20', user=db_user)
-    ton_network = t('ton_network', user=db_user)
-    min_deposit_amount = t('min_deposit_amount', user=db_user)
+    deposit_title = t('deposit_title', user_id=tg_id)
+    select_deposit_currency = t('select_deposit_currency', user_id=tg_id)
+    usdt_trc20 = t('usdt_trc20', user_id=tg_id)
+    ton_network = t('ton_network', user_id=tg_id)
+    min_deposit_amount = t('min_deposit_amount', user_id=tg_id)
     
     text = f"""
 {deposit_title}
@@ -143,23 +138,30 @@ async def show_deposit_menu(query, db_user):
     )
 
 
-async def handle_deposit(query, db_user, currency: str, context):
-    """處理充值"""
+async def handle_deposit(query, tg_id: int, currency: str, context):
+    """處理充值（只接受 tg_id，不接受 ORM 對象）"""
     currency_upper = currency.upper()
-    balance = float(getattr(db_user, f"balance_{currency}", 0) or 0)
+    
+    # 在會話內查詢用戶獲取餘額
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await query.edit_message_text("發生錯誤，請稍後再試")
+            return
+        balance = float(getattr(user, f"balance_{currency}", 0) or 0)
     
     from bot.utils.i18n import t
-    deposit_currency_title = t('deposit_currency_title', user=db_user, currency=currency_upper)
-    current_balance = t('current_balance', user=db_user)
-    deposit_instructions = t('deposit_instructions', user=db_user)
-    deposit_step1 = t('deposit_step1', user=db_user, currency=currency_upper)
-    deposit_step2 = t('deposit_step2', user=db_user)
-    deposit_step3 = t('deposit_step3', user=db_user)
-    deposit_address_label = t('deposit_address_label', user=db_user)
-    deposit_address_placeholder = t('deposit_address_placeholder', user=db_user)
-    deposit_miniapp_hint = t('deposit_miniapp_hint', user=db_user)
-    open_miniapp_deposit = t('open_miniapp_deposit', user=db_user)
-    return_wallet = t('return_wallet', user=db_user)
+    deposit_currency_title = t('deposit_currency_title', user_id=tg_id, currency=currency_upper)
+    current_balance = t('current_balance', user_id=tg_id)
+    deposit_instructions = t('deposit_instructions', user_id=tg_id)
+    deposit_step1 = t('deposit_step1', user_id=tg_id, currency=currency_upper)
+    deposit_step2 = t('deposit_step2', user_id=tg_id)
+    deposit_step3 = t('deposit_step3', user_id=tg_id)
+    deposit_address_label = t('deposit_address_label', user_id=tg_id)
+    deposit_address_placeholder = t('deposit_address_placeholder', user_id=tg_id)
+    deposit_miniapp_hint = t('deposit_miniapp_hint', user_id=tg_id)
+    open_miniapp_deposit = t('open_miniapp_deposit', user_id=tg_id)
+    return_wallet = t('return_wallet', user_id=tg_id)
     
     text = f"""
 {deposit_currency_title}
@@ -196,15 +198,15 @@ async def handle_deposit(query, db_user, currency: str, context):
     )
 
 
-async def show_withdraw_menu(query, db_user):
-    """顯示提現菜單"""
+async def show_withdraw_menu(query, tg_id: int):
+    """顯示提現菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    withdraw_title = t('withdraw_title', user=db_user)
-    select_withdraw_currency = t('select_withdraw_currency', user=db_user)
-    usdt_trc20 = t('usdt_trc20', user=db_user)
-    ton_network = t('ton_network', user=db_user)
-    min_withdraw_amount = t('min_withdraw_amount', user=db_user)
-    withdraw_fee = t('withdraw_fee', user=db_user)
+    withdraw_title = t('withdraw_title', user_id=tg_id)
+    select_withdraw_currency = t('select_withdraw_currency', user_id=tg_id)
+    usdt_trc20 = t('usdt_trc20', user_id=tg_id)
+    ton_network = t('ton_network', user_id=tg_id)
+    min_withdraw_amount = t('min_withdraw_amount', user_id=tg_id)
+    withdraw_fee = t('withdraw_fee', user_id=tg_id)
     
     text = f"""
 {withdraw_title}
@@ -223,22 +225,29 @@ async def show_withdraw_menu(query, db_user):
     )
 
 
-async def handle_withdraw_input(query, db_user, currency: str, context):
-    """處理提現輸入"""
+async def handle_withdraw_input(query, tg_id: int, currency: str, context):
+    """處理提現輸入（只接受 tg_id，不接受 ORM 對象）"""
     currency_upper = currency.upper()
-    balance = float(getattr(db_user, f"balance_{currency}", 0) or 0)
+    
+    # 在會話內查詢用戶獲取餘額
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await query.edit_message_text("發生錯誤，請稍後再試")
+            return
+        balance = float(getattr(user, f"balance_{currency}", 0) or 0)
     
     from bot.utils.i18n import t
-    withdraw_currency_title = t('withdraw_currency_title', user=db_user, currency=currency_upper)
-    current_balance = t('current_balance', user=db_user)
-    min_withdraw_label = t('min_withdraw_label', user=db_user)
-    withdraw_fee_label = t('withdraw_fee_label', user=db_user)
-    enter_withdraw_amount_address = t('enter_withdraw_amount_address', user=db_user)
-    withdraw_format = t('withdraw_format', user=db_user)
-    withdraw_example = t('withdraw_example', user=db_user)
-    withdraw_miniapp_hint = t('withdraw_miniapp_hint', user=db_user)
-    open_miniapp_withdraw = t('open_miniapp_withdraw', user=db_user)
-    return_wallet = t('return_wallet', user=db_user)
+    withdraw_currency_title = t('withdraw_currency_title', user_id=tg_id, currency=currency_upper)
+    current_balance = t('current_balance', user_id=tg_id)
+    min_withdraw_label = t('min_withdraw_label', user_id=tg_id)
+    withdraw_fee_label = t('withdraw_fee_label', user_id=tg_id)
+    enter_withdraw_amount_address = t('enter_withdraw_amount_address', user_id=tg_id)
+    withdraw_format = t('withdraw_format', user_id=tg_id)
+    withdraw_example = t('withdraw_example', user_id=tg_id)
+    withdraw_miniapp_hint = t('withdraw_miniapp_hint', user_id=tg_id)
+    open_miniapp_withdraw = t('open_miniapp_withdraw', user_id=tg_id)
+    return_wallet = t('return_wallet', user_id=tg_id)
     
     text = f"""
 {withdraw_currency_title}
@@ -274,12 +283,11 @@ async def handle_withdraw_input(query, db_user, currency: str, context):
     )
 
 
-async def show_transaction_history(query, db_user):
-    """顯示交易記錄"""
-    # 在會話內重新查詢用戶以確保數據最新
+async def show_transaction_history(query, tg_id: int):
+    """顯示交易記錄（只接受 tg_id，不接受 ORM 對象）"""
+    # 在會話內查詢用戶和交易記錄
     with get_db() as db:
-        from shared.database.models import User
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             await query.edit_message_text("發生錯誤，請稍後再試")
             return
@@ -289,9 +297,9 @@ async def show_transaction_history(query, db_user):
         ).order_by(Transaction.created_at.desc()).limit(10).all()
     
     from bot.utils.i18n import t
-    transaction_history = t('transaction_history', user=user)
-    no_transactions = t('no_transactions', user=user)
-    recent_transactions = t('recent_transactions', user=user)
+    transaction_history = t('transaction_history', user_id=tg_id)
+    no_transactions = t('no_transactions', user_id=tg_id)
+    recent_transactions = t('recent_transactions', user_id=tg_id)
     
     if not transactions:
         text = f"""
@@ -308,15 +316,16 @@ async def show_transaction_history(query, db_user):
             text += f"{status_emoji} {tx.type.upper()} {sign}{amount:.4f} {tx.currency.value.upper()}\n"
             text += f"   {tx.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
     
+    view_full_history_text = t('view_full_history', user_id=tg_id)
     keyboard = [
         [
             InlineKeyboardButton(
-                t('view_full_history', user=user) if t('view_full_history', user=user) != 'view_full_history' else "📱 查看完整記錄",
+                view_full_history_text,
                 web_app=WebAppInfo(url=f"{settings.MINIAPP_URL}/")
             ),
         ],
         [
-            InlineKeyboardButton(return_wallet, callback_data="menu:wallet"),
+            InlineKeyboardButton(t('return_wallet', user_id=tg_id), callback_data="menu:wallet"),
         ],
     ]
     
@@ -327,15 +336,15 @@ async def show_transaction_history(query, db_user):
     )
 
 
-async def show_exchange_menu(query, db_user):
-    """顯示兌換菜單"""
+async def show_exchange_menu(query, tg_id: int):
+    """顯示兌換菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    exchange_title = t('exchange_title', user=db_user)
-    supported_exchanges = t('supported_exchanges', user=db_user)
-    usdt_ton_exchange = t('usdt_ton_exchange', user=db_user) if t('usdt_ton_exchange', user=db_user) != 'usdt_ton_exchange' else "• USDT ↔ TON"
-    usdt_energy_exchange = t('usdt_energy_exchange', user=db_user)
-    ton_energy_exchange = t('ton_energy_exchange', user=db_user)
-    select_exchange_type = t('select_exchange_type', user=db_user)
+    exchange_title = t('exchange_title', user_id=tg_id)
+    supported_exchanges = t('supported_exchanges', user_id=tg_id)
+    usdt_ton_exchange = t('usdt_ton_exchange', user_id=tg_id)
+    usdt_energy_exchange = t('usdt_energy_exchange', user_id=tg_id)
+    ton_energy_exchange = t('ton_energy_exchange', user_id=tg_id)
+    select_exchange_type = t('select_exchange_type', user_id=tg_id)
     
     text = f"""
 {exchange_title}
@@ -354,20 +363,27 @@ async def show_exchange_menu(query, db_user):
     )
 
 
-async def handle_exchange_input(query, db_user, pair: str, context):
-    """處理兌換輸入"""
+async def handle_exchange_input(query, tg_id: int, pair: str, context):
+    """處理兌換輸入（只接受 tg_id，不接受 ORM 對象）"""
     from_currency, to_currency = pair.split("_")
-    from_balance = float(getattr(db_user, f"balance_{from_currency}", 0) or 0)
+    
+    # 在會話內查詢用戶獲取餘額
+    with get_db() as db:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await query.edit_message_text("發生錯誤，請稍後再試")
+            return
+        from_balance = float(getattr(user, f"balance_{from_currency}", 0) or 0)
     
     from bot.utils.i18n import t
-    exchange_pair_title = t('exchange_pair_title', user=db_user, from_currency=from_currency.upper(), to_currency=to_currency.upper())
-    current_balance_label = t('current_balance_label', user=db_user, currency=from_currency.upper())
-    enter_exchange_amount = t('enter_exchange_amount', user=db_user)
-    exchange_format = t('exchange_format', user=db_user) if t('exchange_format', user=db_user) != 'exchange_format' else "格式：`金額`"
-    exchange_example = t('exchange_example', user=db_user) if t('exchange_example', user=db_user) != 'exchange_example' else "例如：`10`"
-    exchange_miniapp_hint = t('exchange_miniapp_hint', user=db_user)
-    open_miniapp_exchange = t('open_miniapp_exchange', user=db_user)
-    return_wallet = t('return_wallet', user=db_user)
+    exchange_pair_title = t('exchange_pair_title', user_id=tg_id, from_currency=from_currency.upper(), to_currency=to_currency.upper())
+    current_balance_label = t('current_balance_label', user_id=tg_id, currency=from_currency.upper())
+    enter_exchange_amount = t('enter_exchange_amount', user_id=tg_id)
+    exchange_format = t('exchange_format', user_id=tg_id)
+    exchange_example = t('exchange_example', user_id=tg_id)
+    exchange_miniapp_hint = t('exchange_miniapp_hint', user_id=tg_id)
+    open_miniapp_exchange = t('open_miniapp_exchange', user_id=tg_id)
+    return_wallet = t('return_wallet', user_id=tg_id)
     
     text = f"""
 {exchange_pair_title}
