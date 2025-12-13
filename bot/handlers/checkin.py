@@ -118,13 +118,15 @@ async def do_checkin(db_user, db=None, return_result=False):
 
 
 async def do_checkin_with_message(user, message, is_callback=False):
-    """執行簽到並發送消息（保持向後兼容）"""
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
+    """執行簽到並發送消息（只接受 Telegram user 對象，內部查詢數據庫用戶）"""
+    from bot.utils.i18n import t
+    user_id = user.id if user else None
+    
     with get_db() as db:
-        db_user = db.query(User).filter(User.tg_id == user.id).first()
+        db_user = db.query(User).filter(User.tg_id == user_id).first()
         
         if not db_user:
-            text = t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊"
+            text = t('please_register_first', user_id=user_id)
             if is_callback:
                 await message.reply_text(text)
             else:
@@ -135,11 +137,10 @@ async def do_checkin_with_message(user, message, is_callback=False):
         
         # 檢查是否已簽到
         if db_user.last_checkin and db_user.last_checkin.date() == today:
-            from bot.utils.i18n import t
             streak = db_user.checkin_streak or 1
-            checkin_already_title = t('checkin_already_title', user=db_user)
-            consecutive_checkin_days = t('consecutive_checkin_days', user=db_user, streak=streak)
-            remember_tomorrow = t('remember_tomorrow', user=db_user)
+            checkin_already_title = t('checkin_already_title', user_id=user_id)
+            consecutive_checkin_days = t('consecutive_checkin_days', user_id=user_id, streak=streak)
+            remember_tomorrow = t('remember_tomorrow', user_id=user_id)
             text = f"""
 {checkin_already_title}
 
@@ -154,12 +155,11 @@ async def do_checkin_with_message(user, message, is_callback=False):
         
         result = await do_checkin(db_user, db, return_result=True)
         
-        from bot.utils.i18n import t
         if result["success"]:
-            checkin_success_title = t('checkin_success_title', user=db_user)
-            checkin_day_label = t('checkin_day_label', user=db_user, day=result['consecutive'])
-            checkin_reward_energy = t('checkin_reward_energy', user=db_user, points=result['points'])
-            checkin_7day_bonus = t('checkin_7day_bonus', user=db_user)
+            checkin_success_title = t('checkin_success_title', user_id=user_id)
+            checkin_day_label = t('checkin_day_label', user_id=user_id, day=result['consecutive'])
+            checkin_reward_energy = t('checkin_reward_energy', user_id=user_id, points=result['points'])
+            checkin_7day_bonus = t('checkin_7day_bonus', user_id=user_id)
             text = f"""
 {checkin_success_title}
 
@@ -169,11 +169,11 @@ async def do_checkin_with_message(user, message, is_callback=False):
 {checkin_7day_bonus}
 """
         else:
-            checkin_already_title = t('checkin_already_title', user=db_user)
-            consecutive_checkin_days = t('consecutive_checkin_days', user=db_user, streak=result.get('consecutive', 1))
+            checkin_already_title = t('checkin_already_title', user_id=user_id)
+            consecutive_checkin_days = t('consecutive_checkin_days', user_id=user_id, streak=result.get('consecutive', 1))
             text = f"{checkin_already_title}\n\n{consecutive_checkin_days}"
         
-        view_wallet_button = t('view_wallet_button', user=db_user)
+        view_wallet_button = t('view_wallet_button', user_id=user_id)
         keyboard = [[InlineKeyboardButton(view_wallet_button, callback_data="wallet:view")]]
         
         if is_callback:
