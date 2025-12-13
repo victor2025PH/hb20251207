@@ -53,10 +53,11 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         text = update.message.text.strip()
         logger.info(f"User {user_id} clicked button: '{text}'")
         
-        db_user = await get_user_from_update(update, context)
-        if not db_user:
+        from bot.utils.user_helpers import get_user_id_from_update
+        tg_id = await get_user_id_from_update(update, context)
+        if not tg_id:
             logger.warning(f"User {user_id} not found in database")
-            await update.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊", reply_markup=get_main_reply_keyboard(user=None))
+            await update.message.reply_text(t('please_register_first', user_id=user_id), reply_markup=get_main_reply_keyboard(user_id=user_id))
             return
     except Exception as e:
         logger.error(f"Error in handle_reply_keyboard (initial): {e}", exc_info=True)
@@ -91,22 +92,22 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             from bot.handlers.menu import show_wallet_menu
             
             with get_db() as db:
-                user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+                user = db.query(User).filter(User.tg_id == tg_id).first()
                 if not user:
-                    await update.message.reply_text(t('error_occurred', user=db_user))
+                    await update.message.reply_text(t('error_occurred', user_id=tg_id))
                     return
                 
                 query = create_mock_query(update)
-                await show_wallet_menu(query, user)
+                await show_wallet_menu(query, tg_id)
             
             await update.message.reply_text(
-                t('select_operation_colon', user=user),
+                t('select_operation_colon', user_id=tg_id),
                 reply_markup=get_wallet_reply_keyboard(),
             )
             logger.info(f"Successfully handled '💰 錢包' button for user {user_id}")
         except Exception as e:
             logger.error(f"Error handling '💰 錢包' button for user {user_id}: {e}", exc_info=True)
-            await update.message.reply_text(t('processing_error', user=db_user))
+            await update.message.reply_text(t('processing_error', user_id=tg_id))
         return
     
     elif text == "🧧 紅包":

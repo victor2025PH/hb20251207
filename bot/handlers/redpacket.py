@@ -22,52 +22,36 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     
-    # 獲取用戶以使用翻譯
-    from bot.utils.user_helpers import get_user_from_update
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.user_helpers import get_user_id_from_update
     from bot.utils.i18n import t
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        db_user = await get_user_from_update(update, context, use_cache=False)
+    user_id = user.id if user else None
+    tg_id = await get_user_id_from_update(update, context)
     
     # 只能在群組中發紅包
     if chat.type == "private":
-        if db_user:
-            await update.message.reply_text(t('send_command_group_only', user=db_user))
-        else:
-            await update.message.reply_text("請在群組中使用此命令發送紅包")
+        await update.message.reply_text(t('send_command_group_only', user_id=tg_id))
         return
     
     # 解析參數: /send <金額> <數量> [祝福語]
     args = context.args
     if len(args) < 2:
-        if db_user:
-            send_usage = t('send_command_usage', user=db_user)
-            send_example = t('send_command_example', user=db_user)
-            await update.message.reply_text(f"{send_usage}\n{send_example}")
-        else:
-            await update.message.reply_text(
-                "用法: /send <金額> <數量> [祝福語]\n"
-                "例如: /send 10 5 恭喜發財"
-            )
+        send_usage = t('send_command_usage', user_id=tg_id)
+        send_example = t('send_command_example', user_id=tg_id)
+        await update.message.reply_text(f"{send_usage}\n{send_example}")
         return
     
     try:
         amount = Decimal(args[0])
         count = int(args[1])
-        default_message = t('default_blessing', user=db_user) if db_user and t('default_blessing', user=db_user) != 'default_blessing' else "恭喜發財！🧧"
+        default_message = t('default_blessing', user_id=tg_id)
         message = " ".join(args[2:]) if len(args) > 2 else default_message
     except (ValueError, IndexError):
-        if db_user:
-            await update.message.reply_text(t('send_command_invalid_params', user=db_user))
-        else:
-            await update.message.reply_text("參數格式錯誤，請輸入正確的金額和數量")
+        await update.message.reply_text(t('send_command_invalid_params', user_id=tg_id))
         return
     
     if amount <= 0 or count <= 0:
-        if db_user:
-            await update.message.reply_text(t('send_command_amount_count_positive', user=db_user))
-        else:
-            await update.message.reply_text("金額和數量必須大於0")
+        await update.message.reply_text(t('send_command_amount_count_positive', user_id=tg_id))
         return
     
     if count > 100:
@@ -108,15 +92,16 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         packet_uuid = packet.uuid
     
-    # 使用用戶的語言設置發送紅包消息
+    # 使用用戶的語言設置發送紅包消息（使用 user_id）
     from bot.utils.i18n import t
     
-    sent_red_packet_text = t('sent_red_packet', user=user, name=user.first_name or user.username or f'用戶{user.tg_id}')
-    amount_label = t('amount_label_short', user=user)
-    quantity_label = t('quantity_label_short', user=user)
-    shares_label = t('shares_label', user=user)
-    click_to_claim = t('click_to_claim', user=user)
-    claim_button_text = t('claim_red_packet', user=user)
+    user_name = user.first_name or user.username or f'用戶{user.id}'
+    sent_red_packet_text = t('sent_red_packet', user_id=tg_id, name=user_name)
+    amount_label = t('amount_label_short', user_id=tg_id)
+    quantity_label = t('quantity_label_short', user_id=tg_id)
+    shares_label = t('shares_label', user_id=tg_id)
+    click_to_claim = t('click_to_claim', user_id=tg_id)
+    claim_button_text = t('claim_red_packet', user_id=tg_id)
     
     text = f"""
 🧧 *{sent_red_packet_text}*
