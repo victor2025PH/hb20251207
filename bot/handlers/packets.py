@@ -443,16 +443,26 @@ async def handle_group_input(update, tg_id: int, text, context):
             
             type_text = random_amount_text if packet_type == "random" else fixed_amount_text
             
+            # 關鍵修復：使用 Markdown 轉義防止解析錯誤
+            from telegram.helpers import escape_markdown
+            # 轉義所有動態變量，防止特殊字符導致 Markdown 解析錯誤
+            currency_escaped = escape_markdown(str(currency.upper()), version=2)
+            type_text_escaped = escape_markdown(str(type_text), version=2)
+            amount_escaped = escape_markdown(str(amount), version=2)
+            count_escaped = escape_markdown(str(count), version=2)
+            message_escaped = escape_markdown(str(message), version=2)
+            chat_id_escaped = escape_markdown(str(chat_id), version=2)
+            
             text = f"""
 {confirm_send_packet_text}
 
 *{packet_info_text}*
-• {currency_label}{currency.upper()}
-• {type_label}{type_text}
-• {amount_label}{amount} {currency.upper()}
-• {quantity_label}{count} {shares_text}
-• {blessing_label}{message}
-• {group_id_label}{chat_id}
+• {currency_label}{currency_escaped}
+• {type_label}{type_text_escaped}
+• {amount_label}{amount_escaped} {currency_escaped}
+• {quantity_label}{count_escaped} {shares_text}
+• {blessing_label}{message_escaped}
+• {group_id_label}{chat_id_escaped}
 
 {please_confirm_send_text}
 """
