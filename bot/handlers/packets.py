@@ -1183,8 +1183,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     if chat_id:
                         context.user_data.setdefault('send_packet', {})['chat_id'] = chat_id
                     
-                    # 直接使用外层已获取的 db_user（已在会话内）
-                    # 注意：db_user 已经在外层 with get_db() 块中查询获得
+                    # 使用 tg_id 调用 confirm_and_send_packet
                     await confirm_and_send_packet(query, tg_id, context)
                 elif sub_action == "amount_custom":
                     # 處理自定義金額輸入
@@ -1239,7 +1238,7 @@ async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = Tr
     
     Args:
         query: 查詢對象
-        db_user: 用戶對象
+        tg_id: 用戶 Telegram ID
         use_inline_buttons: 是否使用內聯按鈕模式（True=內聯按鈕，False=底部鍵盤）
     """
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
@@ -1341,7 +1340,7 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
     
     Args:
         query: 查詢對象
-        db_user: 用戶對象
+        tg_id: 用戶 Telegram ID
         currency: 幣種
         context: 上下文（用於檢查 use_inline_buttons 標誌）
     """
