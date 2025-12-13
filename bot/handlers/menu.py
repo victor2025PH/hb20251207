@@ -38,15 +38,19 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[MENU_CALLBACK] Action: {action}, User: {update.effective_user.id if update.effective_user else None}")
     
     try:
-        # 获取用户
-        db_user = await get_user_from_update(update, context)
-        if not db_user:
-            await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
+        # 获取用户 ID（不返回 ORM 对象）
+        from bot.utils.user_helpers import get_user_id_from_update
+        user_id = await get_user_id_from_update(update, context)
+        if not user_id:
+            tg_id = update.effective_user.id if update.effective_user else None
+            await query.message.reply_text(t('please_register_first', user_id=tg_id))
             return
+        
+        tg_id = update.effective_user.id if update.effective_user else None
         
         # 如果是键盘模式，尝试恢复底部键盘
         from bot.utils.mode_helper import get_effective_mode
-        effective_mode = get_effective_mode(db_user, update.effective_chat.type)
+        effective_mode = get_effective_mode(tg_id, update.effective_chat.type)
         
         if effective_mode == "keyboard":
             from bot.keyboards.reply_keyboards import get_main_reply_keyboard, get_profile_reply_keyboard
@@ -55,11 +59,11 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard_message = ""
             
             if action == "main":
-                reply_keyboard = get_main_reply_keyboard(user=db_user)
-                keyboard_message = t("main_menu", user=db_user) if t("main_menu", user=db_user) != "main_menu" else "主菜單"
+                reply_keyboard = get_main_reply_keyboard(user_id=tg_id)
+                keyboard_message = t("main_menu", user_id=tg_id)
             elif action == "profile":
                 reply_keyboard = get_profile_reply_keyboard()
-                keyboard_message = t("profile_center", user=db_user)
+                keyboard_message = t("profile_center", user_id=tg_id)
             
             if reply_keyboard and query.message:
                 try:
@@ -71,17 +75,17 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.debug(f"Error restoring reply keyboard: {e}")
         
         if action == "main":
-            await show_main_menu(query, db_user)
+            await show_main_menu(query, tg_id)
         elif action == "wallet":
-            await show_wallet_menu(query, db_user)
+            await show_wallet_menu(query, tg_id)
         elif action == "packets":
-            await show_packets_menu(query, db_user)
+            await show_packets_menu(query, tg_id)
         elif action == "earn":
-            await show_earn_menu(query, db_user)
+            await show_earn_menu(query, tg_id)
         elif action == "game":
-            await show_game_menu(query, db_user)
+            await show_game_menu(query, tg_id)
         elif action == "profile":
-            await show_profile_menu(query, db_user)
+            await show_profile_menu(query, tg_id)
         elif action == "language":
             from bot.handlers.language import show_language_selection
             await show_language_selection(update, context)
@@ -89,31 +93,32 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"[MENU_CALLBACK] Unknown action: {action}")
             try:
                 if query.message:
-                    await query.message.reply_text(f"{t('unknown_action', user=db_user)}: {action}")
+                    await query.message.reply_text(f"{t('unknown_action', user_id=tg_id)}: {action}")
             except:
                 pass
     except Exception as e:
         logger.error(f"[MENU_CALLBACK] Error processing action '{action}': {e}", exc_info=True)
         try:
             if query.message:
-                await query.message.reply_text(t('error_occurred', user=db_user))
+                tg_id = update.effective_user.id if update.effective_user else None
+                await query.message.reply_text(t('error_occurred', user_id=tg_id))
         except:
             pass
 
 
-async def show_main_menu(query, db_user):
-    """顯示主菜單"""
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
+async def show_main_menu(query, tg_id: int):
+    """顯示主菜單（只接受 tg_id，不接受 ORM 對象）"""
+    from bot.utils.i18n import t
     try:
-        # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
+        # 在會話內查詢用戶並完成所有操作
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if not user:
                 try:
-                    await query.edit_message_text(t("error", user=db_user))
+                    await query.edit_message_text(t("error", user_id=tg_id))
                 except:
                     if hasattr(query, 'message') and query.message:
-                        await query.message.reply_text(t('error_occurred', user=db_user))
+                        await query.message.reply_text(t('error_occurred', user_id=tg_id))
                 return
             
             # 在会话内访问所有需要的属性
@@ -121,13 +126,11 @@ async def show_main_menu(query, db_user):
             ton = float(user.balance_ton or 0)
             points = user.balance_points or 0
             
-            # 在会话内获取翻译文本
-            select_operation = t('select_operation', user=user)
-            
-            # 在会话内获取更多翻译文本
-            lucky_red_text = t('lucky_red_red_packet', user=user)
-            total_assets_text = t('total_assets', user=user)
-            energy_text = t('energy', user=user)
+            # 在会话内获取翻译文本（使用 user_id）
+            select_operation = t('select_operation', user_id=tg_id)
+            lucky_red_text = t('lucky_red_red_packet', user_id=tg_id)
+            total_assets_text = t('total_assets', user_id=tg_id)
+            energy_text = t('energy', user_id=tg_id)
             
             text = f"""
 {lucky_red_text}
@@ -144,16 +147,16 @@ async def show_main_menu(query, db_user):
             await query.edit_message_text(
                 text,
                 parse_mode="Markdown",
-                reply_markup=get_main_menu(user=user),
+                reply_markup=get_main_menu(user_id=tg_id),
             )
     except Exception as e:
         logger.error(f"Error in show_main_menu: {e}", exc_info=True)
         try:
-            await query.edit_message_text(t('error_occurred', user=db_user))
+            await query.edit_message_text(t('error_occurred', user_id=tg_id))
         except:
             try:
                 if query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             except:
                 pass
 

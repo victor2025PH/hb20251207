@@ -12,78 +12,78 @@ settings = get_settings()
 
 
 # 菜单定义（使用函数获取翻译后的文本）
-def get_menu_definitions(user=None):
-    """获取翻译后的菜单定义"""
+def get_menu_definitions(user_id=None):
+    """获取翻译后的菜单定义（只接受 user_id，不接受 ORM 对象）"""
     from bot.utils.i18n import t
     
     return {
         "main": [
-            (t("menu_wallet", user=user), "wallet", f"{settings.MINIAPP_URL}/wallet"),
-            (t("menu_packets", user=user), "packets", f"{settings.MINIAPP_URL}/packets"),
-            (t("menu_earn", user=user), "earn", f"{settings.MINIAPP_URL}/earn"),
-            (t("menu_game", user=user), "game", f"{settings.MINIAPP_URL}/game"),
-            (t("menu_profile", user=user), "profile", f"{settings.MINIAPP_URL}/profile"),
+            (t("menu_wallet", user_id=user_id), "wallet", f"{settings.MINIAPP_URL}/wallet"),
+            (t("menu_packets", user_id=user_id), "packets", f"{settings.MINIAPP_URL}/packets"),
+            (t("menu_earn", user_id=user_id), "earn", f"{settings.MINIAPP_URL}/earn"),
+            (t("menu_game", user_id=user_id), "game", f"{settings.MINIAPP_URL}/game"),
+            (t("menu_profile", user_id=user_id), "profile", f"{settings.MINIAPP_URL}/profile"),
         ],
         "wallet": [
-            (t("recharge", user=user) if t("recharge", user=user) != "recharge" else "💵 充值", "recharge", f"{settings.MINIAPP_URL}/recharge"),
-            (t("withdraw", user=user) if t("withdraw", user=user) != "withdraw" else "💸 提現", "withdraw", f"{settings.MINIAPP_URL}/withdraw"),
-            (t("transaction_records", user=user) if t("transaction_records", user=user) != "transaction_records" else "📜 交易記錄", "records", f"{settings.MINIAPP_URL}/wallet?tab=records"),
-            (t("exchange", user=user) if t("exchange", user=user) != "exchange" else "🔄 兌換", "exchange", f"{settings.MINIAPP_URL}/exchange"),
-            (t("return_main", user=user), "main", f"{settings.MINIAPP_URL}"),
+            (t("recharge", user_id=user_id), "recharge", f"{settings.MINIAPP_URL}/recharge"),
+            (t("withdraw", user_id=user_id), "withdraw", f"{settings.MINIAPP_URL}/withdraw"),
+            (t("transaction_records", user_id=user_id), "records", f"{settings.MINIAPP_URL}/wallet?tab=records"),
+            (t("exchange", user_id=user_id), "exchange", f"{settings.MINIAPP_URL}/exchange"),
+            (t("return_main", user_id=user_id), "main", f"{settings.MINIAPP_URL}"),
         ],
         "packets": [
-            (t("view_packets", user=user), "list", f"{settings.MINIAPP_URL}/packets"),
-            (t("send_packet", user=user), "send", f"{settings.MINIAPP_URL}/send-red-packet"),
-            (t("my_packets", user=user), "my", f"{settings.MINIAPP_URL}/packets?tab=my"),
-            (t("return_main", user=user), "main", f"{settings.MINIAPP_URL}"),
+            (t("view_packets", user_id=user_id), "list", f"{settings.MINIAPP_URL}/packets"),
+            (t("send_packet", user_id=user_id), "send", f"{settings.MINIAPP_URL}/send-red-packet"),
+            (t("my_packets", user_id=user_id), "my", f"{settings.MINIAPP_URL}/packets?tab=my"),
+            (t("return_main", user_id=user_id), "main", f"{settings.MINIAPP_URL}"),
         ],
         "earn": [
-            (t("daily_checkin", user=user) if t("daily_checkin", user=user) != "daily_checkin" else "📅 每日簽到", "checkin", f"{settings.MINIAPP_URL}/earn?tab=checkin"),
-            (t("invite_friends", user=user) if t("invite_friends", user=user) != "invite_friends" else "👥 邀請好友", "invite", f"{settings.MINIAPP_URL}/earn?tab=invite"),
-            (t("task_center", user=user) if t("task_center", user=user) != "task_center" else "🎯 任務中心", "tasks", f"{settings.MINIAPP_URL}/earn?tab=tasks"),
-            (t("lucky_wheel", user=user) if t("lucky_wheel", user=user) != "lucky_wheel" else "🎰 幸運轉盤", "wheel", f"{settings.MINIAPP_URL}/lucky-wheel"),
-            (t("return_main", user=user), "main", f"{settings.MINIAPP_URL}"),
+            (t("daily_checkin", user_id=user_id), "checkin", f"{settings.MINIAPP_URL}/earn?tab=checkin"),
+            (t("invite_friends", user_id=user_id), "invite", f"{settings.MINIAPP_URL}/earn?tab=invite"),
+            (t("task_center", user_id=user_id), "tasks", f"{settings.MINIAPP_URL}/earn?tab=tasks"),
+            (t("lucky_wheel", user_id=user_id), "wheel", f"{settings.MINIAPP_URL}/lucky-wheel"),
+            (t("return_main", user_id=user_id), "main", f"{settings.MINIAPP_URL}"),
         ],
         "game": [
-            (t("gold_game", user=user) if t("gold_game", user=user) != "gold_game" else "🎰 金運局", "gold", f"{settings.MINIAPP_URL}/game"),
-            (t("lucky_wheel", user=user) if t("lucky_wheel", user=user) != "lucky_wheel" else "🎡 幸運轉盤", "wheel", f"{settings.MINIAPP_URL}/lucky-wheel"),
-            (t("return_main", user=user), "main", f"{settings.MINIAPP_URL}"),
+            (t("gold_game", user_id=user_id), "gold", f"{settings.MINIAPP_URL}/game"),
+            (t("lucky_wheel", user_id=user_id), "wheel", f"{settings.MINIAPP_URL}/lucky-wheel"),
+            (t("return_main", user_id=user_id), "main", f"{settings.MINIAPP_URL}"),
         ],
         "profile": [
-            (t("my_profile", user=user) if t("my_profile", user=user) != "my_profile" else "📊 我的資料", "info", f"{settings.MINIAPP_URL}/profile"),
-            (t("statistics", user=user) if t("statistics", user=user) != "statistics" else "📈 統計數據", "stats", f"{settings.MINIAPP_URL}/profile?tab=stats"),
-            (t("settings", user=user), "settings", f"{settings.MINIAPP_URL}/profile?tab=settings"),
-            (t("return_main", user=user), "main", f"{settings.MINIAPP_URL}"),
+            (t("my_profile", user_id=user_id), "info", f"{settings.MINIAPP_URL}/profile"),
+            (t("statistics", user_id=user_id), "stats", f"{settings.MINIAPP_URL}/profile?tab=stats"),
+            (t("settings", user_id=user_id), "settings", f"{settings.MINIAPP_URL}/profile?tab=settings"),
+            (t("return_main", user_id=user_id), "main", f"{settings.MINIAPP_URL}"),
         ],
     }
 
 
-def get_mode_indicator(mode: str, user=None) -> str:
-    """获取模式指示器文本"""
+def get_mode_indicator(mode: str, user_id=None) -> str:
+    """获取模式指示器文本（只接受 user_id，不接受 ORM 对象）"""
     from bot.utils.i18n import t
     indicators = {
-        "keyboard": t("mode_keyboard", user=user),
-        "inline": t("mode_inline", user=user),
-        "miniapp": t("mode_miniapp", user=user),
-        "auto": t("mode_auto", user=user)
+        "keyboard": t("mode_keyboard", user_id=user_id),
+        "inline": t("mode_inline", user_id=user_id),
+        "miniapp": t("mode_miniapp", user_id=user_id),
+        "auto": t("mode_auto", user_id=user_id)
     }
-    return indicators.get(mode, t("mode_keyboard", user=user))
+    return indicators.get(mode, t("mode_keyboard", user_id=user_id))
 
 
 def get_unified_keyboard(
     mode: str, 
     menu_type: str = "main", 
     chat_type: str = "private",
-    user=None
+    user_id=None
 ):
     """
-    统一键盘生成器
+    统一键盘生成器（只接受 user_id，不接受 ORM 对象）
     
     Args:
         mode: 交互模式 ("keyboard", "inline", "miniapp", "auto")
         menu_type: 菜单类型 ("main", "wallet", "packets", etc.)
         chat_type: 聊天类型 ("private", "group", "supergroup")
-        user: 用户对象（用于获取翻译）
+        user_id: 用户 ID（用于获取翻译）
     
     Returns:
         根据模式返回不同的键盘对象
@@ -100,7 +100,7 @@ def get_unified_keyboard(
         mode = "inline"
     
     # 获取菜单项（使用翻译）
-    menu_defs = get_menu_definitions(user=user)
+    menu_defs = get_menu_definitions(user_id=user_id)
     items = menu_defs.get(menu_type, menu_defs["main"])
     
     if mode == "keyboard":
@@ -173,7 +173,7 @@ def get_unified_keyboard(
         }
     
     # 默认返回键盘模式
-    return get_unified_keyboard("keyboard", menu_type, chat_type, user=user)
+    return get_unified_keyboard("keyboard", menu_type, chat_type, user_id=user_id)
 
 
 def get_mode_selection_keyboard(user=None):

@@ -925,32 +925,17 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
 }
 
 
-def get_user_language(user: Optional[User] = None, user_id: Optional[int] = None) -> str:
-    """獲取用戶語言"""
-    if user:
-        # 优先尝试从 __dict__ 中获取已加载的属性，避免触发 SQLAlchemy 延迟加载
-        try:
-            if hasattr(user, '__dict__') and 'language_code' in user.__dict__:
-                lang = user.__dict__['language_code'] or "zh-TW"
-                return lang if lang in TRANSLATIONS else "zh-TW"
-        except Exception:
-            pass
-        
-        # 如果 __dict__ 中没有，尝试使用 user_id 重新查询
-        if hasattr(user, 'tg_id') and user.tg_id:
-            try:
-                with get_db() as db:
-                    db_user = db.query(User).filter(User.tg_id == user.tg_id).first()
-                    if db_user:
-                        # 在会话内安全访问 language_code
-                        lang = db_user.language_code or "zh-TW"
-                        return lang if lang in TRANSLATIONS else "zh-TW"
-            except Exception as e:
-                logger.error(f"Error getting user language from database: {e}")
-        
-        # 如果都失败了，使用默认值
-        lang = "zh-TW"
-    elif user_id:
+def get_user_language(user_id: Optional[int] = None) -> str:
+    """
+    獲取用戶語言（只接受 user_id，不接受 ORM 對象）
+    
+    Args:
+        user_id: 用戶 ID（可選）
+    
+    Returns:
+        語言代碼
+    """
+    if user_id:
         try:
             with get_db() as db:
                 db_user = db.query(User).filter(User.tg_id == user_id).first()
@@ -971,20 +956,19 @@ def get_user_language(user: Optional[User] = None, user_id: Optional[int] = None
     return lang
 
 
-def t(key: str, user: Optional[User] = None, user_id: Optional[int] = None, **kwargs) -> str:
+def t(key: str, user_id: Optional[int] = None, **kwargs) -> str:
     """
-    翻譯函數
+    翻譯函數（只接受 user_id，不接受 ORM 對象）
     
     Args:
         key: 翻譯鍵
-        user: 用戶對象（可選）
         user_id: 用戶 ID（可選）
         **kwargs: 格式化參數
     
     Returns:
         翻譯後的文本
     """
-    lang = get_user_language(user, user_id)
+    lang = get_user_language(user_id)
     translations = TRANSLATIONS.get(lang, TRANSLATIONS["zh-TW"])
     text = translations.get(key, key)
     

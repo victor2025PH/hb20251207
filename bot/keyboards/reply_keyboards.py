@@ -8,24 +8,24 @@ from shared.config.settings import get_settings
 settings = get_settings()
 
 
-def get_main_reply_keyboard(user=None):
-    """主回覆鍵盤 - 一級菜單（對應 miniapp 底部導航），所有按鈕在機器人中完成"""
+def get_main_reply_keyboard(user_id=None):
+    """主回覆鍵盤 - 一級菜單（對應 miniapp 底部導航），所有按鈕在機器人中完成（只接受 user_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     
     keyboard = [
         [
-            KeyboardButton(t("menu_wallet", user=user)),
-            KeyboardButton(t("menu_packets", user=user)),
+            KeyboardButton(t("menu_wallet", user_id=user_id)),
+            KeyboardButton(t("menu_packets", user_id=user_id)),
         ],
         [
-            KeyboardButton(t("menu_earn", user=user)),
-            KeyboardButton(t("menu_game", user=user)),
+            KeyboardButton(t("menu_earn", user_id=user_id)),
+            KeyboardButton(t("menu_game", user_id=user_id)),
         ],
         [
-            KeyboardButton(t("menu_profile", user=user)),
+            KeyboardButton(t("menu_profile", user_id=user_id)),
         ],
     ]
-    placeholder = t("select_function_or_command", user=user) if t("select_function_or_command", user=user) != "select_function_or_command" else "選擇功能或輸入命令..."
+    placeholder = t("select_function_or_command", user_id=user_id)
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,
@@ -55,23 +55,23 @@ def get_wallet_reply_keyboard():
     )
 
 
-def get_packets_reply_keyboard(user=None):
-    """紅包回覆鍵盤 - 二級菜單，所有按鈕在機器人中完成"""
+def get_packets_reply_keyboard(user_id=None):
+    """紅包回覆鍵盤 - 二級菜單，所有按鈕在機器人中完成（只接受 user_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     
     keyboard = [
         [
-            KeyboardButton(t("view_packets", user=user)),
-            KeyboardButton(t("send_packet", user=user)),
+            KeyboardButton(t("view_packets", user_id=user_id)),
+            KeyboardButton(t("send_packet", user_id=user_id)),
         ],
         [
-            KeyboardButton(t("my_packets", user=user)),
+            KeyboardButton(t("my_packets", user_id=user_id)),
         ],
         [
-            KeyboardButton(t("return_main", user=user)),
+            KeyboardButton(t("return_main", user_id=user_id)),
         ],
     ]
-    placeholder = t("select_packet_operation", user=user) if t("select_packet_operation", user=user) != "select_packet_operation" else "選擇紅包操作..."
+    placeholder = t("select_packet_operation", user_id=user_id)
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,

@@ -6,64 +6,48 @@ from shared.database.models import User
 from loguru import logger
 
 
-def get_effective_mode(user: User, chat_type: str) -> str:
+def get_effective_mode(user_id: int, chat_type: str) -> str:
     """
-    根据用户偏好和上下文智能选择交互模式
+    根据用户偏好和上下文智能选择交互模式（只接受 user_id，不接受 ORM 对象）
     
     Args:
-        user: 用户对象
+        user_id: Telegram 用户 ID
         chat_type: 聊天类型 ("private", "group", "supergroup")
     
     Returns:
         有效的交互模式
     """
-    # 安全地获取 interaction_mode（字段可能不存在）
-    # 使用 __dict__ 访问已加载的属性，避免触发 SQLAlchemy 延迟加载
     try:
-        if hasattr(user, '__dict__') and 'interaction_mode' in user.__dict__:
-            mode = user.__dict__.get('interaction_mode') or "auto"
-        else:
+        with get_db() as db:
+            user = db.query(User).filter(User.tg_id == user_id).first()
+            if not user:
+                # 用户不存在，返回默认模式
+                return "keyboard" if chat_type == "private" else "inline"
+            
+            # 在会话内安全获取 interaction_mode
             mode = getattr(user, 'interaction_mode', None) or "auto"
-    except Exception:
-        mode = "auto"
-    
-    # 如果是 auto 模式，根据上下文智能选择
-    if mode == "auto":
-        if chat_type in ["group", "supergroup"]:
-            # 群组中优先使用 inline
-            try:
-                if hasattr(user, '__dict__') and 'last_interaction_mode' in user.__dict__:
-                    last_mode = user.__dict__.get('last_interaction_mode')
-                else:
+            
+            # 如果是 auto 模式，根据上下文智能选择
+            if mode == "auto":
+                if chat_type in ["group", "supergroup"]:
+                    # 群组中优先使用 inline
                     last_mode = getattr(user, 'last_interaction_mode', None)
-                return last_mode if last_mode in ["inline", "keyboard"] else "inline"
-            except Exception:
+                    return last_mode if last_mode in ["inline", "keyboard"] else "inline"
+                else:
+                    # 私聊中使用上次的模式，默认 keyboard
+                    last_mode = getattr(user, 'last_interaction_mode', None)
+                    return last_mode or "keyboard"
+            
+            # 如果用户选择了 miniapp 但在群组中，回退到 inline
+            if mode == "miniapp" and chat_type in ["group", "supergroup"]:
+                logger.info(f"User {user_id} selected miniapp but in group, falling back to inline")
                 return "inline"
-        else:
-            # 私聊中使用上次的模式，默认 keyboard
-            try:
-                if hasattr(user, '__dict__') and 'last_interaction_mode' in user.__dict__:
-                    last_mode = user.__dict__.get('last_interaction_mode')
-                else:
-                    last_mode = getattr(user, 'last_interaction_mode', None)
-                return last_mode or "keyboard"
-            except Exception:
-                return "keyboard"
-    
-    # 如果用户选择了 miniapp 但在群组中，回退到 inline
-    if mode == "miniapp" and chat_type in ["group", "supergroup"]:
-        try:
-            # 安全地获取 tg_id，避免会话分离错误
-            if hasattr(user, '__dict__') and 'tg_id' in user.__dict__:
-                tg_id = user.__dict__.get('tg_id')
-            else:
-                tg_id = getattr(user, 'tg_id', None)
-            logger.info(f"User {tg_id} selected miniapp but in group, falling back to inline")
-        except Exception:
-            logger.info("User selected miniapp but in group, falling back to inline")
-        return "inline"
-    
-    return mode
+            
+            return mode
+    except Exception as e:
+        logger.error(f"Error getting effective mode for user {user_id}: {e}")
+        # 出错时返回默认模式
+        return "keyboard" if chat_type == "private" else "inline"
 
 
 async def update_user_mode(user_id: int, mode: str, update_last: bool = True):

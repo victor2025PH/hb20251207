@@ -8,7 +8,7 @@ from loguru import logger
 from shared.config.settings import get_settings
 from shared.database.connection import get_db
 from shared.database.models import User, Transaction, CurrencyType
-from bot.utils.user_helpers import get_or_create_user
+from bot.utils.user_helpers import get_or_create_user_id, get_user_id_from_update
 from bot.utils.logging_helpers import log_user_action
 from bot.constants import InviteConstants
 from decimal import Decimal
@@ -26,8 +26,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and len(context.args) > 0:
         invite_code = context.args[0]
     
-    # 使用統一的用戶獲取函數
-    db_user = await get_or_create_user(
+    # 使用統一的用戶獲取函數（只獲取 user_id，不返回 ORM 對象）
+    user_id = await get_or_create_user_id(
         tg_id=user.id,
         username=user.username,
         first_name=user.first_name,
@@ -35,23 +35,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         use_cache=False  # 註冊時不使用緩存，確保數據最新
     )
     
-    # 在會話內獲取 invited_by 狀態（避免會話分離錯誤）
+    if not user_id:
+        logger.error(f"Failed to get or create user {user.id}")
+        await update.message.reply_text(t('error_occurred', user_id=user.id))
+        return
+    
+    # 在會話內獲取 invited_by 狀態並處理邀請關係
     with get_db() as db:
-        # 重新查詢用戶以確保在會話內
-        db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
-        if not db_user_refreshed:
+        # 在會話內查詢用戶
+        db_user = db.query(User).filter(User.tg_id == user.id).first()
+        if not db_user:
             logger.error(f"User {user.id} not found after creation")
-            # 使用 user_id 而不是 user 对象，避免会话问题
             await update.message.reply_text(t('error_occurred', user_id=user.id))
             return
         
-        is_new_user = not db_user_refreshed.invited_by
+        is_new_user = not db_user.invited_by
         
         # 處理邀請關係
-        if invite_code and not db_user_refreshed.invited_by:
+        if invite_code and not db_user.invited_by:
             inviter = db.query(User).filter(User.invite_code == invite_code).first()
             if inviter and inviter.tg_id != user.id:
-                db_user_refreshed.invited_by = inviter.tg_id
+                db_user.invited_by = inviter.tg_id
                 inviter.invite_count = (inviter.invite_count or 0) + 1
                 
                 # 發放邀請獎勵
@@ -63,7 +67,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     
                     # 被邀請人獎勵
                     invitee_reward = InviteConstants.INVITEE_REWARD
-                    db_user_refreshed.balance_usdt = (db_user_refreshed.balance_usdt or Decimal(0)) + invitee_reward
+                    db_user.balance_usdt = (db_user.balance_usdt or Decimal(0)) + invitee_reward
                     
                     # 記錄交易
                     inviter_tx = Transaction(
@@ -77,7 +81,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         status="completed"
                     )
                     invitee_tx = Transaction(
-                        user_id=db_user_refreshed.id,
+                        user_id=db_user.id,
                         type="invite_bonus",
                         currency=CurrencyType.USDT,
                         amount=invitee_reward,
@@ -197,10 +201,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 检查用户是否已设置交互模式
     with get_db() as db:
-        db_user_refreshed = db.query(User).filter(User.tg_id == user.id).first()
-        if not db_user_refreshed:
+        db_user = db.query(User).filter(User.tg_id == user.id).first()
+        if not db_user:
             logger.error(f"User {user.id} not found after creation")
-            # 使用 user_id 而不是 user 对象，避免会话问题
             await update.message.reply_text(t('error_occurred', user_id=user.id))
             return
         
@@ -208,74 +211,50 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         should_reset = context.args and len(context.args) > 0 and context.args[0].lower() == "reset"
         
         # 检查用户是否已设置过模式（排除 "auto" 和 None）
-        has_set_mode = db_user_refreshed.interaction_mode and db_user_refreshed.interaction_mode != "auto"
+        has_set_mode = db_user.interaction_mode and db_user.interaction_mode != "auto"
         
         # 如果是新用户、未设置模式、用户明确要求重置，或者用户删除机器人后重新启动（已设置过模式但没有邀请码参数），显示初始设置
-        if should_reset or not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto" or (has_set_mode and not invite_code):
+        if should_reset or not db_user.interaction_mode or db_user.interaction_mode == "auto" or (has_set_mode and not invite_code):
             # 如果用户要求重置或重新启动（已设置过模式但没有邀请码），先清除现有设置
             if should_reset or (has_set_mode and not invite_code):
-                old_mode = db_user_refreshed.interaction_mode
-                db_user_refreshed.interaction_mode = None
+                old_mode = db_user.interaction_mode
+                db_user.interaction_mode = None
                 db.commit()
                 if should_reset:
                     logger.info(f"User {user.id} requested reset, cleared interaction_mode")
                 else:
                     logger.info(f"User {user.id} restarted bot (had mode {old_mode}), resetting to show initial setup")
-            
-            # 在会话内预先加载用户属性，确保后续访问不会出错
-            _ = db_user_refreshed.id
-            _ = db_user_refreshed.tg_id
-            _ = db_user_refreshed.language_code
-            _ = db_user_refreshed.interaction_mode
         
-        # 会话在这里结束，但我们已经预先加载了需要的属性
-        # 现在可以安全地调用 show_initial_setup
-        if should_reset or not db_user_refreshed.interaction_mode or db_user_refreshed.interaction_mode == "auto" or (has_set_mode and not invite_code):
-            from bot.handlers.initial_setup import show_initial_setup
-            await show_initial_setup(update, context)
-            return
-        
-        # 在会话内预先加载所有需要的属性，并获取所有翻译文本
-        _ = db_user_refreshed.id
-        _ = db_user_refreshed.tg_id
-        _ = db_user_refreshed.language_code
-        _ = db_user_refreshed.interaction_mode
-        
-        # 在会话内获取所有翻译文本（必须在会话内完成，避免会话分离错误）
-        welcome_msg = t('welcome', user=db_user_refreshed)
-        welcome_greeting = t('welcome_greeting', user=db_user_refreshed, name=user.first_name or 'User')
-        welcome_description = t('welcome_description', user=db_user_refreshed)
-        welcome_feature_send = t('welcome_feature_send', user=db_user_refreshed)
-        welcome_feature_claim = t('welcome_feature_claim', user=db_user_refreshed)
-        welcome_feature_checkin = t('welcome_feature_checkin', user=db_user_refreshed)
-        welcome_feature_invite = t('welcome_feature_invite', user=db_user_refreshed)
-        welcome_call_to_action = t('welcome_call_to_action', user=db_user_refreshed)
-        
-        # 获取用户的有效模式（在会话内）
-        # 预先访问所有需要的属性，确保它们在会话内被加载
-        _ = db_user_refreshed.interaction_mode
-        _ = db_user_refreshed.last_interaction_mode if hasattr(db_user_refreshed, 'last_interaction_mode') else None
-        _ = db_user_refreshed.tg_id
-        
+        # 在会话内获取所有翻译文本和模式信息
         from bot.utils.mode_helper import get_effective_mode
         from bot.keyboards.unified import get_unified_keyboard
         
-        effective_mode = get_effective_mode(db_user_refreshed, update.effective_chat.type)
+        effective_mode = get_effective_mode(user.id, update.effective_chat.type)
         chat_type = update.effective_chat.type
         
         # 根据用户选择的模式决定显示方式
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
         
-        # 在会话内获取所有按钮文本
-        menu_wallet_text = t("menu_wallet", user=db_user_refreshed)
-        menu_packets_text = t("menu_packets", user=db_user_refreshed)
-        menu_earn_text = t("menu_earn", user=db_user_refreshed)
-        menu_game_text = t("menu_game", user=db_user_refreshed)
-        menu_profile_text = t("menu_profile", user=db_user_refreshed)
-        menu_switch_mode_text = t("menu_switch_mode", user=db_user_refreshed)
-        please_use_bottom_keyboard_text = t("please_use_bottom_keyboard", user=db_user_refreshed)
+        # 在会话内获取所有翻译文本（使用 user_id）
+        welcome_msg = t('welcome', user_id=user.id)
+        welcome_greeting = t('welcome_greeting', user_id=user.id, name=user.first_name or 'User')
+        welcome_description = t('welcome_description', user_id=user.id)
+        welcome_feature_send = t('welcome_feature_send', user_id=user.id)
+        welcome_feature_claim = t('welcome_feature_claim', user_id=user.id)
+        welcome_feature_checkin = t('welcome_feature_checkin', user_id=user.id)
+        welcome_feature_invite = t('welcome_feature_invite', user_id=user.id)
+        welcome_call_to_action = t('welcome_call_to_action', user_id=user.id)
         
-        # 构建欢迎消息文本（在会话内）
+        # 在会话内获取所有按钮文本
+        menu_wallet_text = t("menu_wallet", user_id=user.id)
+        menu_packets_text = t("menu_packets", user_id=user.id)
+        menu_earn_text = t("menu_earn", user_id=user.id)
+        menu_game_text = t("menu_game", user_id=user.id)
+        menu_profile_text = t("menu_profile", user_id=user.id)
+        menu_switch_mode_text = t("menu_switch_mode", user_id=user.id)
+        please_use_bottom_keyboard_text = t("please_use_bottom_keyboard", user_id=user.id)
+        
+        # 构建欢迎消息文本
         welcome_text = f"""
 🧧 {welcome_msg}
 
@@ -290,7 +269,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {welcome_call_to_action}
 """
         
-        # 创建内联按钮（在会话内）
+        # 创建内联按钮
         inline_keyboard = [
             [
                 InlineKeyboardButton(menu_wallet_text, callback_data="menu:wallet"),
@@ -308,7 +287,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
         ]
         
-        # 根据模式准备底部键盘（在会话内）
+        # 根据模式准备底部键盘
         reply_keyboard = None
         if effective_mode == "keyboard":
             reply_keyboard = [
@@ -384,13 +363,11 @@ async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYP
         )
     ]]
     
-    # 獲取用戶以使用翻譯
-    from bot.utils.user_helpers import get_user_from_update
+    # 獲取用戶 ID 以使用翻譯
+    from bot.utils.user_helpers import get_user_id_from_update
     from bot.utils.i18n import t
-    db_user = await get_user_from_update(update, context)
-    if db_user:
-        # 使用 user_id 而不是 user 对象，避免会话分离问题
-        user_id = db_user.tg_id if hasattr(db_user, 'tg_id') else update.effective_user.id
+    user_id = await get_user_id_from_update(update, context)
+    if user_id:
         open_app_message = t('open_app_message', user_id=user_id, page=command)
         open_app_button = t('open_app_button', user_id=user_id)
         keyboard = [[
@@ -411,112 +388,57 @@ async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理 /help 命令"""
-    from bot.utils.user_helpers import get_user_from_update
+    from bot.utils.user_helpers import get_user_id_from_update
     from bot.utils.i18n import t
     
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        db_user = await get_user_from_update(update, context, use_cache=False)
+    user_id = await get_user_id_from_update(update, context)
+    if not user_id:
+        user_id = await get_user_id_from_update(update, context, use_cache=False)
     
-    # 在会话内获取所有翻译文本，避免会话分离错误
-    user_id = update.effective_user.id if update.effective_user else None
-    if db_user and user_id:
-        with get_db() as db:
-            # 重新查询用户以确保在会话内
-            session_user = db.query(User).filter(User.tg_id == user_id).first()
-            if session_user:
-                # 在会话内获取所有翻译文本
-                help_title = t('help_title', user=session_user)
-                help_basic_commands = t('help_basic_commands', user=session_user)
-                help_command_start = t('help_command_start', user=session_user)
-                help_command_wallet = t('help_command_wallet', user=session_user)
-                help_command_packets = t('help_command_packets', user=session_user)
-                help_command_earn = t('help_command_earn', user=session_user)
-                help_command_game = t('help_command_game', user=session_user)
-                help_command_profile = t('help_command_profile', user=session_user)
-                help_command_send = t('help_command_send', user=session_user)
-                help_command_checkin = t('help_command_checkin', user=session_user)
-                help_command_invite = t('help_command_invite', user=session_user)
-                help_how_to_send = t('help_how_to_send', user=session_user)
-                help_send_step1 = t('help_send_step1', user=session_user)
-                help_send_step2 = t('help_send_step2', user=session_user)
-                help_send_step3 = t('help_send_step3', user=session_user)
-                help_how_to_claim = t('help_how_to_claim', user=session_user)
-                help_claim_description = t('help_claim_description', user=session_user)
-                help_daily_checkin = t('help_daily_checkin', user=session_user)
-                help_checkin_description = t('help_checkin_description', user=session_user)
-                help_invite_rebate = t('help_invite_rebate', user=session_user)
-                help_invite_description = t('help_invite_description', user=session_user)
-                help_contact = t('help_contact', user=session_user)
-            else:
-                # 如果查询失败，使用 user_id
-                help_title = t('help_title', user_id=user_id)
-                help_basic_commands = t('help_basic_commands', user_id=user_id)
-                help_command_start = t('help_command_start', user_id=user_id)
-                help_command_wallet = t('help_command_wallet', user_id=user_id)
-                help_command_packets = t('help_command_packets', user_id=user_id)
-                help_command_earn = t('help_command_earn', user_id=user_id)
-                help_command_game = t('help_command_game', user_id=user_id)
-                help_command_profile = t('help_command_profile', user_id=user_id)
-                help_command_send = t('help_command_send', user_id=user_id)
-                help_command_checkin = t('help_command_checkin', user_id=user_id)
-                help_command_invite = t('help_command_invite', user_id=user_id)
-                help_how_to_send = t('help_how_to_send', user_id=user_id)
-                help_send_step1 = t('help_send_step1', user_id=user_id)
-                help_send_step2 = t('help_send_step2', user_id=user_id)
-                help_send_step3 = t('help_send_step3', user_id=user_id)
-                help_how_to_claim = t('help_how_to_claim', user_id=user_id)
-                help_claim_description = t('help_claim_description', user_id=user_id)
-                help_daily_checkin = t('help_daily_checkin', user_id=user_id)
-                help_checkin_description = t('help_checkin_description', user_id=user_id)
-                help_invite_rebate = t('help_invite_rebate', user_id=user_id)
-                help_invite_description = t('help_invite_description', user_id=user_id)
-                help_contact = t('help_contact', user_id=user_id)
+    # 使用 user_id 获取所有翻译文本
+    if user_id:
+        help_title = t('help_title', user_id=user_id)
+        help_basic_commands = t('help_basic_commands', user_id=user_id)
+        help_command_start = t('help_command_start', user_id=user_id)
+        help_command_wallet = t('help_command_wallet', user_id=user_id)
+        help_command_packets = t('help_command_packets', user_id=user_id)
+        help_command_earn = t('help_command_earn', user_id=user_id)
+        help_command_game = t('help_command_game', user_id=user_id)
+        help_command_profile = t('help_command_profile', user_id=user_id)
+        help_command_send = t('help_command_send', user_id=user_id)
+        help_command_checkin = t('help_command_checkin', user_id=user_id)
+        help_command_invite = t('help_command_invite', user_id=user_id)
+        help_how_to_send = t('help_how_to_send', user_id=user_id)
+        help_send_step1 = t('help_send_step1', user_id=user_id)
+        help_send_step2 = t('help_send_step2', user_id=user_id)
+        help_send_step3 = t('help_send_step3', user_id=user_id)
+        help_how_to_claim = t('help_how_to_claim', user_id=user_id)
+        help_claim_description = t('help_claim_description', user_id=user_id)
+        help_daily_checkin = t('help_daily_checkin', user_id=user_id)
+        help_checkin_description = t('help_checkin_description', user_id=user_id)
+        help_invite_rebate = t('help_invite_rebate', user_id=user_id)
+        help_invite_description = t('help_invite_description', user_id=user_id)
+        help_contact = t('help_contact', user_id=user_id)
     else:
-        # 使用 user_id 获取翻译
-        if user_id:
-            help_title = t('help_title', user_id=user_id)
-            help_basic_commands = t('help_basic_commands', user_id=user_id)
-            help_command_start = t('help_command_start', user_id=user_id)
-            help_command_wallet = t('help_command_wallet', user_id=user_id)
-            help_command_packets = t('help_command_packets', user_id=user_id)
-            help_command_earn = t('help_command_earn', user_id=user_id)
-            help_command_game = t('help_command_game', user_id=user_id)
-            help_command_profile = t('help_command_profile', user_id=user_id)
-            help_command_send = t('help_command_send', user_id=user_id)
-            help_command_checkin = t('help_command_checkin', user_id=user_id)
-            help_command_invite = t('help_command_invite', user_id=user_id)
-            help_how_to_send = t('help_how_to_send', user_id=user_id)
-            help_send_step1 = t('help_send_step1', user_id=user_id)
-            help_send_step2 = t('help_send_step2', user_id=user_id)
-            help_send_step3 = t('help_send_step3', user_id=user_id)
-            help_how_to_claim = t('help_how_to_claim', user_id=user_id)
-            help_claim_description = t('help_claim_description', user_id=user_id)
-            help_daily_checkin = t('help_daily_checkin', user_id=user_id)
-            help_checkin_description = t('help_checkin_description', user_id=user_id)
-            help_invite_rebate = t('help_invite_rebate', user_id=user_id)
-            help_invite_description = t('help_invite_description', user_id=user_id)
-            help_contact = t('help_contact', user_id=user_id)
-        else:
-            # 默認中文
-            help_title = "🧧 *Lucky Red 使用指南*"
-            help_basic_commands = "*基本命令：*"
-            help_command_start = "/start - 開始使用"
-            help_command_wallet = "/wallet - 打開錢包"
-            help_command_packets = "/packets - 打開紅包"
-            help_command_earn = "/earn - 打開賺取"
-            help_command_game = "/game - 打開遊戲"
-            help_command_profile = "/profile - 打開我的"
-            help_command_send = "/send - 發送紅包"
-            help_command_checkin = "/checkin - 每日簽到"
-            help_command_invite = "/invite - 邀請好友"
-            help_how_to_send = "*如何發紅包：*"
-            help_send_step1 = "1. 在群組中輸入 /send"
-            help_send_step2 = "2. 選擇金額和數量"
-            help_send_step3 = "3. 發送紅包給群友"
-            help_how_to_claim = "*如何搶紅包：*"
-            help_claim_description = "點擊群組中的紅包消息即可搶"
-            help_daily_checkin = "*每日簽到：*"
+        # 默認中文
+        help_title = "🧧 *Lucky Red 使用指南*"
+        help_basic_commands = "*基本命令：*"
+        help_command_start = "/start - 開始使用"
+        help_command_wallet = "/wallet - 打開錢包"
+        help_command_packets = "/packets - 打開紅包"
+        help_command_earn = "/earn - 打開賺取"
+        help_command_game = "/game - 打開遊戲"
+        help_command_profile = "/profile - 打開我的"
+        help_command_send = "/send - 發送紅包"
+        help_command_checkin = "/checkin - 每日簽到"
+        help_command_invite = "/invite - 邀請好友"
+        help_how_to_send = "*如何發紅包：*"
+        help_send_step1 = "1. 在群組中輸入 /send"
+        help_send_step2 = "2. 選擇金額和數量"
+        help_send_step3 = "3. 發送紅包給群友"
+        help_how_to_claim = "*如何搶紅包：*"
+        help_claim_description = "點擊群組中的紅包消息即可搶"
+        help_daily_checkin = "*每日簽到：*"
         help_checkin_description = "連續簽到7天可獲得額外獎勵！"
         help_invite_rebate = "*邀請返佣：*"
         help_invite_description = "邀請好友可獲得其交易的10%返佣！"
@@ -561,28 +483,18 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from bot.utils.user_helpers import get_user_from_update
     from bot.utils.logging_helpers import log_user_action
     
-    # 獲取用戶（帶緩存）
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        # 嘗試獲取用戶以使用翻譯，如果失敗則使用默認值
-        try:
-            with get_db() as db:
-                temp_user = db.query(User).filter(User.tg_id == update.effective_user.id).first()
-                if temp_user:
-                    await update.message.reply_text(t('please_register_first', user=temp_user))
-                else:
-                    await update.message.reply_text("請先使用 /start 註冊")
-        except:
-            await update.message.reply_text("請先使用 /start 註冊")
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.i18n import t
+    user_id = await get_user_id_from_update(update, context)
+    if not user_id:
+        await update.message.reply_text(t('please_register_first', user_id=update.effective_user.id if update.effective_user else None))
         return
     
     # 在會話內處理邀請碼和獲取統計信息
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == update.effective_user.id).first()
         if not user:
-            await update.message.reply_text(t('error_occurred', user=db_user))
+            await update.message.reply_text(t('error_occurred', user_id=update.effective_user.id if update.effective_user else None))
             return
         
         # 生成邀請碼（如果沒有）
@@ -599,21 +511,21 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         invite_earnings = float(user.invite_earnings or 0)
     
     # 記錄操作
-    log_user_action(db_user.tg_id, "invite_view")
+    log_user_action(update.effective_user.id, "invite_view")
     
     invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={invite_code}"
     
-    # 使用翻譯文本
-    from bot.utils.i18n import t
-    invite_title = t('invite_title', user=user)
-    invite_your_link = t('invite_your_link', user=user)
-    invite_statistics = t('invite_statistics', user=user)
-    invite_count_text = t('invite_count', user=user, count=invite_count)
-    invite_earnings_text = t('invite_earnings', user=user, earnings=invite_earnings)
-    invite_rules = t('invite_rules', user=user)
-    invite_rules_description = t('invite_rules_description', user=user)
-    invite_share_button = t('invite_share_button', user=user)
-    invite_share_text = t('invite_share_text', user=user)
+    # 使用翻譯文本（在會話內獲取，使用 user_id）
+    tg_id = update.effective_user.id if update.effective_user else None
+    invite_title = t('invite_title', user_id=tg_id)
+    invite_your_link = t('invite_your_link', user_id=tg_id)
+    invite_statistics = t('invite_statistics', user_id=tg_id)
+    invite_count_text = t('invite_count', user_id=tg_id, count=invite_count)
+    invite_earnings_text = t('invite_earnings', user_id=tg_id, earnings=invite_earnings)
+    invite_rules = t('invite_rules', user_id=tg_id)
+    invite_rules_description = t('invite_rules_description', user_id=tg_id)
+    invite_share_button = t('invite_share_button', user_id=tg_id)
+    invite_share_text = t('invite_share_text', user_id=tg_id)
     
     invite_text = f"""
 {invite_title}

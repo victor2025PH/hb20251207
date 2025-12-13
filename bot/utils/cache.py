@@ -1,74 +1,75 @@
 """
 Lucky Red - 緩存工具
-提供用戶數據緩存功能
+提供用戶數據緩存功能（只緩存純數據，不緩存 ORM 對象）
 """
 import time
 from typing import Optional, Dict, Any
 from loguru import logger
-from shared.database.models import User
 
 
 class UserCache:
-    """用戶數據緩存"""
+    """用戶數據緩存（只緩存純數據字典，不緩存 ORM 對象）"""
     _cache: Dict[str, Dict[str, Any]] = {}
     _cache_ttl: int = 300  # 5分鐘
     
     @classmethod
-    def get_user(cls, tg_id: int, db) -> Optional[User]:
+    def get_user_data(cls, tg_id: int, db) -> Optional[Dict[str, Any]]:
         """
-        獲取用戶（帶緩存）
+        獲取用戶數據（帶緩存）
         
         Args:
             tg_id: Telegram 用戶 ID
             db: 數據庫會話
         
         Returns:
-            用戶對象或 None
+            用戶數據字典或 None
         """
+        from shared.database.models import User
+        
         cache_key = f"user_{tg_id}"
         cached = cls._cache.get(cache_key)
         
         # 檢查緩存是否有效
         if cached and (time.time() - cached['time']) < cls._cache_ttl:
             logger.debug(f"Cache hit for user {tg_id}")
-            cached_user = cached['user']
-            # 緩存中的用戶對象可能已脫離會話，但基本屬性應該已經加載
-            # 如果後續需要訪問其他屬性，應該在會話內重新查詢
-            return cached_user
+            return cached['data']
         
         # 緩存未命中，從數據庫查詢
         logger.debug(f"Cache miss for user {tg_id}, querying database")
         user = db.query(User).filter(User.tg_id == tg_id).first()
         
         if user:
-            # 在返回前訪問常用屬性，確保它們被加載到內存中
-            # 然後將對象從會話中分離，這樣即使會話關閉也可以訪問已加載的屬性
-            try:
-                _ = user.id
-                _ = user.tg_id
-                _ = user.username
-                _ = user.first_name
-                _ = user.last_name
-                _ = user.level
-                _ = user.balance_usdt
-                _ = user.balance_ton
-                _ = user.balance_points
-                # 预先加载 language_code 和 interaction_mode 等可能被 i18n 使用的属性
-                _ = getattr(user, 'language_code', None)
-                _ = getattr(user, 'interaction_mode', None)
-                _ = getattr(user, 'last_interaction_mode', None)
-                # 將對象從會話中分離
-                db.expunge(user)
-            except Exception as e:
-                logger.warning(f"Error expunging user {tg_id} from cache: {e}")
-                # 如果分離失敗，至少確保基本屬性已加載
+            # 在會話內提取所有需要的數據為純字典
+            user_data = {
+                'id': user.id,
+                'tg_id': user.tg_id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'level': user.level,
+                'xp': user.xp,
+                'balance_usdt': float(user.balance_usdt or 0),
+                'balance_ton': float(user.balance_ton or 0),
+                'balance_stars': user.balance_stars or 0,
+                'balance_points': user.balance_points or 0,
+                'language_code': getattr(user, 'language_code', None) or 'zh-TW',
+                'interaction_mode': getattr(user, 'interaction_mode', None) or 'auto',
+                'last_interaction_mode': getattr(user, 'last_interaction_mode', None),
+                'invited_by': user.invited_by,
+                'invite_code': user.invite_code,
+                'invite_count': user.invite_count or 0,
+                'invite_earnings': float(user.invite_earnings or 0),
+                'is_banned': getattr(user, 'is_banned', False),
+            }
             
             cls._cache[cache_key] = {
-                'user': user,
+                'data': user_data,
                 'time': time.time()
             }
+            
+            return user_data
         
-        return user
+        return None
     
     @classmethod
     def invalidate(cls, tg_id: int):

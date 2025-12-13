@@ -8,24 +8,24 @@ from shared.config.settings import get_settings
 settings = get_settings()
 
 
-def get_main_menu(user=None):
-    """主菜單 - 對應 miniapp 底部導航，所有按鈕在機器人中完成"""
+def get_main_menu(user_id=None):
+    """主菜單 - 對應 miniapp 底部導航，所有按鈕在機器人中完成（只接受 user_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     
     keyboard = [
         [
-            InlineKeyboardButton(t("menu_wallet", user=user), callback_data="menu:wallet"),
-            InlineKeyboardButton(t("menu_packets", user=user), callback_data="menu:packets"),
+            InlineKeyboardButton(t("menu_wallet", user_id=user_id), callback_data="menu:wallet"),
+            InlineKeyboardButton(t("menu_packets", user_id=user_id), callback_data="menu:packets"),
         ],
         [
-            InlineKeyboardButton(t("menu_earn", user=user), callback_data="menu:earn"),
-            InlineKeyboardButton(t("menu_game", user=user), callback_data="menu:game"),
+            InlineKeyboardButton(t("menu_earn", user_id=user_id), callback_data="menu:earn"),
+            InlineKeyboardButton(t("menu_game", user_id=user_id), callback_data="menu:game"),
         ],
         [
-            InlineKeyboardButton(t("menu_profile", user=user), callback_data="menu:profile"),
+            InlineKeyboardButton(t("menu_profile", user_id=user_id), callback_data="menu:profile"),
         ],
         [
-            InlineKeyboardButton(t("language", user=user), callback_data="menu:language"),
+            InlineKeyboardButton(t("language", user_id=user_id), callback_data="menu:language"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -49,20 +49,20 @@ def get_wallet_menu():
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_packets_menu(user=None):
-    """紅包子菜單 - 所有按鈕在機器人中完成"""
+def get_packets_menu(user_id=None):
+    """紅包子菜單 - 所有按鈕在機器人中完成（只接受 user_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     
     keyboard = [
         [
-            InlineKeyboardButton(t("view_packets", user=user), callback_data="packets:list"),
-            InlineKeyboardButton(t("send_packet", user=user), callback_data="packets:send"),
+            InlineKeyboardButton(t("view_packets", user_id=user_id), callback_data="packets:list"),
+            InlineKeyboardButton(t("send_packet", user_id=user_id), callback_data="packets:send"),
         ],
         [
-            InlineKeyboardButton(t("my_packets", user=user), callback_data="packets:my"),
+            InlineKeyboardButton(t("my_packets", user_id=user_id), callback_data="packets:my"),
         ],
         [
-            InlineKeyboardButton(t("return_main", user=user), callback_data="menu:main"),
+            InlineKeyboardButton(t("return_main", user_id=user_id), callback_data="menu:main"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
