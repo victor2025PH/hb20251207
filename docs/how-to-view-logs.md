@@ -2,6 +2,50 @@
 
 ## 📋 方法零：服务器 Bot 运行日志（服务器端）
 
+### ⚠️ Bot 启动失败诊断
+
+如果 bot 服务无法启动（status=1/FAILURE），请按以下步骤诊断：
+
+#### 1. 查看详细错误日志
+
+```bash
+# 查看最近 100 行日志（包含错误堆栈）
+sudo journalctl -u luckyred-bot -n 100 --no-pager
+
+# 查看最近的错误日志（只显示错误级别）
+sudo journalctl -u luckyred-bot -p err -n 50 --no-pager
+
+# 实时监控日志（会显示新的错误）
+sudo journalctl -u luckyred-bot -f
+```
+
+#### 2. 检查常见问题
+
+```bash
+# 检查 .env 文件是否存在且包含 BOT_TOKEN
+cat /home/ubuntu/hbgm001/.env | grep BOT_TOKEN
+
+# 检查虚拟环境是否存在
+ls -la /home/ubuntu/hbgm001/bot/.venv/bin/python
+
+# 检查 Python 依赖是否安装
+/home/ubuntu/hbgm001/bot/.venv/bin/python -c "import telegram; print('OK')"
+
+# 手动测试运行（从项目根目录）
+cd /home/ubuntu/hbgm001
+/home/ubuntu/hbgm001/bot/.venv/bin/python bot/main.py
+```
+
+#### 3. 检查服务配置
+
+```bash
+# 查看服务配置
+sudo systemctl cat luckyred-bot
+
+# 检查服务状态
+sudo systemctl status luckyred-bot -l --no-pager
+```
+
 ### 快速查看命令
 
 #### 1. 实时监控 Bot 日志

@@ -548,18 +548,22 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 按金額排序（用於排行榜顯示）
         claimers_info_sorted = sorted(claimers_info, key=lambda x: x['amount'], reverse=True)
     
-    # 獲取發送者的語言設置以顯示正確的提示
+    # 獲取發送者的語言設置以顯示正確的提示（使用 user_id）
     from bot.utils.i18n import t
+    sender_tg_id_for_alert = None
     with get_db() as db:
         sender_user = db.query(User).filter(User.id == packet.sender_id).first()
         if sender_user:
-            double_thunder = t('double_thunder_text', user=sender_user)
-            single_thunder = t('single_thunder_text', user=sender_user)
-            claim_bomb_alert_template = t('claim_bomb_alert', user=sender_user)
-            claim_success_luckiest_template = t('claim_success_luckiest', user=sender_user)
-            claim_success_template = t('claim_success', user=sender_user)
-            processing_complete = t('send_command_processing', user=sender_user)
+            sender_tg_id_for_alert = sender_user.tg_id
+            # 使用 user_id 獲取翻譯文本
+            double_thunder = t('double_thunder_text', user_id=sender_tg_id_for_alert)
+            single_thunder = t('single_thunder_text', user_id=sender_tg_id_for_alert)
+            claim_bomb_alert_template = t('claim_bomb_alert', user_id=sender_tg_id_for_alert)
+            claim_success_luckiest_template = t('claim_success_luckiest', user_id=sender_tg_id_for_alert)
+            claim_success_template = t('claim_success', user_id=sender_tg_id_for_alert)
+            processing_complete = t('send_command_processing', user_id=sender_tg_id_for_alert)
         else:
+            # 如果查詢失敗，使用默認值（中文）
             double_thunder = "雙雷"
             single_thunder = "單雷"
             claim_bomb_alert_template = "💣 踩雷了！需要賠付 {penalty:.2f} {currency}（{thunder_type}）"
@@ -597,29 +601,30 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
-    # 使用發送者的語言設置更新消息
-    from bot.utils.i18n import t
-    # 在會話內重新查詢發送者以獲取語言設置
+    # 使用發送者的語言設置更新消息（使用 user_id）
+    # 在會話內重新查詢發送者以獲取 tg_id
+    sender_tg_id_for_update = None
     with get_db() as db:
         sender_user = db.query(User).filter(User.id == packet.sender_id).first()
         if sender_user:
-            # 獲取翻譯文本
-            sent_red_packet_text = t('sent_red_packet', user=sender_user, name=sender_name)
-            amount_label = t('amount_label_short', user=sender_user)
-            quantity_label = t('quantity_label_short', user=sender_user)
-            shares_label = t('shares_label', user=sender_user)
-            claimed_red_packet = t('claimed_red_packet', user=sender_user)
-            user_claimed = t('user_claimed', user=sender_user)
-            user_claimed_with_amount = t('user_claimed_with_amount', user=sender_user)
-            user_claimed_bomb = t('user_claimed_bomb', user=sender_user)
-            red_packet_completed = t('red_packet_completed', user=sender_user)
-            red_packet_leaderboard = t('red_packet_leaderboard', user=sender_user)
-            best_luck = t('best_luck', user=sender_user)
-            best_luck_marker = t('best_luck_marker', user=sender_user)
-            bomb_number_display = t('bomb_number_display', user=sender_user)
-            claim_red_packet_remaining = t('claim_red_packet_remaining', user=sender_user)
-            double_thunder_text = t('double_thunder_text', user=sender_user)
-            single_thunder_text = t('single_thunder_text', user=sender_user)
+            sender_tg_id_for_update = sender_user.tg_id
+            # 使用 user_id 獲取翻譯文本
+            sent_red_packet_text = t('sent_red_packet', user_id=sender_tg_id_for_update, name=sender_name)
+            amount_label = t('amount_label_short', user_id=sender_tg_id_for_update)
+            quantity_label = t('quantity_label_short', user_id=sender_tg_id_for_update)
+            shares_label = t('shares_label', user_id=sender_tg_id_for_update)
+            claimed_red_packet = t('claimed_red_packet', user_id=sender_tg_id_for_update)
+            user_claimed = t('user_claimed', user_id=sender_tg_id_for_update)
+            user_claimed_with_amount = t('user_claimed_with_amount', user_id=sender_tg_id_for_update)
+            user_claimed_bomb = t('user_claimed_bomb', user_id=sender_tg_id_for_update)
+            red_packet_completed = t('red_packet_completed', user_id=sender_tg_id_for_update)
+            red_packet_leaderboard = t('red_packet_leaderboard', user_id=sender_tg_id_for_update)
+            best_luck = t('best_luck', user_id=sender_tg_id_for_update)
+            best_luck_marker = t('best_luck_marker', user_id=sender_tg_id_for_update)
+            bomb_number_display = t('bomb_number_display', user_id=sender_tg_id_for_update)
+            claim_red_packet_remaining = t('claim_red_packet_remaining', user_id=sender_tg_id_for_update)
+            double_thunder_text = t('double_thunder_text', user_id=sender_tg_id_for_update)
+            single_thunder_text = t('single_thunder_text', user_id=sender_tg_id_for_update)
         else:
             # 如果查詢失敗，使用默認值（中文）
             sent_red_packet_text = f"{sender_name} 發了一個紅包"
@@ -708,8 +713,17 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 嘗試發送新消息作為備用
         try:
             if query.message and query.message.chat:
+                # 在會話內獲取用戶信息以構建消息
+                from bot.utils.user_helpers import get_user_id_from_update
+                claimer_tg_id = await get_user_id_from_update(update, context)
+                if claimer_tg_id:
+                    claim_success_msg = t('claim_success', user_id=claimer_tg_id, amount=float(claim_amount), currency=currency_symbol)
+                else:
+                    # 如果無法獲取 user_id，使用簡單消息
+                    claimer_name = user.first_name if user else 'User'
+                    claim_success_msg = f"🎉 {claimer_name} 搶到了 {float(claim_amount):.2f} {currency_symbol}！"
                 await query.message.reply_text(
-                    f"🎉 {user.first_name} 搶到了 {float(claim_amount):.2f} {currency_symbol}！",
+                    claim_success_msg,
                     parse_mode="Markdown"
                 )
         except Exception as e2:
@@ -720,31 +734,65 @@ async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             bot = Bot(token=settings.BOT_TOKEN)
             
+            # 使用发送者的语言获取翻译文本（在会话内获取 tg_id）
+            sender_tg_id = None
+            if sender_user:
+                sender_tg_id = sender_user.tg_id
+            if sender_tg_id:
+                congratulations_best_luck_text = t('congratulations_best_luck', user_id=sender_tg_id, name=luckiest_user_name)
+                congratulations_most_wins_text = t('congratulations_most_wins', user_id=sender_tg_id, name=luckiest_user_name)
+                next_red_packet_reminder_text = t('next_red_packet_reminder', user_id=sender_tg_id)
+                next_bomb_packet_reminder_text = t('next_bomb_packet_reminder', user_id=sender_tg_id)
+                use_miniapp_or_send_hint_text = t('use_miniapp_or_send_hint', user_id=sender_tg_id)
+                amount_label_short_text = t('amount_label_short', user_id=sender_tg_id)
+                quantity_label_short_text = t('quantity_label_short', user_id=sender_tg_id)
+                shares_label_text = t('shares_label', user_id=sender_tg_id)
+                random_packet_type_text = t('random_packet_type', user_id=sender_tg_id)
+                bomb_packet_type_text = t('bomb_packet_type', user_id=sender_tg_id)
+                bomb_number_label_text = t('bomb_number_label', user_id=sender_tg_id)
+                single_thunder_text = t('single_thunder_text', user_id=sender_tg_id)
+                double_thunder_text = t('double_thunder_text', user_id=sender_tg_id)
+            else:
+                # 如果无法获取发送者信息，使用默认中文
+                congratulations_best_luck_text = f"🎉 *恭喜 {luckiest_user_name} 成為最佳手氣！*"
+                congratulations_most_wins_text = f"💣 *恭喜 {luckiest_user_name} 贏得最多！*"
+                next_red_packet_reminder_text = "📢 *請發送下一個紅包*"
+                next_bomb_packet_reminder_text = "📢 *請發送下一個紅包炸彈*"
+                use_miniapp_or_send_hint_text = "💡 提示：您可以使用 miniapp 或 /send 命令發送紅包"
+                amount_label_short_text = "💰 金額："
+                quantity_label_short_text = "👥 數量："
+                shares_label_text = "份"
+                random_packet_type_text = "🎲 手氣最佳"
+                bomb_packet_type_text = "💣 紅包炸彈"
+                bomb_number_label_text = "💣 炸彈數字："
+                single_thunder_text = "單雷"
+                double_thunder_text = "雙雷"
+            
             # 構建提醒消息
             reminder_text = ""
             if packet_type == RedPacketType.RANDOM:
                 # 手氣最佳提醒
-                reminder_text = f"""🎉 *恭喜 {luckiest_user_name} 成為最佳手氣！*
+                reminder_text = f"""{congratulations_best_luck_text}
 
-📢 *請發送下一個紅包*
-💰 金額：{total_amount:.2f} {currency_symbol}
-👥 數量：{total_count} 份
-🎮 類型：手氣最佳
+{next_red_packet_reminder_text}
+{amount_label_short_text}{total_amount:.2f} {currency_symbol}
+{quantity_label_short_text}{total_count} {shares_label_text}
+🎮 類型：{random_packet_type_text}
 📝 祝福語：{packet_message}
 
-💡 提示：您可以使用 miniapp 或 /send 命令發送紅包"""
+{use_miniapp_or_send_hint_text}"""
             elif packet_type == RedPacketType.EQUAL and packet_bomb_number is not None:
                 # 炸彈紅包提醒
-                thunder_type = "單雷" if total_count == 10 else "雙雷"
-                reminder_text = f"""💣 *恭喜 {luckiest_user_name} 贏得最多！*
+                thunder_type = single_thunder_text if total_count == 10 else double_thunder_text
+                reminder_text = f"""{congratulations_most_wins_text}
 
-📢 *請發送下一個紅包炸彈*
-💰 金額：{total_amount:.2f} {currency_symbol}
-👥 數量：{total_count} 份（{thunder_type}）
-💣 炸彈數字：{packet_bomb_number}
+{next_bomb_packet_reminder_text}
+{amount_label_short_text}{total_amount:.2f} {currency_symbol}
+{quantity_label_short_text}{total_count} {shares_label_text}（{thunder_type}）
+{bomb_number_label_text}{packet_bomb_number}
 📝 祝福語：{packet_message}
 
-💡 提示：您可以使用 miniapp 或 /send 命令發送紅包"""
+{use_miniapp_or_send_hint_text}"""
             
             if reminder_text:
                 await bot.send_message(

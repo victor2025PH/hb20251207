@@ -599,18 +599,24 @@ async def confirm_and_send_from_message(update, tg_id: int, context):
         packet_uuid = result.get('uuid', '')
         try:
             from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+            from bot.utils.i18n import t
             bot = Bot(token=settings.BOT_TOKEN)
             
-            # 構建群組中的紅包消息
-            type_text = "🎲 手氣最佳" if packet_type == "random" else "💣 紅包炸彈"
+            # 構建群組中的紅包消息（使用发送者的语言）
+            type_text = t('random_packet_type', user_id=sender_tg_id) if packet_type == "random" else t('bomb_packet_type', user_id=sender_tg_id)
+            amount_label_short_text = t('amount_label_short', user_id=sender_tg_id)
+            quantity_label_short_text = t('quantity_label_short', user_id=sender_tg_id)
+            shares_label_text = t('shares_label', user_id=sender_tg_id)
+            click_to_claim_text = t('click_to_claim', user_id=sender_tg_id)
+            
             group_message = f"""
 🧧 *{message}*
 
 {type_text}
-💰 金額：{float(amount):.2f} {currency.upper()}
-👥 數量：{count} 份
+{amount_label_short_text}{float(amount):.2f} {currency.upper()}
+{quantity_label_short_text}{count} {shares_label_text}
 
-🎁 點擊下方按鈕搶紅包！
+{click_to_claim_text}
 """
             # 構建搶紅包按鈕
             # 如果机器人在群里，使用 callback_data（直接抢红包）
@@ -2205,18 +2211,34 @@ async def confirm_and_send_packet(query, tg_id: int, context):
     
     # 如果沒有選擇群組，提示用戶輸入群組ID
     if not chat_id:
+        # 使用 user_id 獲取翻譯文本
+        from bot.utils.i18n import t
+        packet_ready_text = t('packet_ready', user_id=tg_id)
+        packet_info_label = t('packet_info', user_id=tg_id)
+        currency_label_text = t('currency_label', user_id=tg_id)
+        type_label_text = t('type_label', user_id=tg_id)
+        amount_label_text = t('amount_label', user_id=tg_id)
+        quantity_label_text = t('quantity_label', user_id=tg_id)
+        shares_text = t('shares', user_id=tg_id)
+        random_type_text = t('random_amount', user_id=tg_id)
+        bomb_type_text = t('fixed_amount', user_id=tg_id)
+        type_display = random_type_text if packet_type == "random" else bomb_type_text
+        bomb_number_label_text = t('bomb_number_label', user_id=tg_id)
+        blessing_label_text = t('blessing_label', user_id=tg_id)
+        select_or_enter_group_text = t('select_or_enter_group', user_id=tg_id)
+        
         text = f"""
-✅ *紅包已準備好！*
+✅ *{packet_ready_text}*
 
-*紅包信息：*
-• 幣種：{currency.upper()}
-• 類型：{"手氣最佳" if packet_type == "random" else "紅包炸彈"}
-• 金額：{float(amount):.2f} {currency.upper()}
-• 數量：{count} 份
-{f"• 炸彈數字：{bomb_number}" if bomb_number is not None else ""}
-• 祝福語：{message}
+*{packet_info_label}*
+• {currency_label_text}{currency.upper()}
+• {type_label_text}{type_display}
+• {amount_label_text}{float(amount):.2f} {currency.upper()}
+• {quantity_label_text}{count} {shares_text}
+{f"• {bomb_number_label_text}{bomb_number}" if bomb_number is not None else ""}
+• {blessing_label_text}{message}
 
-*請選擇或輸入群組：*
+*{select_or_enter_group_text}*
 """
         
         # 獲取用戶發過紅包的群組
@@ -2478,9 +2500,10 @@ async def confirm_and_send_packet(query, tg_id: int, context):
         try:
             from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
             bot = Bot(token=settings.BOT_TOKEN)
+            from bot.utils.i18n import t
             
-            # 構建群組中的紅包消息
-            type_text = "🎲 手氣最佳" if packet_type == "random" else "💣 紅包炸彈"
+            # 構建群組中的紅包消息（使用发送者的语言）
+            type_text = t('random_packet_type', user_id=tg_id) if packet_type == "random" else t('bomb_packet_type', user_id=tg_id)
             group_message = f"""
 🧧 *{message}*
 
@@ -2715,24 +2738,31 @@ async def show_my_packets(query, tg_id: int):
             RedPacket.sender_id == user.id
         ).order_by(RedPacket.created_at.desc()).limit(10).all()
         
+        # 使用 user_id 獲取翻譯文本
+        my_packets_title_text = t('my_packets_title', user_id=tg_id)
+        no_packets_sent_text = t('no_packets_sent', user_id=tg_id)
+        go_send_one_text = t('go_send_one', user_id=tg_id)
+        my_sent_packets_title_text = t('my_sent_packets_title', user_id=tg_id)
+        claimed_label_text = t('claimed_label', user_id=tg_id)
+        
         # 在会话内访问packet属性
         if not packets:
-            text = """
-🎁 *我的紅包*
+            text = f"""
+{my_packets_title_text}
 
-您還沒有發送過紅包
+{no_packets_sent_text}
 
-快去發一個吧！
+{go_send_one_text}
 """
         else:
-            text = "🎁 *我發送的紅包*\n\n"
+            text = f"{my_sent_packets_title_text}\n\n"
             for i, packet in enumerate(packets[:5], 1):
                 claimed = packet.claimed_count or 0
                 total = packet.total_count
                 status_emoji = "✅" if packet.status == RedPacketStatus.COMPLETED else "⏳" if packet.status == RedPacketStatus.ACTIVE else "❌"
                 text += f"{status_emoji} {i}. {packet.message or PacketConstants.DEFAULT_MESSAGE}\n"
                 text += f"   💰 {float(packet.total_amount):.2f} {packet.currency.value.upper()}\n"
-                text += f"   👥 {claimed}/{total} 已領取\n\n"
+                text += f"   👥 {claimed}/{total} {claimed_label_text}\n\n"
         
         keyboard = [
             [

@@ -46,6 +46,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "send_packet_desc": "在群組中發送紅包",
         "my_packets": "🎁 我的紅包",
         "my_packets_desc": "查看我發送的紅包",
+        "my_packets_title": "🎁 *我的紅包*",
+        "my_sent_packets_title": "🎁 *我發送的紅包*",
+        "no_packets_sent": "您還沒有發送過紅包",
+        "go_send_one": "快去發一個吧！",
+        "claimed_label": "已領取",
         "packets_list": "📋 可搶紅包列表",
         "no_packets_available": "目前沒有可搶的紅包",
         "packets_list_hint": "💡 提示：在群組中發送紅包，其他用戶就可以搶了",
@@ -199,6 +204,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "help_invite_rebate": "*邀請返佣：*",
         "help_invite_description": "邀請好友可獲得其交易的10%返佣！",
         "help_contact": "有問題？聯繫客服 @support",
+        "congratulations_best_luck": "🎉 *恭喜 {name} 成為最佳手氣！*",
+        "congratulations_most_wins": "💣 *恭喜 {name} 贏得最多！*",
+        "next_red_packet_reminder": "📢 *請發送下一個紅包*",
+        "next_bomb_packet_reminder": "📢 *請發送下一個紅包炸彈*",
+        "use_miniapp_or_send_hint": "💡 提示：您可以使用 miniapp 或 /send 命令發送紅包",
         # 邀請命令
         "invite_title": "👥 *邀請好友*",
         "invite_your_link": "你的專屬邀請鏈接：",
@@ -447,6 +457,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "send_packet_desc": "Send red packets in groups",
         "my_packets": "🎁 My Red Packets",
         "my_packets_desc": "View red packets I sent",
+        "my_packets_title": "🎁 *My Red Packets*",
+        "my_sent_packets_title": "🎁 *My Sent Red Packets*",
+        "no_packets_sent": "You haven't sent any red packets yet",
+        "go_send_one": "Go send one!",
+        "claimed_label": "claimed",
         "packets_list": "📋 Available Red Packets",
         "no_packets_available": "Currently, there are no red packets available to grab",
         "packets_list_hint": "💡 Tip: Send red packets in a group, and other users can grab them",
@@ -956,18 +971,52 @@ def get_user_language(user_id: Optional[int] = None) -> str:
     return lang
 
 
-def t(key: str, user_id: Optional[int] = None, **kwargs) -> str:
+def t(key: str, user_id: Optional[int] = None, user: Optional[User] = None, **kwargs) -> str:
     """
-    翻譯函數（只接受 user_id，不接受 ORM 對象）
+    翻譯函數（支持 user_id 或 user 對象，優先使用 user_id）
     
     Args:
         key: 翻譯鍵
-        user_id: 用戶 ID（可選）
+        user_id: 用戶 ID（可選，優先使用）
+        user: User ORM 對象（可選，向後兼容，如果提供了會從中提取 tg_id）
         **kwargs: 格式化參數
     
     Returns:
         翻譯後的文本
+    
+    Note:
+        - 優先使用 user_id 參數
+        - 如果提供了 user 對象但沒有 user_id，會從 user.tg_id 提取
+        - 如果都沒有提供，使用默認語言（zh-TW）
     """
+    # 處理向後兼容：如果提供了 user 對象但沒有 user_id，從 user 中提取
+    if user_id is None and user is not None:
+        try:
+            # 先嘗試直接訪問 user.tg_id（如果 user 仍在會話中或已經加載）
+            user_id = getattr(user, 'tg_id', None)
+            
+            # 如果無法直接訪問（可能已從會話分離），嘗試在會話內查詢
+            if user_id is None and hasattr(user, 'id') and user.id:
+                try:
+                    with get_db() as db:
+                        db_user = db.query(User).filter(User.id == user.id).first()
+                        if db_user:
+                            user_id = db_user.tg_id
+                except Exception as e:
+                    logger.debug(f"Could not extract tg_id from user object (id={user.id}): {e}")
+        except Exception as e:
+            # 如果訪問 user.tg_id 時出錯（例如 DetachedInstanceError），嘗試通過 user.id 查詢
+            if hasattr(user, 'id') and user.id:
+                try:
+                    with get_db() as db:
+                        db_user = db.query(User).filter(User.id == user.id).first()
+                        if db_user:
+                            user_id = db_user.tg_id
+                except Exception as e2:
+                    logger.debug(f"Could not extract tg_id from user object (id={user.id}): {e2}")
+            else:
+                logger.debug(f"Error accessing user object: {e}")
+    
     lang = get_user_language(user_id)
     translations = TRANSLATIONS.get(lang, TRANSLATIONS["zh-TW"])
     text = translations.get(key, key)
