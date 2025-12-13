@@ -113,6 +113,8 @@ def get_initial_setup_keyboard(current_lang: str = "zh-TW", user_id: int = None)
 
 async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理语言选择回调"""
+    from bot.utils.i18n import t  # 确保在函数内导入
+    
     query = update.callback_query
     if not query:
         return
@@ -142,7 +144,6 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
     if not success:
         logger.error(f"[SETUP] Failed to update language for user {user_id} to {lang_code}")
         try:
-            from bot.utils.i18n import t
             await query.message.reply_text(t('language_set_failed', user_id=user_id))
         except Exception as reply_error:
             logger.error(f"[SETUP] Failed to send error message: {reply_error}")
