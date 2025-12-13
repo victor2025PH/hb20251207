@@ -232,35 +232,58 @@ async def handle_group_input(update, tg_id: int, text, context):
         # 如果还不是有效的ID，尝试解析为群组用户名
         if chat_id is None:
             username = None
+            original_text = text
             
-            # 方式1: 匹配 t.me/xxx 或 https://t.me/xxx
+            # 方式1: 匹配 t.me/xxx 或 https://t.me/xxx（支持完整链接和简化格式）
+            # 匹配: t.me/xxx, https://t.me/xxx, http://t.me/xxx, @xxx
             match = re.search(r'(?:https?://)?(?:t\.me/|@)([a-zA-Z0-9_]+)', text, re.IGNORECASE)
             if match:
                 username = match.group(1)
-            # 方式2: 如果只是纯用户名（不包含@或t.me/），自动补全
+                logger.info(f"Extracted username '{username}' from link: {text}")
+            # 方式2: 如果只是纯用户名（不包含@或t.me/），自动补全为 t.me/xxx
             elif re.match(r'^[a-zA-Z0-9_]+$', text):
-                # 只包含字母、数字、下划线，认为是用户名
+                # 只包含字母、数字、下划线，认为是用户名，自动补全为 t.me/xxx
                 username = text
-                logger.info(f"Auto-completing username: {username}")
+                logger.info(f"Auto-completing username: {username} (treating as t.me/{username})")
             
             if username:
                 try:
                     from telegram import Bot
+                    from telegram.error import TelegramError
                     bot = Bot(token=settings.BOT_TOKEN)
                     # 尝试获取群组信息（自动添加@前缀）
-                    chat = await bot.get_chat(f"@{username}")
-                    chat_id = chat.id
-                    logger.info(f"Successfully got chat_id {chat_id} from username @{username}")
+                    try:
+                        chat = await bot.get_chat(f"@{username}")
+                        chat_id = chat.id
+                        logger.info(f"Successfully got chat_id {chat_id} from username @{username}")
+                    except TelegramError as tg_error:
+                        error_msg = str(tg_error).lower()
+                        # 检查是否是"Chat not found"错误
+                        if "chat not found" in error_msg or "not found" in error_msg:
+                            logger.warning(f"Chat not found for username @{username}: {tg_error}")
+                            # 显示友好的错误消息，保留底部菜单
+                            from bot.keyboards.reply_keyboards import get_main_reply_keyboard
+                            error_text = t('group_not_found', user_id=tg_id, username=username, link=f"t.me/{username}")
+                            await update.message.reply_text(
+                                error_text,
+                                parse_mode="Markdown",
+                                reply_markup=get_main_reply_keyboard(user_id=tg_id)
+                            )
+                            return
+                        else:
+                            # 其他 Telegram 错误，重新抛出
+                            raise
                 except Exception as e:
                     logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
-                    # 移除底部键盘（如果存在）
-                    from telegram import ReplyKeyboardRemove
+                    # 显示友好的错误消息，保留底部菜单
+                    from bot.keyboards.reply_keyboards import get_main_reply_keyboard
+                    error_text = t('cannot_get_group_info', user_id=tg_id, error=str(e)[:100], username=username)
                     await update.message.reply_text(
-                        t('cannot_get_group_info', user_id=tg_id, error=str(e), username=username),
+                        error_text,
                         parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                )
-                return
+                        reply_markup=get_main_reply_keyboard(user_id=tg_id)
+                    )
+                    return
         
         if chat_id:
             # ========================================
