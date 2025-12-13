@@ -261,6 +261,95 @@ async def handle_group_input(update, tg_id: int, text, context):
                 return
     
     if chat_id:
+        # ========================================
+        # 先验证群组：检查机器人和用户是否在群组中
+        # ========================================
+        bot_in_group = False
+        sender_in_group = False
+        
+        try:
+            from telegram import Bot
+            from telegram.error import TelegramError
+            bot = Bot(token=settings.BOT_TOKEN)
+            sender_tg_id = tg_id
+            
+            # 检查机器人是否在群组中
+            try:
+                # 先獲取機器人信息
+                bot_info = await bot.get_me()
+                bot_member = await bot.get_chat_member(chat_id, bot_info.id)
+                bot_status = bot_member.status
+                if bot_status in ['left', 'kicked']:
+                    # 机器人不在群组中
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('bot_not_in_group', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    return
+                bot_in_group = True
+                logger.info(f"Bot is in group {chat_id}, status: {bot_status}")
+            except TelegramError as e:
+                error_msg = str(e).lower()
+                if "chat not found" in error_msg or "bot is not a member" in error_msg or "forbidden" in error_msg:
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('bot_not_in_group_verify', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    return
+                else:
+                    # 其他錯誤也要阻止
+                    logger.warning(f"Error checking bot membership: {e}")
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('cannot_verify_bot_permission', user_id=tg_id, chat_id=chat_id),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    return
+            
+            # 检查发送者是否在群组中（必须通过）
+            try:
+                sender_member = await bot.get_chat_member(chat_id, sender_tg_id)
+                sender_status = sender_member.status
+                if sender_status in ['left', 'kicked']:
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    return
+                sender_in_group = True
+                logger.info(f"Sender {sender_tg_id} is in group {chat_id}, status: {sender_status}")
+            except TelegramError as e:
+                # 发送者不在群组，阻止发送
+                error_msg = str(e).lower()
+                if "user not found" in error_msg or "forbidden" in error_msg:
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    return
+                logger.warning(f"Could not verify sender membership: {e}")
+                # 无法验证时，仍然允许继续（可能是权限问题）
+                sender_in_group = True
+        except Exception as e:
+            logger.error(f"Error checking group membership: {e}", exc_info=True)
+            from telegram import ReplyKeyboardRemove
+            await update.message.reply_text(
+                t('check_group_permission_failed', user_id=tg_id, error=str(e)[:100]),
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return
+        
+        # 验证通过，保存群组ID并显示确认界面
         packet_data['chat_id'] = chat_id
         context.user_data['send_packet'] = packet_data
         context.user_data.pop('waiting_for_group', None)
