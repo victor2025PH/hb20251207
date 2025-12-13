@@ -363,7 +363,9 @@ async def handle_group_input(update, tg_id: int, text, context):
                         return
                     logger.warning(f"Could not verify sender membership: {e}")
                     # 无法验证时，仍然允许继续（可能是权限问题）
+                    # 注意：Participant_id_invalid 可能是因为机器人没有权限查看成员信息，但不影响发送红包
                     sender_in_group = True
+                    logger.info(f"Allowing to continue despite sender membership verification error (may be permission issue)")
             except Exception as e:
                 logger.error(f"Error checking group membership: {e}", exc_info=True)
                 from telegram import ReplyKeyboardRemove
@@ -375,10 +377,12 @@ async def handle_group_input(update, tg_id: int, text, context):
                 return
             
             # 验证通过，保存群组ID并显示确认界面
+            logger.info(f"Group validation passed for chat_id {chat_id}, bot_in_group={bot_in_group}, sender_in_group={sender_in_group}")
             packet_data['chat_id'] = chat_id
             context.user_data['send_packet'] = packet_data
             context.user_data.pop('waiting_for_group', None)
             context.user_data['send_packet_step'] = 'confirm'
+            logger.info(f"Saved chat_id {chat_id} to packet_data, proceeding to show confirmation interface")
             
             # 顯示確認界面
             # 检查用户是通过内联按钮还是底部键盘进入的
@@ -507,6 +511,7 @@ async def handle_group_input(update, tg_id: int, text, context):
             else:
                 # 使用底部键盘（底部键盘流程）
                 # 关键：确保use_inline_buttons标志为False，这样后续的确认发送也会使用底部键盘
+                logger.info(f"Sending confirmation message with reply keyboard")
                 context.user_data['use_inline_buttons'] = False
                 from bot.keyboards.reply_keyboards import get_send_packet_confirm_keyboard
                 try:
@@ -515,20 +520,45 @@ async def handle_group_input(update, tg_id: int, text, context):
                         parse_mode="Markdown",
                         reply_markup=get_send_packet_confirm_keyboard(),
                     )
+                    logger.info(f"Successfully sent confirmation message with reply keyboard")
                 except Exception as markdown_error:
                     error_msg = str(markdown_error)
+                    logger.warning(f"Error sending confirmation message (reply mode): {markdown_error}")
                     if "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
                         # Markdown 解析错误，尝试不使用 Markdown
-                        logger.warning(f"Markdown parse error in handle_group_input (reply mode): {markdown_error}")
+                        logger.warning(f"Markdown parse error in handle_group_input (reply mode): {markdown_error}, trying plain text")
                         text_plain = text.replace('*', '').replace('`', '').replace('_', '')
-                        await update.message.reply_text(
-                            text_plain,
-                            parse_mode=None,
-                            reply_markup=get_send_packet_confirm_keyboard(),
-                        )
+                        try:
+                            await update.message.reply_text(
+                                text_plain,
+                                parse_mode=None,
+                                reply_markup=get_send_packet_confirm_keyboard(),
+                            )
+                            logger.info(f"Successfully sent confirmation message with plain text (reply mode)")
+                        except Exception as plain_error:
+                            logger.error(f"Error sending plain text confirmation (reply mode): {plain_error}", exc_info=True)
+                            # 使用统一的错误处理
+                            await handle_error_with_ui(
+                                update=update,
+                                context=context,
+                                error=plain_error,
+                                error_context="[HANDLE_GROUP_INPUT] 发送确认消息时（回复模式）",
+                                user_id=tg_id,
+                                show_main_menu_button=True
+                            )
+                            return
                     else:
-                        # 其他错误，重新抛出
-                        raise
+                        # 其他错误，使用统一的错误处理
+                        logger.error(f"Error sending confirmation message (reply mode): {markdown_error}", exc_info=True)
+                        await handle_error_with_ui(
+                            update=update,
+                            context=context,
+                            error=markdown_error,
+                            error_context="[HANDLE_GROUP_INPUT] 发送确认消息时（回复模式）",
+                            user_id=tg_id,
+                            show_main_menu_button=True
+                        )
+                        return
         else:
             from bot.utils.i18n import t
             from telegram import ReplyKeyboardRemove
