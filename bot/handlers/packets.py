@@ -470,25 +470,51 @@ async def handle_group_input(update, tg_id: int, text, context):
                 # 移除底部键盘，避免干扰
                 from telegram import ReplyKeyboardRemove
                 try:
+                    logger.info(f"Sending confirmation message with Markdown")
                     await update.message.reply_text(
                         text,
                         parse_mode="Markdown",
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )
+                    logger.info(f"Successfully sent confirmation message with inline buttons")
                 except Exception as markdown_error:
                     error_msg = str(markdown_error)
+                    logger.warning(f"Error sending confirmation message: {markdown_error}")
                     if "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
                         # Markdown 解析错误，尝试不使用 Markdown
-                        logger.warning(f"Markdown parse error in handle_group_input: {markdown_error}")
+                        logger.warning(f"Markdown parse error in handle_group_input: {markdown_error}, trying plain text")
                         text_plain = text.replace('*', '').replace('`', '').replace('_', '')
-                        await update.message.reply_text(
-                            text_plain,
-                            parse_mode=None,
-                            reply_markup=InlineKeyboardMarkup(keyboard),
-                        )
+                        try:
+                            await update.message.reply_text(
+                                text_plain,
+                                parse_mode=None,
+                                reply_markup=InlineKeyboardMarkup(keyboard),
+                            )
+                            logger.info(f"Successfully sent confirmation message with plain text")
+                        except Exception as plain_error:
+                            logger.error(f"Error sending plain text confirmation: {plain_error}", exc_info=True)
+                            # 使用统一的错误处理
+                            await handle_error_with_ui(
+                                update=update,
+                                context=context,
+                                error=plain_error,
+                                error_context="[HANDLE_GROUP_INPUT] 发送确认消息时",
+                                user_id=tg_id,
+                                show_main_menu_button=True
+                            )
+                            return
                     else:
-                        # 其他错误，重新抛出
-                        raise
+                        # 其他错误，使用统一的错误处理
+                        logger.error(f"Error sending confirmation message: {markdown_error}", exc_info=True)
+                        await handle_error_with_ui(
+                            update=update,
+                            context=context,
+                            error=markdown_error,
+                            error_context="[HANDLE_GROUP_INPUT] 发送确认消息时",
+                            user_id=tg_id,
+                            show_main_menu_button=True
+                        )
+                        return
                 # 发送一个隐藏消息来移除底部键盘
                 try:
                     remove_msg = await update.message.reply_text(
