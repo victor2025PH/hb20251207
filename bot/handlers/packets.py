@@ -465,8 +465,10 @@ async def handle_group_input(update, tg_id: int, text, context):
             use_inline = context.user_data.get('use_inline_buttons', False)
             
             logger.info(f"handle_group_input: use_inline={use_inline}, use_inline_buttons_flag={context.user_data.get('use_inline_buttons', False)}")
+            logger.info(f"About to send confirmation message with use_inline={use_inline}, chat_id={chat_id}")
             
             if use_inline:
+                logger.info(f"Using inline buttons mode for confirmation")
                 # 使用内联按钮（内联按钮流程）
                 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
                 # 生成callback_data，确保不超过64字节
