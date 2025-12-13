@@ -3090,51 +3090,74 @@ async def confirm_and_send_packet(query, tg_id: int, context):
         logger.error(f"Error sending packet: {e}", exc_info=True)
         error_msg = str(e)
         
+        # 確保必要的導入在異常處理塊內
+        from bot.utils.logging_helpers import log_packet_action
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        from bot.utils.i18n import t
+        
         # 更详细的错误处理
-        if "餘額不足" in error_msg or "Insufficient balance" in error_msg:
-            error_msg = "餘額不足"
+        if "餘額不足" in error_msg or "Insufficient balance" in error_msg or ("400" in error_msg and "balance" in error_msg.lower()):
+            error_msg = t('insufficient_balance', user_id=tg_id) if t('insufficient_balance', user_id=tg_id) != 'insufficient_balance' else "餘額不足"
         elif "connection" in error_msg.lower() or "Connection" in error_msg or "All connection attempts failed" in error_msg:
             # API 连接失败
             from shared.config.settings import get_settings
             api_settings = get_settings()
             error_msg = f"無法連接到 API 服務器\n\n請檢查：\n• API 服務器是否運行中\n• API URL: `{api_settings.API_BASE_URL}`\n• 網絡連接是否正常\n\n💡 提示：請確保後端 API 服務器已啟動"
         elif "HTTP" in error_msg or "Request" in error_msg:
-            error_msg = "網絡錯誤，請稍後再試"
-        elif "timeout" in error_msg.lower():
-            error_msg = "請求超時，請稍後再試"
+            error_msg = t('network_error', user_id=tg_id) if t('network_error', user_id=tg_id) != 'network_error' else "網絡錯誤，請稍後再試"
+        elif "timeout" in error_msg.lower() or "Timed out" in error_msg or "Query is too old" in error_msg:
+            error_msg = t('request_timeout', user_id=tg_id) if t('request_timeout', user_id=tg_id) != 'request_timeout' else "請求超時，請稍後再試"
+        else:
+            error_msg = t('error_occurred', user_id=tg_id)
         
         # 記錄失敗操作
-        log_packet_action(
-            user_id=tg_id,
-            action="create",
-            amount=float(amount),
-            currency=currency,
-            success=False
-        )
+        try:
+            log_packet_action(
+                user_id=tg_id,
+                action="create",
+                amount=float(amount) if 'amount' in locals() else 0,
+                currency=currency if 'currency' in locals() else 'usdt',
+                success=False
+            )
+        except Exception as log_error:
+            logger.error(f"Error logging packet action: {log_error}", exc_info=True)
         
         text = f"""
-❌ *發送失敗*
+❌ *{t('send_failed', user_id=tg_id) if t('send_failed', user_id=tg_id) != 'send_failed' else '發送失敗'}*
 
-錯誤：{error_msg}
+{t('error_colon', user_id=tg_id) if t('error_colon', user_id=tg_id) != 'error_colon' else '錯誤：'}{error_msg}
 
-請重試或使用 miniapp 發送
+{t('please_retry_or_use_miniapp', user_id=tg_id) if t('please_retry_or_use_miniapp', user_id=tg_id) != 'please_retry_or_use_miniapp' else '請重試或使用 miniapp 發送'}
 """
-    
-    # 检查是否应该使用内联按钮
-    use_inline = context.user_data.get('use_inline_buttons', False)
-    
-    if use_inline:
-        # 使用内联按钮
-        keyboard = [
-            [
-                InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
-            ],
-        ]
-        await query.edit_message_text(
-            text,
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
+        
+        # 检查是否应该使用内联按钮
+        use_inline = context.user_data.get('use_inline_buttons', False)
+        
+        if use_inline:
+            # 使用内联按钮
+            keyboard = [
+                [
+                    InlineKeyboardButton("◀️ 返回", callback_data="menu:packets"),
+                ],
+            ]
+            try:
+                await query.edit_message_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+            except Exception as edit_error:
+                logger.error(f"Error editing message: {edit_error}", exc_info=True)
+                # 如果编辑失败，尝试发送新消息
+                if hasattr(query, 'message') and query.message:
+                    try:
+                        await query.message.reply_text(
+                            text,
+                            parse_mode="Markdown",
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                        )
+                    except Exception as reply_error:
+                        logger.error(f"Error replying message: {reply_error}", exc_info=True)
     else:
         # 使用底部键盘（通过新消息发送，因为query可能来自内联按钮）
         from bot.keyboards.reply_keyboards import get_packets_reply_keyboard
