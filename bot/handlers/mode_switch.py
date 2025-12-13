@@ -54,11 +54,18 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_id:
         return
     
-    # 获取用户 ID
-    tg_id = await get_user_id_from_update(update, context)
+    # 获取 Telegram ID（用于查询和翻译）
+    tg_id = update.effective_user.id if update.effective_user else None
     if not tg_id:
         from bot.utils.i18n import t
         await query.message.reply_text(t("please_register_first", user_id=user_id))
+        return
+    
+    # 验证用户是否存在（但不使用返回的数据库ID）
+    db_user_id = await get_user_id_from_update(update, context)
+    if not db_user_id:
+        from bot.utils.i18n import t
+        await query.message.reply_text(t("please_register_first", user_id=tg_id))
         return
     
     from bot.utils.i18n import t
@@ -85,12 +92,12 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         mode = "inline"
     
-    # 更新用户偏好
-    logger.info(f"[SET_MODE] Updating user {user_id} mode to {mode}")
-    success = await update_user_mode(user_id, mode, update_last=True)
+    # 更新用户偏好（使用 Telegram ID）
+    logger.info(f"[SET_MODE] Updating user {tg_id} mode to {mode}")
+    success = await update_user_mode(tg_id, mode, update_last=True)
     
     if not success:
-        logger.error(f"[SET_MODE] Failed to update user {user_id} mode")
+        logger.error(f"[SET_MODE] Failed to update user {tg_id} mode")
         try:
             await query.message.reply_text(
                 t("mode_set_failed", user_id=tg_id)
@@ -99,7 +106,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error sending error message: {e}")
         return
     
-    logger.info(f"[SET_MODE] Successfully updated user {user_id} mode to {mode}")
+    logger.info(f"[SET_MODE] Successfully updated user {tg_id} mode to {mode}")
     
     # 获取模式名称和描述（使用i18n，使用用户选择的语言）
     mode_name = t(f"mode_{mode}", user_id=tg_id) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_name(mode)
@@ -112,7 +119,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 直接显示主菜单（使用用户选择的语言），不先显示确认消息
         # 这样可以避免多次编辑消息导致的问题
         await show_main_menu(query, tg_id)
-        logger.info(f"[SET_MODE] Successfully showed main menu for user {user_id} after setting mode to {mode}")
+        logger.info(f"[SET_MODE] Successfully showed main menu for user {tg_id} after setting mode to {mode}")
         
     except Exception as e:
         logger.error(f"Error showing main menu: {e}", exc_info=True)

@@ -38,15 +38,18 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[MENU_CALLBACK] Action: {action}, User: {update.effective_user.id if update.effective_user else None}")
     
     try:
-        # 获取用户 ID（不返回 ORM 对象）
-        from bot.utils.user_helpers import get_user_id_from_update
-        user_id = await get_user_id_from_update(update, context)
-        if not user_id:
-            tg_id = update.effective_user.id if update.effective_user else None
-            await query.message.reply_text(t('please_register_first', user_id=tg_id))
+        # 获取 Telegram ID（用于查询和翻译）
+        tg_id = update.effective_user.id if update.effective_user else None
+        if not tg_id:
+            await query.message.reply_text(t('please_register_first', user_id=None))
             return
         
-        tg_id = update.effective_user.id if update.effective_user else None
+        # 验证用户是否存在（但不使用返回的数据库ID）
+        from bot.utils.user_helpers import get_user_id_from_update
+        db_user_id = await get_user_id_from_update(update, context)
+        if not db_user_id:
+            await query.message.reply_text(t('please_register_first', user_id=tg_id))
+            return
         
         # 如果是键盘模式，尝试恢复底部键盘
         from bot.utils.mode_helper import get_effective_mode
