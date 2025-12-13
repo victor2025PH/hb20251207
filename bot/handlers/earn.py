@@ -25,36 +25,40 @@ async def earn_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1] if len(parts) > 1 else ""
     
-    # 獲取用戶（帶緩存）
-    from bot.utils.user_helpers import get_user_from_update
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.user_helpers import get_user_id_from_update
+    user_id = user.id if user else None
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        await query.message.reply_text(t('please_register_first', user_id=user_id))
         return
     
     if action == "checkin":
         from bot.handlers.checkin import do_checkin
         from shared.database.connection import get_db
         with get_db() as db:
-            result = await do_checkin(db_user, db, return_result=True)
-        await handle_checkin_result(query, result)
+            db_user = db.query(User).filter(User.tg_id == tg_id).first()
+            if db_user:
+                result = await do_checkin(db_user, db, return_result=True)
+                await handle_checkin_result(query, result, tg_id)
     elif action == "invite":
-        await show_invite_info(query, db_user)
+        await show_invite_info(query, tg_id)
     elif action == "tasks":
-        await show_tasks(query, db_user)
+        await show_tasks(query, tg_id)
 
 
-async def handle_checkin_result(query, result):
-    """處理簽到結果"""
+async def handle_checkin_result(query, result, tg_id: int):
+    """處理簽到結果（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    daily_checkin_title = t('daily_checkin_title', user=query.from_user)
-    checkin_success_checkmark = t('checkin_success_checkmark', user=query.from_user)
-    reward_earned_label = t('reward_earned_label', user=query.from_user)
-    energy_reward = t('energy_reward', user=query.from_user, points=result['points'])
-    consecutive_checkin_label = t('consecutive_checkin_label', user=query.from_user, days=result.get('consecutive', 0))
-    checkin_7day_bonus_hint = t('checkin_7day_bonus_hint', user=query.from_user)
-    unknown_error = t('unknown_error', user=query.from_user)
-    return_main = t('return_main', user=query.from_user)
+    user_id = query.from_user.id if query.from_user else tg_id
+    daily_checkin_title = t('daily_checkin_title', user_id=user_id)
+    checkin_success_checkmark = t('checkin_success_checkmark', user_id=user_id)
+    reward_earned_label = t('reward_earned_label', user_id=user_id)
+    energy_reward = t('energy_reward', user_id=user_id, points=result['points'])
+    consecutive_checkin_label = t('consecutive_checkin_label', user_id=user_id, days=result.get('consecutive', 0))
+    checkin_7day_bonus_hint = t('checkin_7day_bonus_hint', user_id=user_id)
+    unknown_error = t('unknown_error', user_id=user_id)
+    return_main = t('return_main', user_id=user_id)
     
     if result["success"]:
         text = f"""
@@ -93,14 +97,14 @@ async def handle_checkin_result(query, result):
     )
 
 
-async def show_invite_info(query, db_user):
-    """顯示邀請信息"""
-    # 在會話內重新查詢用戶以確保數據最新
+async def show_invite_info(query, tg_id: int):
+    """顯示邀請信息（只接受 tg_id，不接受 ORM 對象）"""
+    # 在會話內查詢用戶以確保數據最新
     from shared.database.connection import get_db
     from shared.database.models import User
     
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             await query.edit_message_text("發生錯誤，請稍後再試")
             return
@@ -121,25 +125,26 @@ async def show_invite_info(query, db_user):
     
     invite_link = f"https://t.me/{settings.BOT_USERNAME}?start={invite_code}"
     
+    # 在會話外使用 user_id 獲取翻譯
     from bot.utils.i18n import t
-    invite_info_title = t('invite_info_title', user=user)
-    invite_statistics_label = t('invite_statistics_label', user=user)
-    invited_count = t('invited_count', user=user, count=invite_count)
-    total_earnings = t('total_earnings', user=user, earnings=invite_earnings)
-    invite_rules_title = t('invite_rules_title', user=user)
-    invite_rules_description = t('invite_rules_description', user=user)
-    invite_link_label = t('invite_link', user=user)
-    click_to_share = t('click_to_share', user=user) if t('click_to_share', user=user) != 'click_to_share' else "點擊下方按鈕分享給好友："
-    share_invite_link = t('share_invite_link', user=user)
-    invite_share_text = t('invite_share_text', user=user) if t('invite_share_text', user=user) != 'invite_share_text' else "快來玩搶紅包遊戲！"
-    return_main = t('return_main', user=user)
+    invite_info_title = t('invite_info_title', user_id=tg_id)
+    invite_statistics_label = t('invite_statistics_label', user_id=tg_id)
+    invited_count_text = t('invited_count', user_id=tg_id, count=invite_count)
+    total_earnings_text = t('total_earnings', user_id=tg_id, earnings=invite_earnings)
+    invite_rules_title = t('invite_rules_title', user_id=tg_id)
+    invite_rules_description = t('invite_rules_description', user_id=tg_id)
+    invite_link_label = t('invite_link', user_id=tg_id)
+    click_to_share = t('click_to_share', user_id=tg_id)
+    share_invite_link = t('share_invite_link', user_id=tg_id)
+    invite_share_text = t('invite_share_text', user_id=tg_id)
+    return_main = t('return_main', user_id=tg_id)
     
     text = f"""
 {invite_info_title}
 
 {invite_statistics_label}
-{invited_count}
-{total_earnings}
+{invited_count_text}
+{total_earnings_text}
 
 {invite_rules_title}
 {invite_rules_description}
@@ -169,14 +174,14 @@ async def show_invite_info(query, db_user):
     )
 
 
-async def show_tasks(query, db_user):
-    """顯示任務中心（優化查詢）"""
+async def show_tasks(query, tg_id: int):
+    """顯示任務中心（只接受 tg_id，不接受 ORM 對象）"""
     from shared.database.models import RedPacket, RedPacketClaim, Transaction, User
     from sqlalchemy import func
     
     with get_db() as db:
-        # 在會話內重新查詢用戶
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        # 在會話內查詢用戶
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             await query.edit_message_text("發生錯誤，請稍後再試")
             return
@@ -207,51 +212,52 @@ async def show_tasks(query, db_user):
         today_sent = stats.today_sent or 0
         has_deposit = (stats.has_deposit or 0) > 0
         
-        # 統計總數（從用戶對象獲取，避免額外查詢）
-        total_claimed = db_user.claimed_packets_count or 0
-        total_sent = db_user.sent_packets_count or 0
-        total_invites = db_user.invite_count or 0
+        # 統計總數（從用戶對象獲取）
+        total_claimed = user.claimed_packets_count or 0
+        total_sent = user.sent_packets_count or 0
+        total_invites = user.invite_count or 0
     
     from bot.constants import TaskConstants
     from bot.utils.i18n import t
     
-    tasks_title = t('tasks_title', user=user)
-    daily_tasks_label = t('daily_tasks_label', user=user)
-    achievement_tasks_label = t('achievement_tasks_label', user=user)
-    my_statistics_label = t('my_statistics_label', user=user)
+    # 使用 user_id 獲取翻譯
+    tasks_title = t('tasks_title', user_id=tg_id)
+    daily_tasks_label = t('daily_tasks_label', user_id=tg_id)
+    achievement_tasks_label = t('achievement_tasks_label', user_id=tg_id)
+    my_statistics_label = t('my_statistics_label', user_id=tg_id)
     
     # 每日任務
-    daily_checkin_task = t('daily_checkin_task', user=user)
-    task_completed = t('task_completed', user=user)
-    task_not_completed = t('task_not_completed', user=user)
+    daily_checkin_task = t('daily_checkin_task', user_id=tg_id)
+    task_completed = t('task_completed', user_id=tg_id)
+    task_not_completed = t('task_not_completed', user_id=tg_id)
     checkin_status = task_completed if checked_today else task_not_completed
     
-    claim_red_packet_task = t('claim_red_packet_task', user=user)
-    today_claimed_count = t('today_claimed_count', user=user, count=today_claimed)
-    energy_per_item = t('energy_per_item', user=user)
+    claim_red_packet_task = t('claim_red_packet_task', user_id=tg_id)
+    today_claimed_count = t('today_claimed_count', user_id=tg_id, count=today_claimed)
+    energy_per_item = t('energy_per_item', user_id=tg_id)
     
-    send_red_packet_task = t('send_red_packet_task', user=user)
-    today_sent_count = t('today_sent_count', user=user, count=today_sent)
+    send_red_packet_task = t('send_red_packet_task', user_id=tg_id)
+    today_sent_count = t('today_sent_count', user_id=tg_id, count=today_sent)
     
     # 成就任務
-    first_deposit_task = t('first_deposit_task', user=user)
+    first_deposit_task = t('first_deposit_task', user_id=tg_id)
     first_deposit_status = task_completed if has_deposit else task_not_completed
     
-    invite_master_task = t('invite_master_task', user=user)
+    invite_master_task = t('invite_master_task', user_id=tg_id)
     invite_progress = f"{total_invites}/{TaskConstants.INVITE_MASTER_TARGET} 人"
-    invite_status = task_completed if total_invites >= TaskConstants.INVITE_MASTER_TARGET else t('task_need_more', user=user, count=TaskConstants.INVITE_MASTER_TARGET-total_invites)
+    invite_status = task_completed if total_invites >= TaskConstants.INVITE_MASTER_TARGET else t('task_need_more', user_id=tg_id, count=TaskConstants.INVITE_MASTER_TARGET-total_invites)
     
-    packet_master_task = t('packet_master_task', user=user)
+    packet_master_task = t('packet_master_task', user_id=tg_id)
     packet_progress = f"{total_sent}/{TaskConstants.PACKET_MASTER_TARGET} 個"
-    packet_status = task_completed if total_sent >= TaskConstants.PACKET_MASTER_TARGET else t('task_need_more_packets', user=user, count=TaskConstants.PACKET_MASTER_TARGET-total_sent)
+    packet_status = task_completed if total_sent >= TaskConstants.PACKET_MASTER_TARGET else t('task_need_more_packets', user_id=tg_id, count=TaskConstants.PACKET_MASTER_TARGET-total_sent)
     
     # 統計
-    claimed_packets_count_label = t('claimed_packets_count_label', user=user, count=total_claimed)
-    sent_packets_count_label = t('sent_packets_count_label', user=user, count=total_sent)
-    invited_people_count_label = t('invited_people_count_label', user=user, count=total_invites)
+    claimed_packets_count_label = t('claimed_packets_count_label', user_id=tg_id, count=total_claimed)
+    sent_packets_count_label = t('sent_packets_count_label', user_id=tg_id, count=total_sent)
+    invited_people_count_label = t('invited_people_count_label', user_id=tg_id, count=total_invites)
     
-    go_checkin_button = t('go_checkin_button', user=user)
-    return_main = t('return_main', user=user)
+    go_checkin_button = t('go_checkin_button', user_id=tg_id)
+    return_main = t('return_main', user_id=tg_id)
     
     text = f"""
 {tasks_title}
