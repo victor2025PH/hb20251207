@@ -666,15 +666,9 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             send_packet_title = t('send_packet_title', user_id=tg_id)
             random_amount = t('random_amount', user_id=tg_id)
             fixed_amount = t('fixed_amount', user_id=tg_id)
-                    amount_label = t('amount_label', user=user)
-                    select_packet_count_range = t('select_packet_count_range', user=user)
-                    type_text = random_amount if packet_type == "random" else fixed_amount
-                else:
-                    # 如果无法获取 user_id，使用默认中文（应该很少发生）
-                    send_packet_title = "➕ 發紅包"
-                    type_text = "手氣最佳" if packet_type == "random" else "紅包炸彈"
-                    amount_label = "金額："
-                    select_packet_count_range = "請選擇紅包數量（1-100）："
+            amount_label = t('amount_label', user_id=tg_id)
+            select_packet_count_range = t('select_packet_count_range', user_id=tg_id)
+            type_text = random_amount if packet_type == "random" else fixed_amount
             
             # 底部鍵盤模式 - 直接發送消息
             await update.message.reply_text(
