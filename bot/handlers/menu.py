@@ -144,19 +144,41 @@ async def show_main_menu(query, tg_id: int):
 """
             
             # 在会话内完成所有操作后再发送消息
-            await query.edit_message_text(
-                text,
-                parse_mode="Markdown",
-                reply_markup=get_main_menu(user_id=tg_id),
-            )
+            # 检查消息是否需要更新，避免"Message is not modified"错误
+            try:
+                await query.edit_message_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_markup=get_main_menu(user_id=tg_id),
+                )
+            except Exception as edit_e:
+                error_msg = str(edit_e)
+                if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+                    # 消息未修改，只显示提示，不报错
+                    await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                    logger.debug(f"Message not modified in show_main_menu, user {tg_id}")
+                else:
+                    # 其他错误，尝试发送新消息
+                    logger.error(f"Error editing message in show_main_menu: {edit_e}", exc_info=True)
+                    try:
+                        if query.message:
+                            await query.message.reply_text(
+                                text,
+                                parse_mode="Markdown",
+                                reply_markup=get_main_menu(user_id=tg_id),
+                            )
+                    except Exception as reply_e:
+                        logger.error(f"Error sending new message in show_main_menu: {reply_e}", exc_info=True)
+                        raise
     except Exception as e:
         logger.error(f"Error in show_main_menu: {e}", exc_info=True)
         try:
-            await query.edit_message_text(t('error_occurred', user_id=tg_id))
+            # 尝试编辑消息显示错误（保留原有按钮）
+            await query.edit_message_text(t('error_occurred', user_id=tg_id), reply_markup=get_main_menu(user_id=tg_id))
         except:
             try:
                 if query.message:
-                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id), reply_markup=get_main_menu(user_id=tg_id))
             except:
                 pass
 

@@ -109,25 +109,31 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from bot.handlers.menu import show_main_menu
     
     try:
-        # 先显示确认消息
-        mode_set_text = t("mode_set_to", user_id=tg_id, mode=mode_name)
-        try:
-            await query.edit_message_text(
-                mode_set_text,
-                parse_mode=None
-            )
-        except Exception as edit_e:
-            logger.warning(f"Could not edit message: {edit_e}, will show main menu directly")
-        
-        # 然后显示主菜单（使用用户选择的语言）
+        # 直接显示主菜单（使用用户选择的语言），不先显示确认消息
+        # 这样可以避免多次编辑消息导致的问题
         await show_main_menu(query, tg_id)
         logger.info(f"[SET_MODE] Successfully showed main menu for user {user_id} after setting mode to {mode}")
         
     except Exception as e:
         logger.error(f"Error showing main menu: {e}", exc_info=True)
         try:
-            # 如果显示主菜单失败，至少显示确认消息
-            await query.message.reply_text(t("mode_set_to", user_id=tg_id, mode=mode_name))
+            # 如果显示主菜单失败，尝试显示确认消息和主菜单按钮
+            from bot.keyboards import get_main_menu
+            mode_set_text = t("mode_set_to", user_id=tg_id, mode=mode_name)
+            try:
+                await query.edit_message_text(
+                    mode_set_text,
+                    parse_mode=None,
+                    reply_markup=get_main_menu(user_id=tg_id)
+                )
+            except Exception as edit_e:
+                # 如果编辑失败，发送新消息
+                if query.message:
+                    await query.message.reply_text(
+                        mode_set_text,
+                        parse_mode=None,
+                        reply_markup=get_main_menu(user_id=tg_id)
+                    )
         except Exception as e2:
             logger.error(f"Error sending fallback message: {e2}", exc_info=True)
 
