@@ -866,8 +866,8 @@ async def show_packets_list(query, tg_id: int):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer(t('displayed', user=user), show_alert=False)
-                logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
+                await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                logger.debug(f"Message not modified in show_packets_list, user {tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
                 raise
@@ -1154,7 +1154,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     context.user_data['waiting_for_group'] = True
                     # 标记用户使用的是内联按钮流程
                     context.user_data['use_inline_buttons'] = True
-                    logger.info(f"Setting waiting_for_group=True for user {db_user.tg_id}, step=group_input, use_inline_buttons=True")
+                    logger.info(f"Setting waiting_for_group=True for user {tg_id}, step=group_input, use_inline_buttons=True")
                     await show_group_link_input(query, tg_id, context)
                 elif sub_action == "confirm":
                     # 解析callback_data参数
@@ -1185,7 +1185,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     
                     # 直接使用外层已获取的 db_user（已在会话内）
                     # 注意：db_user 已经在外层 with get_db() 块中查询获得
-                    await confirm_and_send_packet(query, db_user, context)
+                    await confirm_and_send_packet(query, tg_id, context)
                 elif sub_action == "amount_custom":
                     # 處理自定義金額輸入
                     currency = parts[3] if len(parts) > 3 else "usdt"
@@ -1200,9 +1200,9 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     with get_db() as db:
                         db_user = db.query(User).filter(User.tg_id == user_id).first()
                         if db_user:
-                            # 在会话内获取所有需要的翻译文本
-                            enter_amount_text = t("enter_amount", user=db_user)
-                            cancel_text = t("cancel", user=db_user)
+                            # 使用 user_id 獲取翻譯文本
+                            enter_amount_text = t("enter_amount", user_id=tg_id)
+                            cancel_text = t("cancel", user_id=tg_id)
                             
                             # 在会话外发送消息
                             try:
@@ -1222,16 +1222,8 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         logger.error(f"[SEND_PACKET] Error processing callback: {e}", exc_info=True)
         try:
-            # 在会话内获取错误消息文本（t 已在函数开头导入）
-            error_text = t('error_occurred', user=db_user)
-            if user_id:
-                try:
-                    with get_db() as db:
-                        error_user = db.query(User).filter(User.tg_id == user_id).first()
-                        if error_user:
-                            error_text = t("error", user=error_user)
-                except:
-                    pass
+            # 使用 user_id 獲取錯誤消息文本
+            error_text = t('error_occurred', user_id=tg_id)
             
             await query.message.reply_text(error_text)
         except Exception as e2:
@@ -1251,24 +1243,21 @@ async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = Tr
         use_inline_buttons: 是否使用內聯按鈕模式（True=內聯按鈕，False=底部鍵盤）
     """
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
-    # 注意：User 已在文件頂部導入，不再重複導入
     from bot.utils.i18n import t
     
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
-            # 如果查询失败，使用传入的db_user（可能已脱离会话，但至少可以显示错误）
             try:
-                error_text = t("error", user=db_user)
+                error_text = t("error", user_id=tg_id)
                 await query.edit_message_text(error_text)
             except:
-                # 如果edit失败，尝试reply_text
                 if hasattr(query, 'message') and query.message:
                     try:
-                        error_text = t("error", user=db_user)
+                        error_text = t("error", user_id=tg_id)
                         await query.message.reply_text(error_text)
                     except:
-                        await query.message.reply_text(t('error_occurred', user=db_user))
+                        await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
         # 在会话内访问所有需要的属性
@@ -1276,12 +1265,12 @@ async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = Tr
         ton_balance = float(user.balance_ton or 0)
         points_balance = user.balance_points or 0
         
-        # 在会话内获取翻译文本（t函数可能会访问user属性）
-        send_packet_title = t('send_packet_title', user=user)
-        current_balance = t('current_balance', user=user)
-        select_currency = t('select_currency', user=user)
-        return_main = t("return_main", user=user)
-        energy_text = t("energy", user=user)
+        # 使用 user_id 獲取翻譯文本
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        current_balance = t('current_balance', user_id=tg_id)
+        select_currency = t('select_currency', user_id=tg_id)
+        return_main = t("return_main", user_id=tg_id)
+        energy_text = t("energy", user_id=tg_id)
         
         text = f"""
 *{send_packet_title}*
@@ -1320,8 +1309,8 @@ async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = Tr
             except Exception as e:
                 error_msg = str(e)
                 if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                    await query.answer(t('displayed', user=user), show_alert=False)
-                    logger.debug(f"Message not modified in show_send_packet_menu, user {db_user.tg_id}")
+                    await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                    logger.debug(f"Message not modified in show_send_packet_menu, user {tg_id}")
                 else:
                     logger.error(f"Error editing message in show_send_packet_menu: {e}", exc_info=True)
                     # 如果编辑失败，尝试发送新消息
@@ -1356,7 +1345,7 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
         currency: 幣種
         context: 上下文（用於檢查 use_inline_buttons 標誌）
     """
-    logger.info(f"[SHOW_TYPE] Showing packet type selection for currency={currency}, user={db_user.tg_id}")
+    logger.info(f"[SHOW_TYPE] Showing packet type selection for currency={currency}, user={tg_id}")
     
     # 檢查是否使用內聯按鈕
     use_inline = True
@@ -1365,41 +1354,40 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
     
     try:
         # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
-        # 注意：User 已在文件頂部導入，不再重複導入
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if not user:
-                logger.error(f"[SHOW_TYPE] User {db_user.tg_id} not found in database")
+                logger.error(f"[SHOW_TYPE] User {tg_id} not found in database")
                 try:
-                    await query.edit_message_text(t("error", user=db_user))
+                    await query.edit_message_text(t("error", user_id=tg_id))
                 except:
                     if hasattr(query, 'message') and query.message:
-                        await query.message.reply_text(t('error_occurred', user=db_user))
+                        await query.message.reply_text(t('error_occurred', user_id=tg_id))
                 return
             
             # 在会话内访问所有需要的属性
             balance = float(getattr(user, f"balance_{currency}", 0) or 0)
-            logger.info(f"[SHOW_TYPE] User {db_user.tg_id} balance for {currency}: {balance}")
+            logger.info(f"[SHOW_TYPE] User {tg_id} balance for {currency}: {balance}")
             
             currency_upper = currency.upper()
             
-            # 在会话内获取所有翻译文本
-            send_packet_title = t('send_packet_title', user=user)
-            current_balance = t('current_balance', user=user)
-            select_type = t('select_type', user=user)
-            random_amount = t('random_amount', user=user)
-            fixed_amount = t('fixed_amount', user=user)
-            return_main = t("return_main", user=user)
+            # 使用 user_id 獲取翻譯文本
+            send_packet_title = t('send_packet_title', user_id=tg_id)
+            current_balance = t('current_balance', user_id=tg_id)
+            select_type = t('select_type', user_id=tg_id)
+            random_amount = t('random_amount', user_id=tg_id)
+            fixed_amount = t('fixed_amount', user_id=tg_id)
+            return_main = t("return_main", user_id=tg_id)
             
             # 檢查餘額，如果為 0 則提醒，但仍然允許繼續（用戶可能想先設置好紅包參數）
             balance_warning = ""
             if balance <= 0:
                 currency_name = "USDT" if currency == "usdt" else "TON" if currency == "ton" else "能量"
-                balance_warning = t("balance_warning", user=user, currency=currency_name, balance=balance)
+                balance_warning = t("balance_warning", user_id=tg_id, currency=currency_name, balance=balance)
             
             # 获取类型描述
-            random_amount_desc = t('random_amount_desc', user=user)
-            fixed_amount_desc = t('fixed_amount_desc', user=user)
+            random_amount_desc = t('random_amount_desc', user_id=tg_id)
+            fixed_amount_desc = t('fixed_amount_desc', user_id=tg_id)
             
             text = f"""
 *{send_packet_title} - {currency_upper}*
@@ -1428,19 +1416,19 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
                 ]
                 
                 # 在会话内完成所有操作后再发送消息
-                logger.info(f"[SHOW_TYPE] Editing message for user {db_user.tg_id}")
+                logger.info(f"[SHOW_TYPE] Editing message for user {tg_id}")
                 try:
                     await query.edit_message_text(
                         text,
                         parse_mode="Markdown",
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )
-                    logger.info(f"[SHOW_TYPE] Successfully showed packet type selection for user {db_user.tg_id}")
+                    logger.info(f"[SHOW_TYPE] Successfully showed packet type selection for user {tg_id}")
                 except Exception as e:
                     error_msg = str(e)
                     if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                        await query.answer(t('displayed', user=user), show_alert=False)
-                        logger.debug(f"Message not modified in show_packet_type_selection, user {db_user.tg_id}")
+                        await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                        logger.debug(f"Message not modified in show_packet_type_selection, user {tg_id}")
                     else:
                         raise
             else:
@@ -1457,7 +1445,7 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
     except Exception as e:
         logger.error(f"[SHOW_TYPE] Error showing packet type selection: {e}", exc_info=True)
         try:
-            await query.message.reply_text(t("error", user=db_user))
+            await query.message.reply_text(t("error", user_id=tg_id))
         except:
             pass
 
@@ -1465,15 +1453,15 @@ async def show_packet_type_selection(query, tg_id: int, currency: str, context=N
 async def show_amount_input(query, tg_id: int, currency: str, packet_type: str):
     """顯示金額輸入"""
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
-    # 注意：User 已在文件頂部導入，不再重複導入
+    from bot.utils.i18n import t
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
         # 在会话内访问所有需要的属性
@@ -1481,13 +1469,13 @@ async def show_amount_input(query, tg_id: int, currency: str, packet_type: str):
         
         currency_upper = currency.upper()
         
-        # 在会话内获取所有翻译文本
-        send_packet_title = t('send_packet_title', user=user)
-        current_balance = t('current_balance', user=user)
-        select_amount = t('select_amount', user=user)
-        custom_amount = t("custom_amount", user=user)
-        return_main = t("return_main", user=user)
-        type_text = t("random_amount", user=user) if packet_type == "random" else t("fixed_amount", user=user)
+        # 使用 user_id 獲取翻譯文本
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        current_balance = t('current_balance', user_id=tg_id)
+        select_amount = t('select_amount', user_id=tg_id)
+        custom_amount = t("custom_amount", user_id=tg_id)
+        return_main = t("return_main", user_id=tg_id)
+        type_text = t("random_amount", user_id=tg_id) if packet_type == "random" else t("fixed_amount", user_id=tg_id)
         
         text = f"""
 *{send_packet_title} - {currency_upper} - {type_text}*
@@ -1535,8 +1523,8 @@ async def show_amount_input(query, tg_id: int, currency: str, packet_type: str):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer(t('displayed', user=user), show_alert=False)
-                logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
+                await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                logger.debug(f"Message not modified in show_packets_list, user {tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
                 raise
@@ -1553,40 +1541,35 @@ async def show_count_input(query, tg_id: int, context):
     
     # 在会话内重新查询用户以确保数据最新
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
-        
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
         
         if not amount:
-            await query.answer(t("please_enter_amount_first", user=user), show_alert=True)
+            await query.answer(t("please_enter_amount_first", user_id=tg_id), show_alert=True)
             return
         
-        # 在会话内获取翻译文本（所有文本都在会话内获取，避免会话分离错误）
+        # 使用 user_id 獲取翻譯文本
         currency_upper = currency.upper()
-        send_packet_title = t('send_packet_title', user=user)
-        random_amount_text = t('random_amount', user=user)
-        fixed_amount_text = t('fixed_amount', user=user)
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        random_amount_text = t('random_amount', user_id=tg_id)
+        fixed_amount_text = t('fixed_amount', user_id=tg_id)
         type_text = random_amount_text if packet_type == "random" else fixed_amount_text
-        amount_label = t('amount_label', user=user)
-        select_packet_count = t('select_packet_count', user=user)
-        select_packet_count_range = t('select_packet_count_range', user=user)
-        bomb_count_restriction = t('bomb_count_restriction', user=user)
-        double_thunder = t('double_thunder', user=user)
-        single_thunder = t('single_thunder', user=user)
-        custom_count = t('custom_count', user=user)
-        return_text = t('return_main', user=user)
-        shares_text = t('shares', user=user)
-        selected_text = t('selected', user=user) if t('selected', user=user) != "selected" else "已選擇"
+        amount_label = t('amount_label', user_id=tg_id)
+        select_packet_count = t('select_packet_count', user_id=tg_id)
+        select_packet_count_range = t('select_packet_count_range', user_id=tg_id)
+        bomb_count_restriction = t('bomb_count_restriction', user_id=tg_id)
+        double_thunder = t('double_thunder', user_id=tg_id)
+        single_thunder = t('single_thunder', user_id=tg_id)
+        custom_count = t('custom_count', user_id=tg_id)
+        return_text = t('return_main', user_id=tg_id)
+        shares_text = t('shares', user_id=tg_id)
+        selected_text = t('selected', user_id=tg_id)
         
         # 紅包炸彈只能選擇 5 或 10
         if packet_type == "equal":
@@ -1661,7 +1644,7 @@ async def show_count_input(query, tg_id: int, context):
                     logger.error(f"Error editing message without Markdown: {e2}", exc_info=True)
                     # 如果还是失败，发送错误消息
                     try:
-                        await query.message.reply_text(t('error_occurred', user=db_user))
+                        await query.message.reply_text(t('error_occurred', user_id=tg_id))
                     except:
                         pass
             else:
@@ -1682,38 +1665,33 @@ async def show_bomb_number_selection(query, tg_id: int, context):
     
     if packet_type != "equal":
         # 如果不是紅包炸彈，跳過這一步
-        await show_message_input(query, db_user, context)
+        await show_message_input(query, tg_id, context)
         return
     
     # 在会话内重新查询用户以确保数据最新
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
-        
-        # 在会话内获取翻译文本
+        # 使用 user_id 獲取翻譯文本
         currency_upper = currency.upper()
-        send_packet_title = t('send_packet_title', user=user)
-        fixed_amount_text = t('fixed_amount', user=user)
-        amount_label = t('amount_label', user=user)
-        quantity_label = t('quantity_label', user=user)
-        single_thunder = t('single_thunder', user=user)
-        double_thunder = t('double_thunder', user=user)
-        shares_text = t('shares', user=user)
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        fixed_amount_text = t('fixed_amount', user_id=tg_id)
+        amount_label = t('amount_label', user_id=tg_id)
+        quantity_label = t('quantity_label', user_id=tg_id)
+        single_thunder = t('single_thunder', user_id=tg_id)
+        double_thunder = t('double_thunder', user_id=tg_id)
+        shares_text = t('shares', user_id=tg_id)
         thunder_type = single_thunder if count == 10 else double_thunder
-        select_bomb_number = t('select_bomb_number', user=user)
-        bomb_number_hint = t('bomb_number_hint', user=user)
-        return_text = t('return_main', user=user)
+        select_bomb_number = t('select_bomb_number', user_id=tg_id)
+        bomb_number_hint = t('bomb_number_hint', user_id=tg_id)
+        return_text = t('return_main', user_id=tg_id)
         
         text = f"""
 *{send_packet_title} - {currency_upper} - {fixed_amount_text}*
@@ -1750,7 +1728,7 @@ async def show_bomb_number_selection(query, tg_id: int, context):
         error_msg = str(e)
         if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
             await query.answer("已顯示", show_alert=False)
-            logger.debug(f"Message not modified for bomb number selection, user {db_user.tg_id}")
+            logger.debug(f"Message not modified for bomb number selection, user {tg_id}")
         else:
             logger.error(f"Error editing message in show_bomb_number_selection: {e}", exc_info=True)
             raise
@@ -1769,36 +1747,30 @@ async def show_message_input(query, tg_id: int, context):
     
     # 在会话内重新查询用户以确保数据最新
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
-        _ = user.interaction_mode
-        
-        # 在会话内获取翻译文本
+        # 使用 user_id 獲取翻譯文本
         currency_upper = currency.upper()
-        send_packet_title = t('send_packet_title', user=user)
-        random_amount_text = t('random_amount', user=user)
-        fixed_amount_text = t('fixed_amount', user=user)
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        random_amount_text = t('random_amount', user_id=tg_id)
+        fixed_amount_text = t('fixed_amount', user_id=tg_id)
         type_text = random_amount_text if packet_type == "random" else fixed_amount_text
-        amount_label = t('amount_label', user=user)
-        quantity_label = t('quantity_label', user=user)
-        bomb_number_label = t('bomb_number_label', user=user)
-        shares_text = t('shares', user=user)
-        enter_blessing_optional = t('enter_blessing_optional', user=user)
-        blessing_hint = t('blessing_hint', user=user)
-        use_default_blessing = t('use_default_blessing', user=user)
-        enter_blessing = t('enter_blessing', user=user)
-        return_text = t('return_main', user=user)
+        amount_label = t('amount_label', user_id=tg_id)
+        quantity_label = t('quantity_label', user_id=tg_id)
+        bomb_number_label = t('bomb_number_label', user_id=tg_id)
+        shares_text = t('shares', user_id=tg_id)
+        enter_blessing_optional = t('enter_blessing_optional', user_id=tg_id)
+        blessing_hint = t('blessing_hint', user_id=tg_id)
+        use_default_blessing = t('use_default_blessing', user_id=tg_id)
+        enter_blessing = t('enter_blessing', user_id=tg_id)
+        return_text = t('return_main', user_id=tg_id)
         
         text = f"""
 *{send_packet_title} - {currency_upper} - {type_text}*
@@ -1834,7 +1806,7 @@ async def show_message_input(query, tg_id: int, context):
         error_msg = str(e)
         if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
             await query.answer("已顯示", show_alert=False)
-            logger.debug(f"Message not modified for message input, user {db_user.tg_id}")
+            logger.debug(f"Message not modified for message input, user {tg_id}")
         else:
             logger.error(f"Error editing message in show_message_input: {e}", exc_info=True)
             raise
@@ -1844,20 +1816,20 @@ async def show_message_input(query, tg_id: int, context):
         context.user_data['waiting_for_message'] = True
 
 
-async def show_group_search(query, db_user, context):
-    """顯示群組搜索結果（用於回覆鍵盤流程）"""
+async def show_group_search(query, tg_id: int, context):
+    """顯示群組搜索結果（用於回覆鍵盤流程）（只接受 tg_id，不接受 ORM 對象）"""
+    from bot.utils.i18n import t
     packet_data = context.user_data.get('send_packet', {})
     
     # 在會話內獲取用戶發過紅包的群組，並在會話內完成所有操作
-    # 注意：User 已在文件頂部導入，不再重複導入
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
                 await query.edit_message_text("發生錯誤，請稍後再試")
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
         # 在会话内查询红包
@@ -1909,41 +1881,35 @@ async def show_group_selection(query, tg_id: int, context):
     packet_data = context.user_data.get('send_packet', {})
     
     # 在會話內獲取用戶發過紅包的群組，並在會話內完成所有操作
-    # 注意：User 已在文件頂部導入，不再重複導入
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t("error", user=db_user))
+                    await query.message.reply_text(t("error", user_id=tg_id))
             return
         
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
-        
-        # 在会话内获取翻译文本
-        send_packet_title = t('send_packet_title', user=user)
-        select_group_or_user_text = t('select_group_or_user', user=user)
-        packet_info_text = t('packet_info', user=user)
-        currency_label = t('currency_label', user=user)
-        type_label = t('type_label', user=user)
-        amount_label = t('amount_label', user=user)
-        quantity_label = t('quantity_label', user=user)
-        blessing_label = t('blessing_label', user=user)
-        random_amount_text = t('random_amount', user=user)
-        fixed_amount_text = t('fixed_amount', user=user)
-        shares_text = t('shares', user=user)
-        method_one = t('method_one', user=user)
-        method_two = t('method_two', user=user)
-        use_command_in_group = t('use_command_in_group', user=user)
-        use_command_in_target_group = t('use_command_in_target_group', user=user)
-        select_sent_packet_groups = t('select_sent_packet_groups', user=user)
-        enter_group_link_id = t('enter_group_link_id', user=user)
-        return_text = t('return_main', user=user)
+        # 使用 user_id 獲取翻譯文本
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        select_group_or_user_text = t('select_group_or_user', user_id=tg_id)
+        packet_info_text = t('packet_info', user_id=tg_id)
+        currency_label = t('currency_label', user_id=tg_id)
+        type_label = t('type_label', user_id=tg_id)
+        amount_label = t('amount_label', user_id=tg_id)
+        quantity_label = t('quantity_label', user_id=tg_id)
+        blessing_label = t('blessing_label', user_id=tg_id)
+        random_amount_text = t('random_amount', user_id=tg_id)
+        fixed_amount_text = t('fixed_amount', user_id=tg_id)
+        shares_text = t('shares', user_id=tg_id)
+        method_one = t('method_one', user_id=tg_id)
+        method_two = t('method_two', user_id=tg_id)
+        use_command_in_group = t('use_command_in_group', user_id=tg_id)
+        use_command_in_target_group = t('use_command_in_target_group', user_id=tg_id)
+        select_sent_packet_groups = t('select_sent_packet_groups', user_id=tg_id)
+        enter_group_link_id = t('enter_group_link_id', user_id=tg_id)
+        return_text = t('return_main', user_id=tg_id)
         
         type_text = random_amount_text if packet_data.get('packet_type') == "random" else fixed_amount_text
         
@@ -2075,8 +2041,8 @@ async def show_group_selection(query, tg_id: int, context):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer(t('displayed', user=user), show_alert=False)
-                logger.debug(f"Message not modified in show_group_selection, user {db_user.tg_id}")
+                await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                logger.debug(f"Message not modified in show_group_selection, user {tg_id}")
             elif "Button_data_invalid" in error_msg or ("button" in error_msg.lower() and "invalid" in error_msg.lower()):
                 # callback_data可能有问题，尝试使用简化的键盘
                 logger.error(f"Button_data_invalid error in show_group_selection: {e}", exc_info=True)
@@ -2107,7 +2073,7 @@ async def show_group_selection(query, tg_id: int, context):
                     InlineKeyboardButton("📝 輸入群組", callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}"),
                 ])
                 simplified_keyboard.append([
-                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                 ])
                 try:
                     await query.edit_message_text(
@@ -2131,32 +2097,27 @@ async def show_group_link_input(query, tg_id: int, context):
     
     # 在会话内重新查询用户以确保数据最新
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t("error", user=db_user))
+                    await query.message.reply_text(t("error", user_id=tg_id))
             return
         
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
-        
-        # 在会话内获取翻译文本
-        send_packet_title = t('send_packet_title', user=user)
-        enter_group_id_or_username = t('enter_group_id_or_username', user=user)
-        method_one = t('method_one', user=user)
-        method_two = t('method_two', user=user)
-        enter_group_id_numeric = t('enter_group_id_numeric', user=user)
-        enter_group_username = t('enter_group_username', user=user)
-        group_id_example = t('group_id_example', user=user)
-        group_username_example = t('group_username_example', user=user)
-        group_hint_auto_complete = t('group_hint_auto_complete', user=user)
-        group_hint_use_command = t('group_hint_use_command', user=user)
-        return_text = t('return_main', user=user)
+        # 使用 user_id 獲取翻譯文本
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        enter_group_id_or_username = t('enter_group_id_or_username', user_id=tg_id)
+        method_one = t('method_one', user_id=tg_id)
+        method_two = t('method_two', user_id=tg_id)
+        enter_group_id_numeric = t('enter_group_id_numeric', user_id=tg_id)
+        enter_group_username = t('enter_group_username', user_id=tg_id)
+        group_id_example = t('group_id_example', user_id=tg_id)
+        group_username_example = t('group_username_example', user_id=tg_id)
+        group_hint_auto_complete = t('group_hint_auto_complete', user_id=tg_id)
+        group_hint_use_command = t('group_hint_use_command', user_id=tg_id)
+        return_text = t('return_main', user_id=tg_id)
         
         text = f"""
 *{send_packet_title} - {enter_group_id_or_username}*
@@ -2190,7 +2151,7 @@ async def show_group_link_input(query, tg_id: int, context):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer(t("displayed", user=user) if t("displayed", user=user) != "displayed" else "已顯示輸入提示", show_alert=False)
+                await query.answer(t("displayed", user_id=tg_id), show_alert=False)
             else:
                 raise
     
@@ -2198,9 +2159,9 @@ async def show_group_link_input(query, tg_id: int, context):
     context.user_data['waiting_for_group'] = True
 
 
-async def confirm_and_send_packet(query, db_user, context):
-    """確認並發送紅包"""
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
+async def confirm_and_send_packet(query, tg_id: int, context):
+    """確認並發送紅包（只接受 tg_id，不接受 ORM 對象）"""
+    from bot.utils.i18n import t
     packet_data = context.user_data.get('send_packet', {})
     
     currency = packet_data.get('currency', 'usdt')
@@ -2213,7 +2174,7 @@ async def confirm_and_send_packet(query, db_user, context):
     
     # 在会话内查询用户以确保数据最新
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             await query.answer("發生錯誤，請稍後再試", show_alert=True)
             return
@@ -2236,15 +2197,11 @@ async def confirm_and_send_packet(query, db_user, context):
             await query.answer(error_msg, show_alert=True)
             return
         
-        # 在会话内获取翻译文本
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code
-        
         # 檢查餘額（在會話內）
         if balance < amount:
-            insufficient_balance_text = t('insufficient_balance', user=user)
-            await query.answer(f"{insufficient_balance_text}, {t('current_balance', user=user)} {currency.upper()}: {float(balance):.4f}", show_alert=True)
+            insufficient_balance_text = t('insufficient_balance', user_id=tg_id)
+            current_balance_text = t('current_balance', user_id=tg_id)
+            await query.answer(f"{insufficient_balance_text}, {current_balance_text} {currency.upper()}: {float(balance):.4f}", show_alert=True)
             return
     
     # 如果沒有選擇群組，提示用戶輸入群組ID
@@ -2264,9 +2221,8 @@ async def confirm_and_send_packet(query, db_user, context):
 """
         
         # 獲取用戶發過紅包的群組
-        # 注意：User 已在文件頂部導入，不再重複導入
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if user:
                 packets = db.query(RedPacket).filter(
                     RedPacket.sender_id == user.id
@@ -2293,7 +2249,7 @@ async def confirm_and_send_packet(query, db_user, context):
                 ])
                 
                 keyboard.append([
-                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                 ])
             else:
                 keyboard = [
@@ -2304,7 +2260,7 @@ async def confirm_and_send_packet(query, db_user, context):
                         ),
                     ],
                     [
-                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                        InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                     ],
                 ]
         
@@ -2325,7 +2281,7 @@ async def confirm_and_send_packet(query, db_user, context):
         from telegram import Bot
         from telegram.error import TelegramError
         bot = Bot(token=settings.BOT_TOKEN)
-        sender_tg_id = db_user.tg_id
+        sender_tg_id = tg_id
         
         # 检查机器人是否在群组中
         try:
@@ -2424,10 +2380,10 @@ async def confirm_and_send_packet(query, db_user, context):
             error_msg = str(e).lower()
             if "user not found" in error_msg or "forbidden" in error_msg:
                 await query.edit_message_text(
-                    t('sender_not_in_group_solution', user=db_user, chat_id=chat_id),
+                    t('sender_not_in_group_solution', user_id=tg_id, chat_id=chat_id),
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
+                        InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets")
                     ]])
                 )
                 return
@@ -2437,10 +2393,10 @@ async def confirm_and_send_packet(query, db_user, context):
     except Exception as e:
         logger.error(f"Error checking group membership: {e}", exc_info=True)
         await query.edit_message_text(
-            t('check_group_permission_failed', user=db_user, error=str(e)[:100]),
+            t('check_group_permission_failed', user_id=tg_id, error=str(e)[:100]),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
+                InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets")
             ]])
         )
         return
@@ -2448,10 +2404,10 @@ async def confirm_and_send_packet(query, db_user, context):
     # 最終檢查
     if not bot_in_group:
         await query.edit_message_text(
-            t('bot_not_in_group_add_first', user=db_user, chat_id=chat_id),
+            t('bot_not_in_group_add_first', user_id=tg_id, chat_id=chat_id),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets")
+                InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets")
             ]])
         )
         return
@@ -2464,7 +2420,7 @@ async def confirm_and_send_packet(query, db_user, context):
         
         # 顯示加載狀態
         from bot.utils.i18n import t
-        await show_loading(query, t('sending_red_packet', user=db_user))
+        await show_loading(query, t('sending_red_packet', user_id=tg_id))
         
         # 清理消息
         message = sanitize_message(message)
@@ -2474,8 +2430,8 @@ async def confirm_and_send_packet(query, db_user, context):
         
         api_client = get_api_client()
         
-        # 在会话外使用db_user.tg_id（基本属性，不会触发会话问题）
-        sender_tg_id = db_user.tg_id
+        # 使用 tg_id 參數
+        sender_tg_id = tg_id
         
         # 获取chat_title（如果是群组，尝试获取群组名称）
         chat_title = None
@@ -2570,24 +2526,14 @@ async def confirm_and_send_packet(query, db_user, context):
                 # 使用輔助函數格式化信息
                 packet_info = format_packet_info(currency, packet_type, amount, count, bomb_number, message)
                 from bot.utils.i18n import t
-                with get_db() as db:
-                    sender_user = db.query(User).filter(User.tg_id == sender_tg_id).first()
-                    if sender_user:
-                        red_packet_created = t('red_packet_created_success', user=sender_user)
-                        bot_not_in_group = t('bot_not_in_group_cannot_send', user=sender_user)
-                        share_link_label = t('share_link_label', user=sender_user)
-                        how_to_share = t('how_to_share', user=sender_user)
-                        share_step1 = t('share_step1', user=sender_user)
-                        share_step2 = t('share_step2', user=sender_user)
-                        share_step3 = t('share_step3', user=sender_user)
-                    else:
-                        red_packet_created = "✅ *紅包創建成功！*"
-                        bot_not_in_group = "⚠️ *機器人不在群組中，無法自動發送紅包消息*"
-                        share_link_label = "*分享鏈接：*"
-                        how_to_share = "💡 *如何分享：*"
-                        share_step1 = "1. 複製上面的鏈接"
-                        share_step2 = "2. 在群組中發送鏈接"
-                        share_step3 = "3. 點擊鏈接即可直接打開 MiniApp 搶紅包"
+                # 使用 user_id 獲取翻譯文本
+                red_packet_created = t('red_packet_created_success', user_id=tg_id)
+                bot_not_in_group = t('bot_not_in_group_cannot_send', user_id=tg_id)
+                share_link_label = t('share_link_label', user_id=tg_id)
+                how_to_share = t('how_to_share', user_id=tg_id)
+                share_step1 = t('share_step1', user_id=tg_id)
+                share_step2 = t('share_step2', user_id=tg_id)
+                share_step3 = t('share_step3', user_id=tg_id)
                 
                 text = f"""
 {red_packet_created}
@@ -2614,18 +2560,11 @@ async def confirm_and_send_packet(query, db_user, context):
         packet_info = format_packet_info(currency, packet_type, amount, count, bomb_number, message)
         
         from bot.utils.i18n import t
-        with get_db() as db:
-            sender_user = db.query(User).filter(User.tg_id == sender_tg_id).first()
-            if sender_user:
-                red_packet_sent = t('red_packet_sent_success', user=sender_user)
-                packet_info_label = t('packet_info', user=sender_user)
-                uuid_label = t('uuid_label', user=sender_user)
-                red_packet_sent_to_group = t('red_packet_sent_to_group', user=sender_user)
-            else:
-                red_packet_sent = "✅ *紅包發送成功！*"
-                packet_info_label = "紅包信息："
-                uuid_label = "UUID:"
-                red_packet_sent_to_group = "紅包已發送到群組！"
+        # 使用 user_id 獲取翻譯文本
+        red_packet_sent = t('red_packet_sent_success', user_id=tg_id)
+        packet_info_label = t('packet_info', user_id=tg_id)
+        uuid_label = t('uuid_label', user_id=tg_id)
+        red_packet_sent_to_group = t('red_packet_sent_to_group', user_id=tg_id)
         
         text = f"""
 {red_packet_sent}
@@ -2644,7 +2583,7 @@ async def confirm_and_send_packet(query, db_user, context):
             # 使用内联按钮
             keyboard = [
                 [
-                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                 ],
             ]
             await query.edit_message_text(
@@ -2659,13 +2598,13 @@ async def confirm_and_send_packet(query, db_user, context):
                 await query.message.reply_text(
                     text,
                     parse_mode="Markdown",
-                    reply_markup=get_packets_reply_keyboard(user=db_user),
+                    reply_markup=get_packets_reply_keyboard(user_id=tg_id),
                 )
             else:
                 # 如果无法发送新消息，尝试编辑
                 keyboard = [
                     [
-                        InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                        InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                     ],
                 ]
                 await query.edit_message_text(
@@ -2700,7 +2639,7 @@ async def confirm_and_send_packet(query, db_user, context):
         
         # 記錄失敗操作
         log_packet_action(
-            user_id=db_user.tg_id,
+            user_id=tg_id,
             action="create",
             amount=float(amount),
             currency=currency,
@@ -2737,13 +2676,13 @@ async def confirm_and_send_packet(query, db_user, context):
             await query.message.reply_text(
                 text,
                 parse_mode="Markdown",
-                reply_markup=get_packets_reply_keyboard(user=db_user),
+                reply_markup=get_packets_reply_keyboard(user_id=tg_id),
             )
         else:
             # 如果无法发送新消息，尝试编辑
             keyboard = [
                 [
-                    InlineKeyboardButton(t('return_main', user=db_user), callback_data="menu:packets"),
+                    InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
                 ],
             ]
             await query.edit_message_text(
@@ -2819,8 +2758,8 @@ async def show_my_packets(query, tg_id: int):
         except Exception as e:
             error_msg = str(e)
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
-                await query.answer(t('displayed', user=user), show_alert=False)
-                logger.debug(f"Message not modified in show_amount_input, user {db_user.tg_id}")
+                await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                logger.debug(f"Message not modified in show_packets_list, user {tg_id}")
             else:
                 logger.error(f"Error editing message in show_amount_input: {e}", exc_info=True)
                 raise
