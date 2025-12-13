@@ -193,12 +193,22 @@ def main():
             try:
                 if update.message:
                     from bot.keyboards.reply_keyboards import get_main_reply_keyboard
+                    from bot.utils.i18n import t
+                    # 获取 user_id 用于翻译
+                    user_id = update.effective_user.id if update.effective_user else None
+                    error_text = t('error_occurred', user_id=user_id)
                     await update.message.reply_text(
-                        "處理消息時發生錯誤，請稍後再試或使用 /start 重新開始",
-                        reply_markup=get_main_reply_keyboard()
+                        error_text,
+                        reply_markup=get_main_reply_keyboard(user_id=user_id)
                     )
-            except:
-                pass
+            except Exception as e2:
+                logger.error(f"[DEBUG] Error sending error message: {e2}", exc_info=True)
+                # 如果发送错误消息也失败，至少尝试发送一个简单的文本消息
+                try:
+                    if update.message:
+                        await update.message.reply_text("發生錯誤，請稍後再試或使用 /start 重新開始")
+                except:
+                    pass
     
     # 註冊 MessageHandler - 必須在 CommandHandler 之後
     # 注意：python-telegram-bot 的處理器按 group 和註冊順序執行
