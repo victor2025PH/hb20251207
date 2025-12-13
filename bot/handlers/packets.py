@@ -39,12 +39,19 @@ async def packets_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1] if len(parts) > 1 else ""
     
-    # 獲取用戶 ID（不返回 ORM 對象）
-    from bot.utils.user_helpers import get_user_id_from_update
-    user_id = update.effective_user.id if update.effective_user else None
-    tg_id = await get_user_id_from_update(update, context)
+    # 获取 Telegram ID（用于查询和翻译）
+    tg_id = update.effective_user.id if update.effective_user else None
     if not tg_id:
-        await query.message.reply_text("請先使用 /start 註冊")
+        from bot.utils.i18n import t
+        await query.message.reply_text(t("please_register_first", user_id=None))
+        return
+    
+    # 验证用户是否存在（但不使用返回的数据库ID）
+    from bot.utils.user_helpers import get_user_id_from_update
+    db_user_id = await get_user_id_from_update(update, context)
+    if not db_user_id:
+        from bot.utils.i18n import t
+        await query.message.reply_text(t("please_register_first", user_id=tg_id))
         return
     
     if action == "list":
@@ -1334,6 +1341,22 @@ async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = Tr
                         )
                     except Exception as e2:
                         logger.error(f"Error sending new message in show_send_packet_menu: {e2}", exc_info=True)
+                        # 使用统一的错误处理，确保按钮不消失
+                        from bot.utils.error_helpers import handle_error_with_ui
+                        from telegram import Update
+                        class MockUpdate:
+                            def __init__(self, callback_query):
+                                self.callback_query = callback_query
+                                self.effective_user = callback_query.from_user if callback_query else None
+                        mock_update = MockUpdate(query)
+                        await handle_error_with_ui(
+                            update=mock_update,
+                            context=None,
+                            error=e2,
+                            error_context="[SHOW_SEND_PACKET_MENU] 发送新消息时",
+                            user_id=tg_id,
+                            show_main_menu_button=True
+                        )
                         raise
         else:
             # 底部鍵盤模式 - 只顯示消息，不帶內聯按鈕
