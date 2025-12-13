@@ -442,11 +442,26 @@ async def handle_group_input(update, tg_id: int, text, context):
                 ]
                 # 移除底部键盘，避免干扰
                 from telegram import ReplyKeyboardRemove
-                await update.message.reply_text(
-                    text,
-                    parse_mode="Markdown",
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                )
+                try:
+                    await update.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                    )
+                except Exception as markdown_error:
+                    error_msg = str(markdown_error)
+                    if "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
+                        # Markdown 解析错误，尝试不使用 Markdown
+                        logger.warning(f"Markdown parse error in handle_group_input: {markdown_error}")
+                        text_plain = text.replace('*', '').replace('`', '').replace('_', '')
+                        await update.message.reply_text(
+                            text_plain,
+                            parse_mode=None,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                        )
+                    else:
+                        # 其他错误，重新抛出
+                        raise
                 # 发送一个隐藏消息来移除底部键盘
                 try:
                     remove_msg = await update.message.reply_text(
@@ -471,11 +486,26 @@ async def handle_group_input(update, tg_id: int, text, context):
                 # 关键：确保use_inline_buttons标志为False，这样后续的确认发送也会使用底部键盘
                 context.user_data['use_inline_buttons'] = False
                 from bot.keyboards.reply_keyboards import get_send_packet_confirm_keyboard
-                await update.message.reply_text(
-                    text,
-                    parse_mode="Markdown",
-                    reply_markup=get_send_packet_confirm_keyboard(),
-                )
+                try:
+                    await update.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=get_send_packet_confirm_keyboard(),
+                    )
+                except Exception as markdown_error:
+                    error_msg = str(markdown_error)
+                    if "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
+                        # Markdown 解析错误，尝试不使用 Markdown
+                        logger.warning(f"Markdown parse error in handle_group_input (reply mode): {markdown_error}")
+                        text_plain = text.replace('*', '').replace('`', '').replace('_', '')
+                        await update.message.reply_text(
+                            text_plain,
+                            parse_mode=None,
+                            reply_markup=get_send_packet_confirm_keyboard(),
+                        )
+                    else:
+                        # 其他错误，重新抛出
+                        raise
         else:
             from bot.utils.i18n import t
             from telegram import ReplyKeyboardRemove
