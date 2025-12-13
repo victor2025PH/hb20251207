@@ -101,9 +101,20 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             if query.message:
                 tg_id = update.effective_user.id if update.effective_user else None
-                await query.message.reply_text(t('error_occurred', user_id=tg_id))
-        except:
-            pass
+                # 尝试编辑消息显示错误，但保留主菜单按钮
+                try:
+                    await query.edit_message_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_main_menu(user_id=tg_id)
+                    )
+                except:
+                    # 如果编辑失败，发送新消息，也带按钮
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_main_menu(user_id=tg_id)
+                    )
+        except Exception as e2:
+            logger.error(f"Error in error handler: {e2}", exc_info=True)
 
 
 async def show_main_menu(query, tg_id: int):
@@ -225,11 +236,36 @@ async def show_wallet_menu(query, tg_id: int):
 {select_operation}:
 """
     
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=get_wallet_menu(),
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_wallet_menu(),
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+            logger.debug(f"Message not modified in show_wallet_menu, user {tg_id}")
+        else:
+            logger.error(f"Error editing message in show_wallet_menu: {e}", exc_info=True)
+            try:
+                if query.message:
+                    await query.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=get_wallet_menu(),
+                    )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message in show_wallet_menu: {reply_e}", exc_info=True)
+                # 最后的错误处理：至少显示错误消息和按钮
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_wallet_menu()
+                    )
+                except:
+                    pass
 
 
 async def show_packets_menu(query, tg_id: int):
@@ -277,11 +313,36 @@ async def show_packets_menu(query, tg_id: int):
 """
     
     # 在会话外发送消息（reply_markup 已经在会话内生成）
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=reply_markup,
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+            logger.debug(f"Message not modified in show_packets_menu, user {tg_id}")
+        else:
+            logger.error(f"Error editing message in show_packets_menu: {e}", exc_info=True)
+            try:
+                if query.message:
+                    await query.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=reply_markup,
+                    )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message in show_packets_menu: {reply_e}", exc_info=True)
+                # 最后的错误处理：至少显示错误消息和按钮
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=reply_markup
+                    )
+                except:
+                    pass
 
 
 async def show_earn_menu(query, tg_id: int):
@@ -324,11 +385,36 @@ async def show_earn_menu(query, tg_id: int):
 {select_operation}:
 """
     
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=get_earn_menu(),
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_earn_menu(),
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+            logger.debug(f"Message not modified in show_earn_menu, user {tg_id}")
+        else:
+            logger.error(f"Error editing message in show_earn_menu: {e}", exc_info=True)
+            try:
+                if query.message:
+                    await query.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=get_earn_menu(),
+                    )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message in show_earn_menu: {reply_e}", exc_info=True)
+                # 最后的错误处理：至少显示错误消息和按钮
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_earn_menu()
+                    )
+                except:
+                    pass
 
 
 async def show_game_menu(query, tg_id: int):
