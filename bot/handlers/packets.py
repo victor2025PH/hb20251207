@@ -214,9 +214,12 @@ async def handle_group_input(update, tg_id: int, text, context):
                 logger.info(f"Successfully got chat_id {chat_id} from username @{username}")
             except Exception as e:
                 logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
+                # 移除底部键盘（如果存在）
+                from telegram import ReplyKeyboardRemove
                 await update.message.reply_text(
                     t('cannot_get_group_info', user_id=tg_id, error=str(e), username=username),
-                    parse_mode="Markdown"
+                    parse_mode="Markdown",
+                    reply_markup=ReplyKeyboardRemove()
                 )
                 return
     
@@ -2192,6 +2195,11 @@ async def show_group_link_input(query, tg_id: int, context):
     
     # 設置狀態，等待用戶輸入
     context.user_data['waiting_for_group'] = True
+    
+    # 移除底部键盘（如果存在），避免干扰输入
+    # 注意：Telegram 要求必须发送消息才能移除键盘，但我们不能删除用户的消息
+    # 所以这里只标记状态，实际的键盘移除应该在用户输入时处理
+    context.user_data['hide_reply_keyboard'] = True
 
 
 async def confirm_and_send_packet(query, tg_id: int, context):

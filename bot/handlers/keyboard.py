@@ -53,6 +53,13 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         text = update.message.text.strip()
         logger.info(f"User {user_id} clicked button: '{text}'")
         
+        # 如果正在等待输入群组名称，隐藏底部键盘
+        if context.user_data.get('waiting_for_group') or context.user_data.get('hide_reply_keyboard'):
+            from telegram import ReplyKeyboardRemove
+            # 不发送新消息，只在回复时移除键盘
+            # 注意：Telegram 要求必须发送消息才能移除键盘，但我们可以通过不显示键盘来避免干扰
+            context.user_data['hide_reply_keyboard'] = True
+        
         from bot.utils.user_helpers import get_user_id_from_update
         tg_id = await get_user_id_from_update(update, context)
         if not tg_id:
