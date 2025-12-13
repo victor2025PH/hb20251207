@@ -78,13 +78,13 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text = update.message.text.strip()
     
-    # 獲取用戶 ID（不返回 ORM 對象）
-    from bot.utils.user_helpers import get_user_id_from_update
+    # 獲取用戶 Telegram ID（不是數據庫主鍵）
     from bot.utils.i18n import t
-    user_id = update.effective_user.id if update.effective_user else None
-    tg_id = await get_user_id_from_update(update, context)
-    if not tg_id:
+    if not update.effective_user:
         return
+    # 關鍵修復：直接使用 Telegram ID，而不是數據庫主鍵
+    tg_id = update.effective_user.id
+    logger.info(f"handle_text_input: Using Telegram ID {tg_id} (not database primary key)")
     
     # 檢查發紅包流程步驟
     step = context.user_data.get('send_packet_step')
