@@ -74,52 +74,12 @@ async def post_init(app: Application):
     except Exception as e:
         logger.debug(f"Bot short description setup skipped: {e}")
     
-    # 設置菜單按鈕（顯示在輸入框旁邊）- 打開 miniapp
-    try:
-        if hasattr(app.bot, 'set_chat_menu_button'):
-            # 嘗試導入 MenuButtonWebApp
-            try:
-                from telegram import MenuButtonWebApp, WebAppInfo
-                web_app_info = WebAppInfo(url=settings.MINIAPP_URL)
-                menu_button = MenuButtonWebApp(text="🎮 打開應用", web_app=web_app_info)
-                await app.bot.set_chat_menu_button(menu_button=menu_button)
-                logger.info("✅ Bot menu button set up (WebApp) - 聊天欄顯示打開圖標")
-            except (ImportError, AttributeError) as e1:
-                logger.warning(f"MenuButtonWebApp not available: {e1}")
-                # 如果導入失敗，嘗試使用字典方式
-                try:
-                    await app.bot.set_chat_menu_button(menu_button={
-                        "type": "web_app",
-                        "text": "🎮 打開應用",
-                        "web_app": {
-                            "url": settings.MINIAPP_URL
-                        }
-                    })
-                    logger.info("✅ Bot menu button set up (using dict) - 聊天欄顯示打開圖標")
-                except Exception as e2:
-                    logger.warning(f"Menu button not available: {e2}")
-        else:
-            # 如果 set_chat_menu_button 不存在，嘗試使用舊的 API
-            try:
-                from telegram import MenuButtonWebApp, WebAppInfo
-                web_app_info = WebAppInfo(url=settings.MINIAPP_URL)
-                menu_button = MenuButtonWebApp(text="🎮 打開應用", web_app=web_app_info)
-                # 嘗試直接設置（某些版本可能支持）
-                await app.bot.set_chat_menu_button(menu_button=menu_button)
-                logger.info("✅ Bot menu button set up (fallback) - 聊天欄顯示打開圖標")
-            except Exception as e3:
-                logger.warning(f"Menu button setup failed: {e3}")
-    except Exception as e:
-        logger.warning(f"Menu button setup skipped: {e}")
-        # 如果設置失敗，不影響 Bot 運行
-    
-    # 設置描述按鈕（顯示在個人資料頁面）- 這需要在 BotFather 中設置，但我們可以通過描述引導用戶
-    # 注意：描述按鈕需要在 BotFather 中手動設置，API 無法直接設置
-    # 但我們可以通過設置描述來引導用戶點擊菜單按鈕
+    # 設置菜單按鈕（顯示在輸入框旁邊）- 已移除，改用消息內 Inline Keyboard
+    # 注意：我們不再設置左下角的 Menu Button，而是在消息下方使用 Inline Keyboard
+    # 這樣可以確保用戶點擊按鈕時觸發 callback，便於調試和處理
     
     logger.info(f"🤖 Bot @{app.bot.username} started!")
-    logger.info("📱 聊天欄菜單按鈕已設置（顯示在輸入框旁邊）")
-    logger.info("💡 提示：個人資料頁面的描述按鈕需要在 BotFather 中手動設置")
+    logger.info("📱 使用消息內 Inline Keyboard（不再設置左下角 Menu Button）")
 
 
 def main():

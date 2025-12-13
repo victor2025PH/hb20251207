@@ -285,8 +285,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {welcome_call_to_action}
 """
         
-        # 创建内联按钮
+        # 创建内联按钮（包含"打开应用"按钮）
+        from shared.config.settings import get_settings
+        settings = get_settings()
+        from telegram import WebAppInfo
+        
+        open_app_text = "🧧 打開應用"
         inline_keyboard = [
+            [
+                InlineKeyboardButton(open_app_text, callback_data="open_app_menu"),
+            ],
             [
                 InlineKeyboardButton(menu_wallet_text, callback_data="menu:wallet"),
                 InlineKeyboardButton(menu_packets_text, callback_data="menu:packets"),
