@@ -25,7 +25,14 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
     with get_db() as db:
         db_user = db.query(User).filter(User.tg_id == user_id).first()
         if not db_user:
-            await update.message.reply_text(t('error_occurred', user_id=user_id))
+            import traceback
+            logger.error(f"【严重错误】[SHOW_INITIAL_SETUP] 用户 {user_id} 未找到")
+            traceback.print_exc()
+            from bot.keyboards import get_main_menu
+            await update.message.reply_text(
+                t('error_occurred', user_id=user_id),
+                reply_markup=get_main_menu(user_id=user_id)
+            )
             return
         
         current_lang = get_user_language(user_id=user_id)

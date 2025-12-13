@@ -202,7 +202,14 @@ async def show_wallet_menu(query, tg_id: int):
     with get_db() as db:
         user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
-            await query.edit_message_text(t('error_occurred', user_id=tg_id))
+            import traceback
+            logger.error(f"【严重错误】[SHOW_WALLET_MENU] 用户 {tg_id} 未找到")
+            traceback.print_exc()
+            await query.answer(t('error_occurred', user_id=tg_id), show_alert=True)
+            await query.edit_message_text(
+                t('error_occurred', user_id=tg_id),
+                reply_markup=get_main_menu(user_id=tg_id)
+            )
             return
         
         usdt = float(user.balance_usdt or 0)

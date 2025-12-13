@@ -208,8 +208,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         db_user = db.query(User).filter(User.tg_id == user.id).first()
         if not db_user:
-            logger.error(f"User {user.id} not found after creation")
-            await update.message.reply_text(t('error_occurred', user_id=user.id))
+            import traceback
+            logger.error(f"【严重错误】[START] 用户 {user.id} 在检查模式时未找到")
+            traceback.print_exc()
+            from bot.keyboards import get_main_menu
+            await update.message.reply_text(
+                t('error_occurred', user_id=user.id),
+                reply_markup=get_main_menu(user_id=user.id)
+            )
             return
         
         # 检查是否有 reset 参数（用于重新设置）
