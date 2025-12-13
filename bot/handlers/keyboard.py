@@ -639,11 +639,6 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         current_balance = t('current_balance', user_id=tg_id)
         fixed_amount = t('fixed_amount', user_id=tg_id)
         select_amount = t('select_amount', user_id=tg_id)
-            else:
-                send_packet_title = "➕ 發紅包"
-                current_balance = "當前餘額："
-                fixed_amount = "紅包炸彈"
-                select_amount = "請選擇或輸入金額："
         
         await update.message.reply_text(
             f"*{send_packet_title} - {currency_upper} - {fixed_amount}*\n\n"
