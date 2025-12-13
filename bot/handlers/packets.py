@@ -164,17 +164,52 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(t('enter_valid_number_example', user_id=tg_id))
             return
     
+    # 處理祝福語輸入
+    # 注意：如果用户输入的是群组名称/ID/链接，应该优先作为群组输入处理
+    if context.user_data.get('waiting_for_message'):
+        # 检查输入是否像群组名称/ID/链接
+        from bot.utils.security import validate_chat_id
+        import re
+        
+        # 尝试解析为群组 ID 或链接
+        chat_id = validate_chat_id(text)
+        is_group_input = False
+        
+        # 如果还不是有效的ID，尝试解析为群组用户名
+        if chat_id is None:
+            username = None
+            # 方式1: 匹配 t.me/xxx 或 https://t.me/xxx
+            match = re.search(r'(?:https?://)?(?:t\.me/|@)([a-zA-Z0-9_]+)', text, re.IGNORECASE)
+            if match:
+                username = match.group(1)
+                is_group_input = True
+            # 方式2: 如果只是纯用户名（不包含@或t.me/），自动补全
+            elif re.match(r'^[a-zA-Z0-9_]+$', text):
+                # 只包含字母、数字、下划线，可能是用户名
+                username = text
+                is_group_input = True
+        else:
+            is_group_input = True
+        
+        # 如果输入像群组名称/ID/链接，作为群组输入处理
+        if is_group_input:
+            logger.info(f"User input '{text}' looks like group name/ID/link, treating as group input instead of message input")
+            context.user_data.pop('waiting_for_message', None)
+            context.user_data['waiting_for_group'] = True
+            context.user_data['send_packet_step'] = 'group_input'
+            await handle_group_input(update, tg_id, text, context)
+            return
+        else:
+            # 确实是祝福语输入
+            await handle_message_input(update, tg_id, text, context)
+            return
+    
     # 處理群組 ID 輸入
     elif step == 'group_input' or context.user_data.get('waiting_for_group'):
         logger.info(f"Processing group input for user {tg_id}, text='{text}', step={step}, waiting_for_group={context.user_data.get('waiting_for_group')}")
         context.user_data['waiting_for_group'] = True
         context.user_data['send_packet_step'] = 'group_input'
         await handle_group_input(update, tg_id, text, context)
-        return
-    
-    # 處理祝福語輸入
-    elif context.user_data.get('waiting_for_message'):
-        await handle_message_input(update, tg_id, text, context)
         return
 
 
