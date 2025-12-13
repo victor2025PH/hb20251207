@@ -217,12 +217,14 @@ async def handle_group_input(update, tg_id: int, text, context):
     """處理群組 ID/鏈接輸入（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.security import validate_chat_id
     from bot.utils.i18n import t
+    from bot.utils.error_helpers import handle_error_with_ui
     import re
     
-    packet_data = context.user_data.get('send_packet', {})
-    
-    # 清理输入
-    text = text.strip()
+    try:
+        packet_data = context.user_data.get('send_packet', {})
+        
+        # 清理输入
+        text = text.strip()
     
     # 嘗試解析群組 ID 或鏈接
     chat_id = validate_chat_id(text)
