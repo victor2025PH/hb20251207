@@ -361,6 +361,66 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(welcome_text, parse_mode="Markdown")
 
 
+async def open_app_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """處理"打開應用"按鈕的點擊（Inline Keyboard）"""
+    from loguru import logger
+    from shared.config.settings import get_settings
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    from bot.utils.user_helpers import get_user_id_from_update
+    from bot.utils.i18n import t
+    
+    query = update.callback_query
+    if not query:
+        return
+    
+    user_id = update.effective_user.id if update.effective_user else None
+    logger.info(f"【用户点击了消息下方的按钮】用户 {user_id} 点击了'打开应用'按钮 (callback_data: open_app_menu)")
+    
+    try:
+        await query.answer()
+    except Exception as e:
+        logger.error(f"Error answering query: {e}")
+    
+    settings = get_settings()
+    tg_id = await get_user_id_from_update(update, context)
+    
+    # 创建打开应用的按钮（使用 WebApp）
+    if tg_id:
+        open_app_button_text = t('open_app_button', user_id=tg_id)
+    else:
+        open_app_button_text = "🧧 打開應用"
+    
+    keyboard = [[
+        InlineKeyboardButton(
+            open_app_button_text,
+            web_app=WebAppInfo(url=settings.MINIAPP_URL)
+        )
+    ]]
+    
+    # 编辑消息，显示打开应用的按钮
+    try:
+        if tg_id:
+            message_text = t('open_app_message', user_id=tg_id, page="main")
+        else:
+            message_text = "點擊按鈕打開應用："
+        
+        await query.edit_message_text(
+            message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+    except Exception as e:
+        logger.error(f"Error editing message: {e}", exc_info=True)
+        # 如果编辑失败，尝试发送新消息
+        try:
+            if query.message:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+        except Exception as e2:
+            logger.error(f"Error sending new message: {e2}", exc_info=True)
+
+
 async def open_miniapp_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理打開 miniapp 的命令"""
     from shared.config.settings import get_settings
