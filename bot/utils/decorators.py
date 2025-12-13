@@ -115,18 +115,20 @@ def track_performance(log_threshold: float = 1.0):
 
 def require_user(func: Callable) -> Callable:
     """
-    要求用戶已註冊的裝飾器
+    要求用戶已註冊的裝飾器（只存儲 user_id，不存儲 ORM 對象）
     
     Usage:
         @require_user
         async def my_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            # 這裡可以安全地使用 context.user_data['db_user']
+            # 這裡可以安全地使用 context.user_data['user_id']
+            user_id = context.user_data.get('user_id')
             ...
     """
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         from shared.database.connection import get_db
         from shared.database.models import User
+        from bot.utils.user_helpers import get_user_id_from_update
         
         user = update.effective_user
         if not user:
@@ -134,20 +136,18 @@ def require_user(func: Callable) -> Callable:
                 await update.callback_query.answer("無法獲取用戶信息", show_alert=True)
             return None
         
-        # 檢查緩存
-        if 'db_user' not in context.user_data:
-            with get_db() as db:
-                db_user = db.query(User).filter(User.tg_id == user.id).first()
-                if not db_user:
-                    if update.callback_query:
-                        await update.callback_query.answer(
-                            "請先使用 /start 註冊",
-                            show_alert=True
-                        )
-                    elif update.message:
-                        await update.message.reply_text("請先使用 /start 註冊")
-                    return None
-                context.user_data['db_user'] = db_user
+        # 檢查緩存（只存儲 user_id）
+        if 'user_id' not in context.user_data:
+            user_id = await get_user_id_from_update(update, context)
+            if not user_id:
+                if update.callback_query:
+                    await update.callback_query.answer(
+                        "請先使用 /start 註冊",
+                        show_alert=True
+                    )
+                elif update.message:
+                    await update.message.reply_text("請先使用 /start 註冊")
+                return None
         
         return await func(update, context, *args, **kwargs)
     

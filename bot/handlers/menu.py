@@ -161,14 +161,14 @@ async def show_main_menu(query, tg_id: int):
                 pass
 
 
-async def show_wallet_menu(query, db_user):
-    """顯示錢包菜單"""
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
-    # 在會話內重新查詢用戶以確保數據最新，並在會話內獲取所有翻譯文本
+async def show_wallet_menu(query, tg_id: int):
+    """顯示錢包菜單（只接受 tg_id，不接受 ORM 對象）"""
+    from bot.utils.i18n import t
+    # 在會話內查詢用戶並獲取所有數據
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
-            await query.edit_message_text(t('error_occurred', user=db_user))
+            await query.edit_message_text(t('error_occurred', user_id=tg_id))
             return
         
         usdt = float(user.balance_usdt or 0)
@@ -178,13 +178,13 @@ async def show_wallet_menu(query, db_user):
         level = user.level
         xp = user.xp or 0
         
-        # 在会话内获取所有翻译文本（避免会话分离错误）
-        my_wallet_text = t('my_wallet', user=user)
-        balance_colon = t('balance_colon', user=user)
-        level_colon = t('level_colon', user=user)
-        xp_colon = t('xp_colon', user=user)
-        energy_colon = t('energy_colon', user=user)
-        select_operation = t('select_operation', user=user)
+        # 在会话内获取所有翻译文本（使用 user_id）
+        my_wallet_text = t('my_wallet', user_id=tg_id)
+        balance_colon = t('balance_colon', user_id=tg_id)
+        level_colon = t('level_colon', user_id=tg_id)
+        xp_colon = t('xp_colon', user_id=tg_id)
+        energy_colon = t('energy_colon', user_id=tg_id)
+        select_operation = t('select_operation', user_id=tg_id)
     
     # 会话外使用预先获取的翻译文本
     
@@ -210,44 +210,36 @@ async def show_wallet_menu(query, db_user):
     )
 
 
-async def show_packets_menu(query, db_user):
-    """顯示紅包菜單"""
+async def show_packets_menu(query, tg_id: int):
+    """顯示紅包菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    from shared.database.connection import get_db
-    from shared.database.models import User
     
-    # 在会话内重新查询用户以确保数据最新，并在会话内完成所有操作
+    # 在会话内查询用户并完成所有操作
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内访问所有需要的属性
-        _ = user.id
-        _ = user.tg_id
-        _ = user.language_code  # 注意：User 模型使用 language_code，不是 language
-        _ = user.interaction_mode
+        # 在会话内获取翻译文本（使用 user_id）
+        packets_center_text = t('packets_center', user_id=tg_id)
+        view_packets_text = t('view_packets', user_id=tg_id)
+        send_packet_text = t('send_packet', user_id=tg_id)
+        my_packets_text = t('my_packets', user_id=tg_id)
+        select_operation_text = t('select_operation', user_id=tg_id)
         
-        # 在会话内获取翻译文本
-        packets_center_text = t('packets_center', user=user)
-        view_packets_text = t('view_packets', user=user)
-        send_packet_text = t('send_packet', user=user)
-        my_packets_text = t('my_packets', user=user)
-        select_operation_text = t('select_operation', user=user)
+        # 获取功能描述
+        view_packets_desc = t('view_packets_desc', user_id=tg_id)
+        send_packet_desc = t('send_packet_desc', user_id=tg_id)
+        my_packets_desc = t('my_packets_desc', user_id=tg_id)
+        functions_label = t('functions', user_id=tg_id)
         
-        # 获取功能描述（翻译文本中已包含图标，不需要重复添加）
-        view_packets_desc = t('view_packets_desc', user=user)
-        send_packet_desc = t('send_packet_desc', user=user)
-        my_packets_desc = t('my_packets_desc', user=user)
-        functions_label = t('functions', user=user)
-        
-        # 在会话内生成键盘（get_packets_menu 内部会调用 t()，需要访问 user 属性）
-        reply_markup = get_packets_menu(user=user)
+        # 在会话内生成键盘（使用 user_id）
+        reply_markup = get_packets_menu(user_id=tg_id)
         
         # 移除翻译文本中的图标，只保留文本部分（避免重复显示图标）
         # 注意：view_packets_text, send_packet_text, my_packets_text 已经包含图标
@@ -270,35 +262,33 @@ async def show_packets_menu(query, db_user):
     )
 
 
-async def show_earn_menu(query, db_user):
-    """顯示賺取菜單"""
+async def show_earn_menu(query, tg_id: int):
+    """顯示賺取菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    from shared.database.connection import get_db
-    from shared.database.models import User
     
-    # 在会话内重新查询用户以确保数据最新
+    # 在会话内查询用户并获取翻译文本
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内获取翻译文本
-        earn_center = t('earn_center', user=user) if t('earn_center', user=user) != 'earn_center' else "📈 賺取中心"
-        functions_label = t('functions', user=user)
-        daily_checkin = t('daily_checkin', user=user) if t('daily_checkin', user=user) != 'daily_checkin' else "📅 每日簽到"
-        daily_checkin_desc = t('daily_checkin_desc', user=user) if t('daily_checkin_desc', user=user) != 'daily_checkin_desc' else "每天簽到領取積分"
-        invite_friends = t('invite_friends', user=user) if t('invite_friends', user=user) != 'invite_friends' else "👥 邀請好友"
-        invite_friends_desc = t('invite_friends_desc', user=user) if t('invite_friends_desc', user=user) != 'invite_friends_desc' else "邀請好友獲得返佣"
-        task_center = t('task_center', user=user) if t('task_center', user=user) != 'task_center' else "🎯 任務中心"
-        task_center_desc = t('task_center_desc', user=user) if t('task_center_desc', user=user) != 'task_center_desc' else "完成任務獲得獎勵"
-        lucky_wheel = t('lucky_wheel', user=user) if t('lucky_wheel', user=user) != 'lucky_wheel' else "🎰 幸運轉盤"
-        lucky_wheel_desc = t('lucky_wheel_desc', user=user) if t('lucky_wheel_desc', user=user) != 'lucky_wheel_desc' else "轉盤抽獎贏大獎"
-        select_operation = t('select_operation', user=user)
+        # 在会话内获取翻译文本（使用 user_id）
+        earn_center = t('earn_center', user_id=tg_id)
+        functions_label = t('functions', user_id=tg_id)
+        daily_checkin = t('daily_checkin', user_id=tg_id)
+        daily_checkin_desc = t('daily_checkin_desc', user_id=tg_id)
+        invite_friends = t('invite_friends', user_id=tg_id)
+        invite_friends_desc = t('invite_friends_desc', user_id=tg_id)
+        task_center = t('task_center', user_id=tg_id)
+        task_center_desc = t('task_center_desc', user_id=tg_id)
+        lucky_wheel = t('lucky_wheel', user_id=tg_id)
+        lucky_wheel_desc = t('lucky_wheel_desc', user_id=tg_id)
+        select_operation = t('select_operation', user_id=tg_id)
     
     text = f"""
 {earn_center}
@@ -319,32 +309,29 @@ async def show_earn_menu(query, db_user):
     )
 
 
-async def show_game_menu(query, db_user):
-    """顯示遊戲菜單"""
+async def show_game_menu(query, tg_id: int):
+    """顯示遊戲菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    from shared.database.connection import get_db
-    from shared.database.models import User
     
-    # 在会话内重新查询用户以确保数据最新
+    # 在会话内查询用户并获取翻译文本
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内获取翻译文本
-        game_center = t('game_center', user=user) if t('game_center', user=user) != 'game_center' else "🎮 遊戲中心"
-        functions_label = t('functions', user=user)
-        select_operation = t('select_operation', user=user)
-        # 游戏相关的翻译文本（如果不存在，使用默认值）
-        game_golden_luck = t('game_golden_luck', user=user) if t('game_golden_luck', user=user) != 'game_golden_luck' else "🎰 金運局"
-        game_golden_luck_desc = t('game_golden_luck_desc', user=user) if t('game_golden_luck_desc', user=user) != 'game_golden_luck_desc' else "經典紅包遊戲"
-        lucky_wheel = t('lucky_wheel', user=user) if t('lucky_wheel', user=user) != 'lucky_wheel' else "🎡 幸運轉盤"
-        lucky_wheel_desc = t('lucky_wheel_desc', user=user) if t('lucky_wheel_desc', user=user) != 'lucky_wheel_desc' else "轉盤抽獎"
+        # 在会话内获取翻译文本（使用 user_id）
+        game_center = t('game_center', user_id=tg_id)
+        functions_label = t('functions', user_id=tg_id)
+        select_operation = t('select_operation', user_id=tg_id)
+        game_golden_luck = t('game_golden_luck', user_id=tg_id)
+        game_golden_luck_desc = t('game_golden_luck_desc', user_id=tg_id)
+        lucky_wheel = t('lucky_wheel', user_id=tg_id)
+        lucky_wheel_desc = t('lucky_wheel_desc', user_id=tg_id)
     
     text = f"""
 {game_center}
@@ -363,36 +350,31 @@ async def show_game_menu(query, db_user):
     )
 
 
-async def show_profile_menu(query, db_user):
-    """顯示個人資料菜單"""
+async def show_profile_menu(query, tg_id: int):
+    """顯示個人資料菜單（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
-    from shared.database.connection import get_db
-    from shared.database.models import User
     
-    # 在会话内重新查询用户以确保数据最新
+    # 在会话内查询用户并获取翻译文本
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
-                await query.edit_message_text(t("error", user=db_user))
+                await query.edit_message_text(t("error", user_id=tg_id))
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
-        # 在会话内获取翻译文本
-        profile_center = t('profile_center', user=user) if t('profile_center', user=user) != 'profile_center' else "👤 個人資料"
-        functions_label = t('functions', user=user)
-        select_operation = t('select_operation', user=user)
-        # 个人资料相关的翻译文本（如果不存在，使用默认值）
-        my_profile = t('my_profile', user=user) if t('my_profile', user=user) != 'my_profile' else "📊 我的資料"
-        my_profile_desc = t('my_profile_desc', user=user) if t('my_profile_desc', user=user) != 'my_profile_desc' else "查看個人信息"
-    
-        # 获取更多翻译文本
-        stats = t('stats', user=user) if t('stats', user=user) != 'stats' else "📈 統計數據"
-        stats_desc = t('stats_desc', user=user) if t('stats_desc', user=user) != 'stats_desc' else "查看統計數據"
-        settings = t('settings', user=user) if t('settings', user=user) != 'settings' else "⚙️ 設置"
-        settings_desc = t('settings_desc', user=user) if t('settings_desc', user=user) != 'settings_desc' else "個人設置"
+        # 在会话内获取翻译文本（使用 user_id）
+        profile_center = t('profile_center', user_id=tg_id)
+        functions_label = t('functions', user_id=tg_id)
+        select_operation = t('select_operation', user_id=tg_id)
+        my_profile = t('my_profile', user_id=tg_id)
+        my_profile_desc = t('my_profile_desc', user_id=tg_id)
+        stats = t('stats', user_id=tg_id)
+        stats_desc = t('stats_desc', user_id=tg_id)
+        settings = t('settings', user_id=tg_id)
+        settings_desc = t('settings_desc', user_id=tg_id)
     
     text = f"""
 {profile_center}

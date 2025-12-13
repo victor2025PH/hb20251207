@@ -176,17 +176,17 @@ def get_unified_keyboard(
     return get_unified_keyboard("keyboard", menu_type, chat_type, user_id=user_id)
 
 
-def get_mode_selection_keyboard(user=None):
-    """获取模式选择键盘（用于首次设置）"""
+def get_mode_selection_keyboard(user_id=None):
+    """获取模式选择键盘（用于首次设置）（只接受 user_id，不接受 ORM 对象）"""
     from bot.utils.i18n import t
     keyboard = [
         [
-            InlineKeyboardButton(t("mode_keyboard", user=user), callback_data="set_mode:keyboard"),
-            InlineKeyboardButton(t("mode_inline", user=user), callback_data="set_mode:inline"),
+            InlineKeyboardButton(t("mode_keyboard", user_id=user_id), callback_data="set_mode:keyboard"),
+            InlineKeyboardButton(t("mode_inline", user_id=user_id), callback_data="set_mode:inline"),
         ],
         [
-            InlineKeyboardButton(t("mode_miniapp", user=user), callback_data="set_mode:miniapp"),
-            InlineKeyboardButton(t("mode_auto", user=user), callback_data="set_mode:auto"),
+            InlineKeyboardButton(t("mode_miniapp", user_id=user_id), callback_data="set_mode:miniapp"),
+            InlineKeyboardButton(t("mode_auto", user_id=user_id), callback_data="set_mode:auto"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)

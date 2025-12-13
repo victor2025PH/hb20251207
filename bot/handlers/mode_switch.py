@@ -11,7 +11,7 @@ from bot.utils.mode_helper import (
     get_mode_name,
     get_mode_description
 )
-from bot.utils.user_helpers import get_user_from_update
+from bot.utils.user_helpers import get_user_id_from_update
 from bot.keyboards.unified import get_unified_keyboard, get_mode_selection_keyboard
 
 
@@ -26,18 +26,19 @@ async def switch_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Error answering query: {e}")
     
-    from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
-    user_id = update.effective_user.id
-    chat_type = update.effective_chat.type
+    from bot.utils.i18n import t
+    user_id = update.effective_user.id if update.effective_user else None
+    if not user_id:
+        return
     
-    # 获取用户
-    user = await get_user_from_update(update, context)
-    if not user:
-        await query.message.reply_text(t('please_register_first', user=None) if t('please_register_first', user=None) != 'please_register_first' else "請先使用 /start 註冊")
+    # 获取用户 ID（不返回 ORM 对象）
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        await query.message.reply_text(t('please_register_first', user_id=user_id))
         return
     
     # 显示模式选择界面（三种模式：内联按钮、底部键盘、MiniApp）
-    await show_mode_selection_from_keyboard(update, context, user)
+    await show_mode_selection_from_keyboard(update, context, tg_id)
 
 
 async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -50,17 +51,19 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id if update.effective_user else None
     logger.info(f"[SET_MODE] User {user_id} selecting mode, callback_data: {query.data}")
     
-    # 获取用户以使用正确的语言
-    from bot.utils.user_helpers import get_or_create_user
+    if not user_id:
+        return
+    
+    # 获取用户 ID
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        await query.message.reply_text("請先使用 /start 註冊")
+        return
+    
     from bot.utils.i18n import t
-    db_user = await get_or_create_user(
-        tg_id=user_id,
-        username=update.effective_user.username if update.effective_user else None,
-        first_name=update.effective_user.first_name if update.effective_user else None,
-    )
     
     try:
-        await query.answer(t("setting_mode", user=db_user))
+        await query.answer(t("setting_mode", user_id=tg_id))
     except Exception as e:
         logger.error(f"Error answering query: {e}")
     
@@ -77,7 +80,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 检查模式是否可用
     if mode == "miniapp" and chat_type in ["group", "supergroup"]:
         await query.message.reply_text(
-            t("miniapp_not_available_in_group_auto_switch", user=db_user)
+            t("miniapp_not_available_in_group_auto_switch", user_id=tg_id)
         )
         mode = "inline"
     
@@ -89,7 +92,7 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"[SET_MODE] Failed to update user {user_id} mode")
         try:
             await query.message.reply_text(
-                t("mode_set_failed", user=db_user)
+                t("mode_set_failed", user_id=tg_id)
             )
         except Exception as e:
             logger.error(f"Error sending error message: {e}")
@@ -98,13 +101,12 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[SET_MODE] Successfully updated user {user_id} mode to {mode}")
     
     # 获取模式名称和描述（使用i18n）
-    from bot.utils.i18n import t
-    mode_name = t(f"mode_{mode}", user=db_user) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_name(mode)
-    mode_desc = t(f"mode_{mode}_desc", user=db_user) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_description(mode)
+    mode_name = t(f"mode_{mode}", user_id=tg_id) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_name(mode)
+    mode_desc = t(f"mode_{mode}_desc", user_id=tg_id) if mode in ["keyboard", "inline", "miniapp", "auto"] else get_mode_description(mode)
     
     # 更新消息
     try:
-        keyboard = get_unified_keyboard(mode, "main", chat_type, user=db_user)
+        keyboard = get_unified_keyboard(mode, "main", chat_type, user_id=tg_id)
         
         # 根据键盘类型处理
         from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
@@ -113,49 +115,42 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # 底部键盘模式：先编辑消息显示确认（不带键盘），然后发送新消息带键盘
             try:
                 await query.edit_message_text(
-                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
+                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}\n\n"
-                    + t("please_use_bottom_keyboard", user=db_user) + "\n"
-                    + t("you_can_switch_mode_in_main_menu", user=db_user)
+                    + t("please_use_bottom_keyboard", user_id=tg_id) + "\n"
+                    + t("you_can_switch_mode_in_main_menu", user_id=tg_id)
                 )
             except Exception as edit_e:
                 logger.warning(f"Could not edit message: {edit_e}, sending new message")
             
             # 发送新消息带回复键盘（不能编辑消息添加 ReplyKeyboardMarkup）
             await query.message.reply_text(
-                t("please_use_bottom_keyboard_colon", user=db_user),
+                t("please_use_bottom_keyboard_colon", user_id=tg_id),
                 reply_markup=keyboard
             )
             logger.info(f"[SET_MODE] Sent ReplyKeyboardMarkup for user {user_id}")
             
         elif isinstance(keyboard, InlineKeyboardMarkup):
             # 内联按钮模式：静默移除底部键盘，不显示提示消息
-            from telegram import ReplyKeyboardRemove
             try:
-                # 静默移除底部键盘，不显示提示消息
-                # 直接移除键盘，不发送提示消息
-                # 通过编辑当前消息来移除键盘（如果消息有回复标记）
-                try:
-                    # 尝试编辑消息移除键盘
-                    await query.edit_message_reply_markup(reply_markup=None)
-                except:
-                    # 如果编辑失败，说明当前消息没有键盘，不需要移除
-                    pass
-            except Exception as remove_e:
-                logger.warning(f"Could not remove keyboard: {remove_e}")
+                # 尝试编辑消息移除键盘
+                await query.edit_message_reply_markup(reply_markup=None)
+            except:
+                # 如果编辑失败，说明当前消息没有键盘，不需要移除
+                pass
             
             # 然后编辑消息显示确认
             await query.edit_message_text(
-                t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
+                t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
                 f"💡 {mode_desc}\n\n"
-                + t("you_can_switch_mode_in_main_menu", user=db_user),
+                + t("you_can_switch_mode_in_main_menu", user_id=tg_id),
                 reply_markup=keyboard
             )
             logger.info(f"[SET_MODE] Updated message with InlineKeyboardMarkup for user {user_id}")
         else:
             # 其他情况：尝试编辑消息
             await query.edit_message_text(
-                t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
+                t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
                 f"💡 {mode_desc}",
                 reply_markup=keyboard
             )
@@ -165,47 +160,53 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error updating message: {e}", exc_info=True)
         try:
             # 如果编辑失败，发送新消息
-            keyboard = get_unified_keyboard(mode, "main", chat_type, user=db_user)
+            keyboard = get_unified_keyboard(mode, "main", chat_type, user_id=tg_id)
             from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup
             
             if isinstance(keyboard, ReplyKeyboardMarkup):
                 await query.message.reply_text(
-                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
+                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}\n\n"
-                    + t("please_use_bottom_keyboard_colon", user=db_user),
+                    + t("please_use_bottom_keyboard_colon", user_id=tg_id),
                     reply_markup=keyboard
                 )
             else:
                 await query.message.reply_text(
-                    t("mode_set_to", user=db_user, mode=mode_name) + "\n\n"
+                    t("mode_set_to", user_id=tg_id, mode=mode_name) + "\n\n"
                     f"💡 {mode_desc}",
                     reply_markup=keyboard
                 )
         except Exception as e2:
             logger.error(f"Error sending fallback message: {e2}", exc_info=True)
-            await query.message.reply_text(t("mode_set_to", user=db_user, mode=mode_name))
+            await query.message.reply_text(t("mode_set_to", user_id=tg_id, mode=mode_name))
 
 
 async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """显示模式选择界面（首次使用）"""
     user = update.effective_user
+    if not user:
+        return
+    
     chat_type = update.effective_chat.type
+    user_id = user.id
     
     from bot.utils.i18n import t
-    from bot.utils.user_helpers import get_user_from_update
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
-        db_user = user
+    from bot.utils.user_helpers import get_user_id_from_update
     
-    welcome_title = t('welcome_to_lucky_red', user=db_user) if t('welcome_to_lucky_red', user=db_user) != 'welcome_to_lucky_red' else f"🧧 *歡迎來到 Lucky Red！*"
-    hi_greeting = t('hi_greeting', user=db_user, name=user.first_name) if t('hi_greeting', user=db_user) != 'hi_greeting' else f"Hi {user.first_name}！"
-    select_interaction_mode = t('select_interaction_mode', user=db_user) if t('select_interaction_mode', user=db_user) != 'select_interaction_mode' else "請選擇您喜歡的交互方式："
-    keyboard_mode_desc = t('keyboard_mode_welcome_desc', user=db_user) if t('keyboard_mode_welcome_desc', user=db_user) != 'keyboard_mode_welcome_desc' else "*⌨️ 底部鍵盤* - 傳統 bot 體驗，在群組中也能使用"
-    inline_mode_desc = t('inline_mode_welcome_desc', user=db_user) if t('inline_mode_welcome_desc', user=db_user) != 'inline_mode_welcome_desc' else "*🔘 內聯按鈕* - 流暢交互，點擊消息中的按鈕"
-    miniapp_mode_desc = t('miniapp_mode_welcome_desc', user=db_user) if t('miniapp_mode_welcome_desc', user=db_user) != 'miniapp_mode_welcome_desc' else "*📱 MiniApp* - 最豐富的功能，最佳體驗（僅私聊）"
-    auto_mode_desc = t('auto_mode_welcome_desc', user=db_user) if t('auto_mode_welcome_desc', user=db_user) != 'auto_mode_welcome_desc' else "*🔄 自動* - 根據上下文自動選擇最佳模式"
-    can_switch_mode_hint = t('can_switch_mode_hint', user=db_user) if t('can_switch_mode_hint', user=db_user) != 'can_switch_mode_hint' else "💡 您可以隨時使用「🔄 切換模式」按鈕切換"
-    miniapp_not_available_in_group_note = t('miniapp_not_available_in_group_note', user=db_user) if t('miniapp_not_available_in_group_note', user=db_user) != 'miniapp_not_available_in_group_note' else "\n⚠️ 注意：MiniApp 模式在群組中不可用"
+    # 获取用户 ID
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        tg_id = user_id  # 如果获取失败，使用 Telegram user ID
+    
+    welcome_title = t('welcome_to_lucky_red', user_id=tg_id)
+    hi_greeting = t('hi_greeting', user_id=tg_id, name=user.first_name or 'User')
+    select_interaction_mode = t('select_interaction_mode', user_id=tg_id)
+    keyboard_mode_desc = t('keyboard_mode_welcome_desc', user_id=tg_id)
+    inline_mode_desc = t('inline_mode_welcome_desc', user_id=tg_id)
+    miniapp_mode_desc = t('miniapp_mode_welcome_desc', user_id=tg_id)
+    auto_mode_desc = t('auto_mode_welcome_desc', user_id=tg_id)
+    can_switch_mode_hint = t('can_switch_mode_hint', user_id=tg_id)
+    miniapp_not_available_in_group_note = t('miniapp_not_available_in_group_note', user_id=tg_id)
     
     text = f"""
 {welcome_title}
@@ -230,47 +231,46 @@ async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(
             text,
             parse_mode="Markdown",
-            reply_markup=get_mode_selection_keyboard()
+            reply_markup=get_mode_selection_keyboard(user_id=tg_id)
         )
     except Exception as e:
         logger.error(f"Error sending mode selection: {e}", exc_info=True)
 
 
-async def show_mode_selection_from_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE, db_user):
-    """从键盘模式显示模式选择界面（三种模式：内联按钮、底部键盘、MiniApp）"""
+async def show_mode_selection_from_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE, tg_id: int):
+    """从键盘模式显示模式选择界面（三种模式：内联按钮、底部键盘、MiniApp）（只接受 user_id，不接受 ORM 对象）"""
     chat_type = update.effective_chat.type
     
-    # 获取用户语言
-    from bot.utils.i18n import t, get_user_language
-    current_lang = get_user_language(user=db_user)
+    # 获取用户语言（使用 user_id）
+    from bot.utils.i18n import t
     
     text = f"""
-🔄 *{t('switch_mode', user=db_user)}*
+🔄 *{t('switch_mode', user_id=tg_id)}*
 
-{t('select_operation', user=db_user)}
+{t('select_operation', user_id=tg_id)}
 
-*{t('mode_inline', user=db_user)}* - {t('mode_inline_desc', user=db_user)}
-*{t('mode_keyboard', user=db_user)}* - {t('mode_keyboard_desc', user=db_user)}
-*{t('mode_miniapp', user=db_user)}* - {t('mode_miniapp_desc', user=db_user)}
+*{t('mode_inline', user_id=tg_id)}* - {t('mode_inline_desc', user_id=tg_id)}
+*{t('mode_keyboard', user_id=tg_id)}* - {t('mode_keyboard_desc', user_id=tg_id)}
+*{t('mode_miniapp', user_id=tg_id)}* - {t('mode_miniapp_desc', user_id=tg_id)}
 
-{t('choose_your_preferred_interaction', user=db_user)}
+{t('choose_your_preferred_interaction', user_id=tg_id)}
 """
     
     # 如果在群组中，提示 MiniApp 不可用
     if chat_type in ["group", "supergroup"]:
-        text += f"\n{t('miniapp_not_available_in_group', user=db_user)}"
+        text += f"\n{t('miniapp_not_available_in_group', user_id=tg_id)}"
     
     # 创建三种模式选择键盘（只显示三种主要模式，不包括auto）- 按钮中包含图标
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     keyboard = [
         [
-            InlineKeyboardButton(f"🔘 {t('mode_inline', user=db_user)}", callback_data="set_mode:inline"),
+            InlineKeyboardButton(f"🔘 {t('mode_inline', user_id=tg_id)}", callback_data="set_mode:inline"),
         ],
         [
-            InlineKeyboardButton(f"⌨️ {t('mode_keyboard', user=db_user)}", callback_data="set_mode:keyboard"),
+            InlineKeyboardButton(f"⌨️ {t('mode_keyboard', user_id=tg_id)}", callback_data="set_mode:keyboard"),
         ],
         [
-            InlineKeyboardButton(f"📱 {t('mode_miniapp', user=db_user)}", callback_data="set_mode:miniapp"),
+            InlineKeyboardButton(f"📱 {t('mode_miniapp', user_id=tg_id)}", callback_data="set_mode:miniapp"),
         ],
     ]
     
