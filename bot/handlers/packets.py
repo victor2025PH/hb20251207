@@ -2698,17 +2698,17 @@ async def confirm_and_send_packet(query, tg_id: int, context):
 
 
 async def show_my_packets(query, tg_id: int):
-    """顯示我發送的紅包"""
+    """顯示我發送的紅包（只接受 tg_id，不接受 ORM 對象）"""
+    from bot.utils.i18n import t
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
-    # 注意：User 已在文件頂部導入，不再重複導入
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
             try:
                 await query.edit_message_text("發生錯誤，請稍後再試")
             except:
                 if hasattr(query, 'message') and query.message:
-                    await query.message.reply_text(t('error_occurred', user=db_user))
+                    await query.message.reply_text(t('error_occurred', user_id=tg_id))
             return
         
         # 在会话内查询红包
