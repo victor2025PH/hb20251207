@@ -407,20 +407,39 @@ async def handle_group_input(update, tg_id: int, text, context):
             
             # 使用 user_id 獲取翻譯文本（在数据库会话外，避免会话冲突）
             logger.info(f"Getting translation texts for user {tg_id}")
-            confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
-            packet_info_text = t('packet_info', user_id=tg_id)
-            currency_label = t('currency_label', user_id=tg_id)
-            type_label = t('type_label', user_id=tg_id)
-            amount_label = t('amount_label', user_id=tg_id)
-            quantity_label = t('quantity_label', user_id=tg_id)
-            blessing_label = t('blessing_label', user_id=tg_id)
-            group_id_label = t('group_id_label', user_id=tg_id)
-            please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
-            random_amount_text = t('random_amount', user_id=tg_id)
-            fixed_amount_text = t('fixed_amount', user_id=tg_id)
-            shares_text = t('shares', user_id=tg_id)
-            confirm_send = t('confirm_send', user_id=tg_id)
-            cancel_text = t('cancel', user_id=tg_id)
+            try:
+                confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
+                packet_info_text = t('packet_info', user_id=tg_id)
+                currency_label = t('currency_label', user_id=tg_id)
+                type_label = t('type_label', user_id=tg_id)
+                amount_label = t('amount_label', user_id=tg_id)
+                quantity_label = t('quantity_label', user_id=tg_id)
+                blessing_label = t('blessing_label', user_id=tg_id)
+                group_id_label = t('group_id_label', user_id=tg_id)
+                please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
+                random_amount_text = t('random_amount', user_id=tg_id)
+                fixed_amount_text = t('fixed_amount', user_id=tg_id)
+                shares_text = t('shares', user_id=tg_id)
+                confirm_send = t('confirm_send', user_id=tg_id)
+                cancel_text = t('cancel', user_id=tg_id)
+                logger.info(f"Successfully got all translation texts for user {tg_id}")
+            except Exception as t_error:
+                logger.error(f"Error getting translation texts for user {tg_id}: {t_error}", exc_info=True)
+                # 使用默认中文文本作为后备
+                confirm_send_packet_text = "確認發送紅包"
+                packet_info_text = "紅包信息"
+                currency_label = "幣種："
+                type_label = "類型："
+                amount_label = "金額："
+                quantity_label = "數量："
+                blessing_label = "祝福語："
+                group_id_label = "群組 ID："
+                please_confirm_send_text = "請確認發送"
+                random_amount_text = "手氣最佳"
+                fixed_amount_text = "紅包炸彈"
+                shares_text = "份"
+                confirm_send = "確認發送"
+                cancel_text = "取消"
             
             type_text = random_amount_text if packet_type == "random" else fixed_amount_text
             
