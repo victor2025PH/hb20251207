@@ -224,6 +224,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.info(f"User {user.id} requested reset, cleared interaction_mode")
                 else:
                     logger.info(f"User {user.id} restarted bot (had mode {old_mode}), resetting to show initial setup")
+            
+            # 显示初始设置界面（语言选择）
+            from bot.handlers.initial_setup import show_initial_setup
+            await show_initial_setup(update, context)
+            return
         
         # 在会话内获取所有翻译文本和模式信息
         from bot.utils.mode_helper import get_effective_mode
