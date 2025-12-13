@@ -225,175 +225,175 @@ async def handle_group_input(update, tg_id: int, text, context):
         
         # 清理输入
         text = text.strip()
-    
-    # 嘗試解析群組 ID 或鏈接
-    chat_id = validate_chat_id(text)
-    
-    # 如果还不是有效的ID，尝试解析为群组用户名
-    if chat_id is None:
-        username = None
         
-        # 方式1: 匹配 t.me/xxx 或 https://t.me/xxx
-        match = re.search(r'(?:https?://)?(?:t\.me/|@)([a-zA-Z0-9_]+)', text, re.IGNORECASE)
-        if match:
-            username = match.group(1)
-        # 方式2: 如果只是纯用户名（不包含@或t.me/），自动补全
-        elif re.match(r'^[a-zA-Z0-9_]+$', text):
-            # 只包含字母、数字、下划线，认为是用户名
-            username = text
-            logger.info(f"Auto-completing username: {username}")
+        # 嘗試解析群組 ID 或鏈接
+        chat_id = validate_chat_id(text)
         
-        if username:
+        # 如果还不是有效的ID，尝试解析为群组用户名
+        if chat_id is None:
+            username = None
+            
+            # 方式1: 匹配 t.me/xxx 或 https://t.me/xxx
+            match = re.search(r'(?:https?://)?(?:t\.me/|@)([a-zA-Z0-9_]+)', text, re.IGNORECASE)
+            if match:
+                username = match.group(1)
+            # 方式2: 如果只是纯用户名（不包含@或t.me/），自动补全
+            elif re.match(r'^[a-zA-Z0-9_]+$', text):
+                # 只包含字母、数字、下划线，认为是用户名
+                username = text
+                logger.info(f"Auto-completing username: {username}")
+            
+            if username:
+                try:
+                    from telegram import Bot
+                    bot = Bot(token=settings.BOT_TOKEN)
+                    # 尝试获取群组信息（自动添加@前缀）
+                    chat = await bot.get_chat(f"@{username}")
+                    chat_id = chat.id
+                    logger.info(f"Successfully got chat_id {chat_id} from username @{username}")
+                except Exception as e:
+                    logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
+                    # 移除底部键盘（如果存在）
+                    from telegram import ReplyKeyboardRemove
+                    await update.message.reply_text(
+                        t('cannot_get_group_info', user_id=tg_id, error=str(e), username=username),
+                        parse_mode="Markdown",
+                        reply_markup=ReplyKeyboardRemove()
+                )
+                return
+        
+        if chat_id:
+            # ========================================
+            # 先验证群组：检查机器人和用户是否在群组中
+            # ========================================
+            bot_in_group = False
+            sender_in_group = False
+            
             try:
                 from telegram import Bot
+                from telegram.error import TelegramError
                 bot = Bot(token=settings.BOT_TOKEN)
-                # 尝试获取群组信息（自动添加@前缀）
-                chat = await bot.get_chat(f"@{username}")
-                chat_id = chat.id
-                logger.info(f"Successfully got chat_id {chat_id} from username @{username}")
+                sender_tg_id = tg_id
+                
+                # 检查机器人是否在群组中
+                try:
+                    # 先獲取機器人信息
+                    bot_info = await bot.get_me()
+                    bot_member = await bot.get_chat_member(chat_id, bot_info.id)
+                    bot_status = bot_member.status
+                    if bot_status in ['left', 'kicked']:
+                        # 机器人不在群组中
+                        from telegram import ReplyKeyboardRemove
+                        await update.message.reply_text(
+                            t('bot_not_in_group', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
+                            parse_mode="Markdown",
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        return
+                    bot_in_group = True
+                    logger.info(f"Bot is in group {chat_id}, status: {bot_status}")
+                except TelegramError as e:
+                    error_msg = str(e).lower()
+                    if "chat not found" in error_msg or "bot is not a member" in error_msg or "forbidden" in error_msg:
+                        from telegram import ReplyKeyboardRemove
+                        await update.message.reply_text(
+                            t('bot_not_in_group_verify', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
+                            parse_mode="Markdown",
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        return
+                    else:
+                        # 其他錯誤也要阻止
+                        logger.warning(f"Error checking bot membership: {e}")
+                        from telegram import ReplyKeyboardRemove
+                        await update.message.reply_text(
+                            t('cannot_verify_bot_permission', user_id=tg_id, chat_id=chat_id),
+                            parse_mode="Markdown",
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        return
+                
+                # 检查发送者是否在群组中（必须通过）
+                try:
+                    sender_member = await bot.get_chat_member(chat_id, sender_tg_id)
+                    sender_status = sender_member.status
+                    if sender_status in ['left', 'kicked']:
+                        from telegram import ReplyKeyboardRemove
+                        await update.message.reply_text(
+                            t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
+                            parse_mode="Markdown",
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        return
+                    sender_in_group = True
+                    logger.info(f"Sender {sender_tg_id} is in group {chat_id}, status: {sender_status}")
+                except TelegramError as e:
+                    # 发送者不在群组，阻止发送
+                    error_msg = str(e).lower()
+                    if "user not found" in error_msg or "forbidden" in error_msg:
+                        from telegram import ReplyKeyboardRemove
+                        await update.message.reply_text(
+                            t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
+                            parse_mode="Markdown",
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        return
+                    logger.warning(f"Could not verify sender membership: {e}")
+                    # 无法验证时，仍然允许继续（可能是权限问题）
+                    sender_in_group = True
             except Exception as e:
-                logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
-                # 移除底部键盘（如果存在）
+                logger.error(f"Error checking group membership: {e}", exc_info=True)
                 from telegram import ReplyKeyboardRemove
                 await update.message.reply_text(
-                    t('cannot_get_group_info', user_id=tg_id, error=str(e), username=username),
+                    t('check_group_permission_failed', user_id=tg_id, error=str(e)[:100]),
                     parse_mode="Markdown",
                     reply_markup=ReplyKeyboardRemove()
                 )
                 return
-    
-    if chat_id:
-        # ========================================
-        # 先验证群组：检查机器人和用户是否在群组中
-        # ========================================
-        bot_in_group = False
-        sender_in_group = False
-        
-        try:
-            from telegram import Bot
-            from telegram.error import TelegramError
-            bot = Bot(token=settings.BOT_TOKEN)
-            sender_tg_id = tg_id
             
-            # 检查机器人是否在群组中
-            try:
-                # 先獲取機器人信息
-                bot_info = await bot.get_me()
-                bot_member = await bot.get_chat_member(chat_id, bot_info.id)
-                bot_status = bot_member.status
-                if bot_status in ['left', 'kicked']:
-                    # 机器人不在群组中
-                    from telegram import ReplyKeyboardRemove
-                    await update.message.reply_text(
-                        t('bot_not_in_group', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
-                        parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                    )
-                    return
-                bot_in_group = True
-                logger.info(f"Bot is in group {chat_id}, status: {bot_status}")
-            except TelegramError as e:
-                error_msg = str(e).lower()
-                if "chat not found" in error_msg or "bot is not a member" in error_msg or "forbidden" in error_msg:
-                    from telegram import ReplyKeyboardRemove
-                    await update.message.reply_text(
-                        t('bot_not_in_group_verify', user_id=tg_id, bot_username=settings.BOT_USERNAME or 'luckyred2025_bot', chat_id=chat_id),
-                        parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                    )
-                    return
-                else:
-                    # 其他錯誤也要阻止
-                    logger.warning(f"Error checking bot membership: {e}")
-                    from telegram import ReplyKeyboardRemove
-                    await update.message.reply_text(
-                        t('cannot_verify_bot_permission', user_id=tg_id, chat_id=chat_id),
-                        parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                    )
-                    return
+            # 验证通过，保存群组ID并显示确认界面
+            packet_data['chat_id'] = chat_id
+            context.user_data['send_packet'] = packet_data
+            context.user_data.pop('waiting_for_group', None)
+            context.user_data['send_packet_step'] = 'confirm'
             
-            # 检查发送者是否在群组中（必须通过）
-            try:
-                sender_member = await bot.get_chat_member(chat_id, sender_tg_id)
-                sender_status = sender_member.status
-                if sender_status in ['left', 'kicked']:
-                    from telegram import ReplyKeyboardRemove
-                    await update.message.reply_text(
-                        t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
-                        parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                    )
+            # 顯示確認界面
+            # 检查用户是通过内联按钮还是底部键盘进入的
+            # 关键：如果是从底部键盘流程进入（通过handle_reply_keyboard），use_inline_buttons应该是False
+            # 如果是从内联按钮流程进入（通过send_packet_menu_callback），use_inline_buttons应该是True
+            currency = packet_data.get('currency', 'usdt')
+            packet_type = packet_data.get('packet_type', 'random')
+            amount = packet_data.get('amount', 0)
+            count = packet_data.get('count', 1)
+            message = packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)
+            bomb_number = packet_data.get('bomb_number')
+            
+            # 在会话内重新查询用户以确保数据最新
+            with get_db() as db:
+                user = db.query(User).filter(User.tg_id == tg_id).first()
+                if not user:
+                    await update.message.reply_text(t("error", user_id=tg_id))
                     return
-                sender_in_group = True
-                logger.info(f"Sender {sender_tg_id} is in group {chat_id}, status: {sender_status}")
-            except TelegramError as e:
-                # 发送者不在群组，阻止发送
-                error_msg = str(e).lower()
-                if "user not found" in error_msg or "forbidden" in error_msg:
-                    from telegram import ReplyKeyboardRemove
-                    await update.message.reply_text(
-                        t('sender_not_in_group', user_id=tg_id, chat_id=chat_id),
-                        parse_mode="Markdown",
-                        reply_markup=ReplyKeyboardRemove()
-                    )
-                    return
-                logger.warning(f"Could not verify sender membership: {e}")
-                # 无法验证时，仍然允许继续（可能是权限问题）
-                sender_in_group = True
-        except Exception as e:
-            logger.error(f"Error checking group membership: {e}", exc_info=True)
-            from telegram import ReplyKeyboardRemove
-            await update.message.reply_text(
-                t('check_group_permission_failed', user_id=tg_id, error=str(e)[:100]),
-                parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
-            )
-            return
-        
-        # 验证通过，保存群组ID并显示确认界面
-        packet_data['chat_id'] = chat_id
-        context.user_data['send_packet'] = packet_data
-        context.user_data.pop('waiting_for_group', None)
-        context.user_data['send_packet_step'] = 'confirm'
-        
-        # 顯示確認界面
-        # 检查用户是通过内联按钮还是底部键盘进入的
-        # 关键：如果是从底部键盘流程进入（通过handle_reply_keyboard），use_inline_buttons应该是False
-        # 如果是从内联按钮流程进入（通过send_packet_menu_callback），use_inline_buttons应该是True
-        currency = packet_data.get('currency', 'usdt')
-        packet_type = packet_data.get('packet_type', 'random')
-        amount = packet_data.get('amount', 0)
-        count = packet_data.get('count', 1)
-        message = packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)
-        bomb_number = packet_data.get('bomb_number')
-        
-        # 在会话内重新查询用户以确保数据最新
-        with get_db() as db:
-            user = db.query(User).filter(User.tg_id == tg_id).first()
-            if not user:
-                await update.message.reply_text(t("error", user_id=tg_id))
-                return
-            
-            # 使用 user_id 獲取翻譯文本
-            confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
-            packet_info_text = t('packet_info', user_id=tg_id)
-            currency_label = t('currency_label', user_id=tg_id)
-            type_label = t('type_label', user_id=tg_id)
-            amount_label = t('amount_label', user_id=tg_id)
-            quantity_label = t('quantity_label', user_id=tg_id)
-            blessing_label = t('blessing_label', user_id=tg_id)
-            group_id_label = t('group_id_label', user_id=tg_id)
-            please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
-            random_amount_text = t('random_amount', user_id=tg_id)
-            fixed_amount_text = t('fixed_amount', user_id=tg_id)
-            shares_text = t('shares', user_id=tg_id)
-            confirm_send = t('confirm_send', user_id=tg_id)
-            cancel_text = t('cancel', user_id=tg_id)
-            
-            type_text = random_amount_text if packet_type == "random" else fixed_amount_text
-            
-            text = f"""
+                
+                # 使用 user_id 獲取翻譯文本
+                confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
+                packet_info_text = t('packet_info', user_id=tg_id)
+                currency_label = t('currency_label', user_id=tg_id)
+                type_label = t('type_label', user_id=tg_id)
+                amount_label = t('amount_label', user_id=tg_id)
+                quantity_label = t('quantity_label', user_id=tg_id)
+                blessing_label = t('blessing_label', user_id=tg_id)
+                group_id_label = t('group_id_label', user_id=tg_id)
+                please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
+                random_amount_text = t('random_amount', user_id=tg_id)
+                fixed_amount_text = t('fixed_amount', user_id=tg_id)
+                shares_text = t('shares', user_id=tg_id)
+                confirm_send = t('confirm_send', user_id=tg_id)
+                cancel_text = t('cancel', user_id=tg_id)
+                
+                type_text = random_amount_text if packet_type == "random" else fixed_amount_text
+                
+                text = f"""
 {confirm_send_packet_text}
 
 *{packet_info_text}*
@@ -406,84 +406,84 @@ async def handle_group_input(update, tg_id: int, text, context):
 
 {please_confirm_send_text}
 """
-        
-        # 检查是否应该使用内联按钮
-        # 关键修复：优先检查use_inline_buttons标志
-        # 如果用户通过内联按钮流程进入（从send_packet_menu_callback开始），use_inline_buttons应该是True
-        # 此时即使输入群组ID是通过文本消息，也应该使用内联按钮确认
-        use_inline = context.user_data.get('use_inline_buttons', False)
-        
-        logger.info(f"handle_group_input: use_inline={use_inline}, use_inline_buttons_flag={context.user_data.get('use_inline_buttons', False)}")
-        
-        if use_inline:
-            # 使用内联按钮（内联按钮流程）
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            # 生成callback_data，确保不超过64字节
-            msg_flag = 'default' if message == PacketConstants.DEFAULT_MESSAGE else 'custom'
-            bomb_num_str = str(bomb_number) if bomb_number is not None else ''
-            confirm_callback = f"packets:send:confirm:{currency}:{packet_type}:{amount}:{count}:{bomb_num_str}:{msg_flag}:{chat_id}"
             
-            # 如果超过64字节，使用简化格式
-            if len(confirm_callback) > 64:
-                confirm_callback = f"packets:send:confirm:{currency}:{packet_type}:{amount}:{count}:{chat_id}"
-                # 存储完整数据到context
-                if 'pending_confirm' not in context.user_data:
-                    context.user_data['pending_confirm'] = {}
-                context.user_data['pending_confirm'][str(chat_id)] = {
-                    'bomb_number': bomb_number,
-                    'message': message
-                }
+            # 检查是否应该使用内联按钮
+            # 关键修复：优先检查use_inline_buttons标志
+            # 如果用户通过内联按钮流程进入（从send_packet_menu_callback开始），use_inline_buttons应该是True
+            # 此时即使输入群组ID是通过文本消息，也应该使用内联按钮确认
+            use_inline = context.user_data.get('use_inline_buttons', False)
             
-            keyboard = [
-                [
-                    InlineKeyboardButton(confirm_send, callback_data=confirm_callback),
-                    InlineKeyboardButton(cancel_text, callback_data="menu:packets"),
-                ],
-            ]
-            # 移除底部键盘，避免干扰
+            logger.info(f"handle_group_input: use_inline={use_inline}, use_inline_buttons_flag={context.user_data.get('use_inline_buttons', False)}")
+            
+            if use_inline:
+                # 使用内联按钮（内联按钮流程）
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                # 生成callback_data，确保不超过64字节
+                msg_flag = 'default' if message == PacketConstants.DEFAULT_MESSAGE else 'custom'
+                bomb_num_str = str(bomb_number) if bomb_number is not None else ''
+                confirm_callback = f"packets:send:confirm:{currency}:{packet_type}:{amount}:{count}:{bomb_num_str}:{msg_flag}:{chat_id}"
+                
+                # 如果超过64字节，使用简化格式
+                if len(confirm_callback) > 64:
+                    confirm_callback = f"packets:send:confirm:{currency}:{packet_type}:{amount}:{count}:{chat_id}"
+                    # 存储完整数据到context
+                    if 'pending_confirm' not in context.user_data:
+                        context.user_data['pending_confirm'] = {}
+                    context.user_data['pending_confirm'][str(chat_id)] = {
+                        'bomb_number': bomb_number,
+                        'message': message
+                    }
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton(confirm_send, callback_data=confirm_callback),
+                        InlineKeyboardButton(cancel_text, callback_data="menu:packets"),
+                    ],
+                ]
+                # 移除底部键盘，避免干扰
+                from telegram import ReplyKeyboardRemove
+                await update.message.reply_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+                # 发送一个隐藏消息来移除底部键盘
+                try:
+                    remove_msg = await update.message.reply_text(
+                        " ",
+                        reply_markup=ReplyKeyboardRemove(),
+                        parse_mode=None
+                    )
+                    # 立即删除这个隐藏消息
+                    try:
+                        from telegram import Bot
+                        bot = Bot(token=settings.BOT_TOKEN)
+                        await bot.delete_message(
+                            chat_id=update.message.chat_id,
+                            message_id=remove_msg.message_id
+                        )
+                    except Exception as del_e:
+                        logger.debug(f"Could not delete remove keyboard message: {del_e}")
+                except Exception as remove_e:
+                    logger.debug(f"Could not remove reply keyboard: {remove_e}")
+            else:
+                # 使用底部键盘（底部键盘流程）
+                # 关键：确保use_inline_buttons标志为False，这样后续的确认发送也会使用底部键盘
+                context.user_data['use_inline_buttons'] = False
+                from bot.keyboards.reply_keyboards import get_send_packet_confirm_keyboard
+                await update.message.reply_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_markup=get_send_packet_confirm_keyboard(),
+                )
+        else:
+            from bot.utils.i18n import t
             from telegram import ReplyKeyboardRemove
             await update.message.reply_text(
-                text,
+                t('cannot_identify_group_id', user_id=tg_id),
                 parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=ReplyKeyboardRemove()
             )
-            # 发送一个隐藏消息来移除底部键盘
-            try:
-                remove_msg = await update.message.reply_text(
-                    " ",
-                    reply_markup=ReplyKeyboardRemove(),
-                    parse_mode=None
-                )
-                # 立即删除这个隐藏消息
-                try:
-                    from telegram import Bot
-                    bot = Bot(token=settings.BOT_TOKEN)
-                    await bot.delete_message(
-                        chat_id=update.message.chat_id,
-                        message_id=remove_msg.message_id
-                    )
-                except Exception as del_e:
-                    logger.debug(f"Could not delete remove keyboard message: {del_e}")
-            except Exception as remove_e:
-                logger.debug(f"Could not remove reply keyboard: {remove_e}")
-        else:
-            # 使用底部键盘（底部键盘流程）
-            # 关键：确保use_inline_buttons标志为False，这样后续的确认发送也会使用底部键盘
-            context.user_data['use_inline_buttons'] = False
-            from bot.keyboards.reply_keyboards import get_send_packet_confirm_keyboard
-            await update.message.reply_text(
-                text,
-                parse_mode="Markdown",
-                reply_markup=get_send_packet_confirm_keyboard(),
-            )
-    else:
-        from bot.utils.i18n import t
-        from telegram import ReplyKeyboardRemove
-        await update.message.reply_text(
-            t('cannot_identify_group_id', user_id=tg_id),
-            parse_mode="Markdown",
-            reply_markup=ReplyKeyboardRemove()
-        )
     except Exception as e:
         logger.error(f"Error in handle_group_input: {e}", exc_info=True)
         await handle_error_with_ui(
