@@ -941,40 +941,18 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
     
     logger.info(f"[SEND_PACKET] Parsed: action={action}, sub_action={sub_action}, parts={parts}")
     
-    # 獲取用戶（在會話內重新查詢，避免會話分離錯誤）
-    # 注意：User 已经在文件顶部导入，这里不再重复导入
-    from shared.database.connection import get_db
-    
-    # 初始化db_user为None，确保在except块中可用
-    db_user = None
-    
-    # 在会话内完成所有操作
-    # 注意：User 在文件顶部已导入，这里直接使用，Python会从外部作用域获取
-    with get_db() as db:
-        db_user = db.query(User).filter(User.tg_id == user_id).first()
-        if not db_user:
-            logger.error(f"[SEND_PACKET] User {user_id} not found")
-            await query.message.reply_text("請先使用 /start 註冊")
-            return
-        
-        # 在会话内访问所有需要的属性，确保数据已加载
-        _ = db_user.id
-        _ = db_user.tg_id
-        _ = db_user.balance_usdt
-        _ = db_user.balance_ton
-        _ = db_user.balance_points
-    
-    # 注意：User 已经在函数开始处引用（第598行），这里不需要再次引用
-    # 直接使用 User 即可，Python 已经知道它是外部作用域的变量
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.user_helpers import get_user_id_from_update
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
+        logger.error(f"[SEND_PACKET] User {user_id} not found")
+        await query.message.reply_text("請先使用 /start 註冊")
+        return
     
     try:
         if action == "send_menu":
             logger.info(f"[SEND_PACKET] Showing send packet menu for user {user_id}")
-            # 重新在会话内查询以确保数据最新
-            with get_db() as db:
-                db_user = db.query(User).filter(User.tg_id == user_id).first()
-                if db_user:
-                    await show_send_packet_menu(query, db_user)
+            await show_send_packet_menu(query, tg_id)
         elif action == "send":
             # 重新在会话内查询以确保数据最新
             with get_db() as db:
@@ -988,7 +966,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 
                 # 检查用户当前模式，如果已经是内联模式，就不需要显示提示和移除键盘
                 from bot.utils.mode_helper import get_effective_mode
-                effective_mode = get_effective_mode(db_user, update.effective_chat.type)
+                effective_mode = get_effective_mode(tg_id, update.effective_chat.type)
                 
                 # ✅ 只在从键盘模式切换到内联模式时移除底部鍵盤（静默移除，不显示提示）
                 if not sub_action and effective_mode != "inline":
@@ -1011,19 +989,19 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 if not sub_action:
                     logger.info(f"[SEND_PACKET] Showing send packet menu for user {user_id}")
                     try:
-                        await show_send_packet_menu(query, db_user, use_inline_buttons=True)
+                        await show_send_packet_menu(query, tg_id, use_inline_buttons=True)
                     except Exception as menu_error:
                         logger.error(f"[SEND_PACKET] Error in show_send_packet_menu: {menu_error}", exc_info=True)
                         # 如果显示菜单失败，尝试显示引导界面作为后备
                         try:
-                            await show_send_packet_guide(query, db_user)
+                            await show_send_packet_guide(query, tg_id)
                         except Exception as guide_error:
                             logger.error(f"[SEND_PACKET] Error in show_send_packet_guide: {guide_error}", exc_info=True)
-                            await query.message.reply_text(t("error", user=db_user))
+                            await query.message.reply_text(t("error", user_id=tg_id))
                 elif sub_action == "type":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     logger.info(f"[SEND_PACKET] Showing packet type selection for user {user_id}, currency={currency}")
-                    await show_packet_type_selection(query, db_user, currency, context)
+                    await show_packet_type_selection(query, tg_id, currency, context)
                     logger.info(f"[SEND_PACKET] Successfully showed packet type selection for user {user_id}")
                 elif sub_action == "amount":
                     currency = parts[3] if len(parts) > 3 else "usdt"
@@ -1039,16 +1017,16 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                                 'packet_type': packet_type,
                                 'amount': amount,
                             }
-                            await show_count_input(query, db_user, context)
+                            await show_count_input(query, tg_id, context)
                             logger.info(f"[SEND_PACKET] Successfully showed count input for user {user_id}")
                         except (ValueError, TypeError) as e:
                             logger.error(f"[SEND_PACKET] Invalid amount value '{parts[5]}' for user {user_id}: {e}")
                             # 如果parts[5]不是有效数字，显示金额选择界面
-                            await show_amount_input(query, db_user, currency, packet_type)
+                            await show_amount_input(query, tg_id, currency, packet_type)
                     else:
                         logger.info(f"[SEND_PACKET] Showing amount input for user {user_id}, currency: {currency}, packet_type: {packet_type}")
                         # 没有选择具体金额，显示金额选择界面
-                        await show_amount_input(query, db_user, currency, packet_type)
+                        await show_amount_input(query, tg_id, currency, packet_type)
                 elif sub_action == "count":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1066,10 +1044,10 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                         }
                         # 如果是红包炸弹，需要选择炸弹数字
                         if packet_type == "equal":
-                            await show_bomb_number_selection(query, db_user, context)
+                            await show_bomb_number_selection(query, tg_id, context)
                         else:
                             # 普通红包，进入祝福语输入
-                            await show_message_input(query, db_user, context)
+                            await show_message_input(query, tg_id, context)
                     else:
                         # 还没有选择数量，显示数量选择界面
                         context.user_data['send_packet'] = {
@@ -1077,7 +1055,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                             'packet_type': packet_type,
                             'amount': amount,
                         }
-                        await show_count_input(query, db_user, context)
+                        await show_count_input(query, tg_id, context)
                 elif sub_action == "bomb":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1089,7 +1067,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                         'amount': amount,
                         'count': count,
                     }
-                    await show_bomb_number_selection(query, db_user, context)
+                    await show_bomb_number_selection(query, tg_id, context)
                 elif sub_action == "message":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1103,7 +1081,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                         'count': count,
                         'bomb_number': bomb_number,
                     }
-                    await show_message_input(query, db_user, context)
+                    await show_message_input(query, tg_id, context)
                 elif sub_action == "group":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1138,7 +1116,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                         'bomb_number': bomb_number,
                         'message': message,
                     }
-                    await show_group_selection(query, db_user, context)
+                    await show_group_selection(query, tg_id, context)
                 elif sub_action == "group_input":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
@@ -1177,7 +1155,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                     # 标记用户使用的是内联按钮流程
                     context.user_data['use_inline_buttons'] = True
                     logger.info(f"Setting waiting_for_group=True for user {db_user.tg_id}, step=group_input, use_inline_buttons=True")
-                    await show_group_link_input(query, db_user, context)
+                    await show_group_link_input(query, tg_id, context)
                 elif sub_action == "confirm":
                     # 解析callback_data参数
                     chat_id = None
@@ -1264,7 +1242,7 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                 pass
 
 
-async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True):
+async def show_send_packet_menu(query, tg_id: int, use_inline_buttons: bool = True):
     """顯示發紅包主菜單
     
     Args:
@@ -1369,7 +1347,7 @@ async def show_send_packet_menu(query, db_user, use_inline_buttons: bool = True)
                     logger.error(f"Error editing message in show_send_packet_menu (reply mode): {e}", exc_info=True)
 
 
-async def show_packet_type_selection(query, db_user, currency: str, context=None):
+async def show_packet_type_selection(query, tg_id: int, currency: str, context=None):
     """顯示紅包類型選擇
     
     Args:
@@ -1484,7 +1462,7 @@ async def show_packet_type_selection(query, db_user, currency: str, context=None
             pass
 
 
-async def show_amount_input(query, db_user, currency: str, packet_type: str):
+async def show_amount_input(query, tg_id: int, currency: str, packet_type: str):
     """顯示金額輸入"""
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
     # 注意：User 已在文件頂部導入，不再重複導入
@@ -1564,7 +1542,7 @@ async def show_amount_input(query, db_user, currency: str, packet_type: str):
                 raise
 
 
-async def show_count_input(query, db_user, context):
+async def show_count_input(query, tg_id: int, context):
     """顯示數量輸入"""
     from bot.utils.i18n import t
     
@@ -1692,7 +1670,7 @@ async def show_count_input(query, db_user, context):
                 raise
 
 
-async def show_bomb_number_selection(query, db_user, context):
+async def show_bomb_number_selection(query, tg_id: int, context):
     """顯示炸彈數字選擇"""
     from bot.utils.i18n import t
     
@@ -1778,7 +1756,7 @@ async def show_bomb_number_selection(query, db_user, context):
             raise
 
 
-async def show_message_input(query, db_user, context):
+async def show_message_input(query, tg_id: int, context):
     """顯示祝福語輸入"""
     from bot.utils.i18n import t
     
@@ -1924,7 +1902,7 @@ async def show_group_search(query, db_user, context):
         )
 
 
-async def show_group_selection(query, db_user, context):
+async def show_group_selection(query, tg_id: int, context):
     """顯示群組選擇"""
     from bot.utils.i18n import t
     
@@ -2145,7 +2123,7 @@ async def show_group_selection(query, db_user, context):
                 raise
 
 
-async def show_group_link_input(query, db_user, context):
+async def show_group_link_input(query, tg_id: int, context):
     """顯示群組鏈接輸入提示 - 支持只输入用户名（自动补全）"""
     from bot.utils.i18n import t
     
@@ -2780,7 +2758,7 @@ async def confirm_and_send_packet(query, db_user, context):
     context.user_data.pop('waiting_for_message', None)
 
 
-async def show_my_packets(query, db_user):
+async def show_my_packets(query, tg_id: int):
     """顯示我發送的紅包"""
     # 在會話內重新查詢用戶以確保數據最新，並在會話內完成所有操作
     # 注意：User 已在文件頂部導入，不再重複導入
