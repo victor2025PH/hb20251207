@@ -349,11 +349,32 @@ async def handle_group_input(update, tg_id: int, text, context):
                     InlineKeyboardButton(cancel_text, callback_data="menu:packets"),
                 ],
             ]
+            # 移除底部键盘，避免干扰
+            from telegram import ReplyKeyboardRemove
             await update.message.reply_text(
                 text,
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
+            # 发送一个隐藏消息来移除底部键盘
+            try:
+                remove_msg = await update.message.reply_text(
+                    " ",
+                    reply_markup=ReplyKeyboardRemove(),
+                    parse_mode=None
+                )
+                # 立即删除这个隐藏消息
+                try:
+                    from telegram import Bot
+                    bot = Bot(token=settings.BOT_TOKEN)
+                    await bot.delete_message(
+                        chat_id=update.message.chat_id,
+                        message_id=remove_msg.message_id
+                    )
+                except Exception as del_e:
+                    logger.debug(f"Could not delete remove keyboard message: {del_e}")
+            except Exception as remove_e:
+                logger.debug(f"Could not remove reply keyboard: {remove_e}")
         else:
             # 使用底部键盘（底部键盘流程）
             # 关键：确保use_inline_buttons标志为False，这样后续的确认发送也会使用底部键盘
@@ -456,11 +477,32 @@ async def show_group_selection_from_message(update, tg_id: int, context):
         ])
         
         # 在会话内完成所有操作后再发送消息
+        # 移除底部键盘，避免干扰
+        from telegram import ReplyKeyboardRemove
         await update.message.reply_text(
             text,
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
+        # 发送一个隐藏消息来移除底部键盘
+        try:
+            remove_msg = await update.message.reply_text(
+                " ",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode=None
+            )
+            # 立即删除这个隐藏消息
+            try:
+                from telegram import Bot
+                bot = Bot(token=settings.BOT_TOKEN)
+                await bot.delete_message(
+                    chat_id=update.message.chat_id,
+                    message_id=remove_msg.message_id
+                )
+            except Exception as del_e:
+                logger.debug(f"Could not delete remove keyboard message: {del_e}")
+        except Exception as remove_e:
+            logger.debug(f"Could not remove reply keyboard: {remove_e}")
 
 
 async def confirm_and_send_from_message(update, tg_id: int, context):
