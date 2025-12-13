@@ -39,21 +39,23 @@ async def packets_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1] if len(parts) > 1 else ""
     
-    # 獲取用戶（帶緩存）
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.user_helpers import get_user_id_from_update
+    user_id = update.effective_user.id if update.effective_user else None
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
         await query.message.reply_text("請先使用 /start 註冊")
         return
     
     if action == "list":
-        await show_packets_list(query, db_user)
+        await show_packets_list(query, tg_id)
     elif action == "send":
-        await show_send_packet_guide(query, db_user)
+        await show_send_packet_guide(query, tg_id)
     elif action == "send_menu":
         # send_menu 應該由 send_packet_menu_callback 處理，但為了兼容性也處理
         await send_packet_menu_callback(update, context)
     elif action == "my":
-        await show_my_packets(query, db_user)
+        await show_my_packets(query, tg_id)
 
 
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -69,9 +71,12 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text = update.message.text.strip()
     
-    # 獲取用戶（帶緩存）
-    db_user = await get_user_from_update(update, context)
-    if not db_user:
+    # 獲取用戶 ID（不返回 ORM 對象）
+    from bot.utils.user_helpers import get_user_id_from_update
+    from bot.utils.i18n import t
+    user_id = update.effective_user.id if update.effective_user else None
+    tg_id = await get_user_id_from_update(update, context)
+    if not tg_id:
         return
     
     # 檢查發紅包流程步驟
@@ -84,7 +89,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # 嘗試解析為數字（支持小數）
             amount = float(text)
             if amount <= 0:
-                await update.message.reply_text(t("amount_must_positive", user=db_user))
+                await update.message.reply_text(t("amount_must_positive", user_id=tg_id))
                 return
             
             packet_data['amount'] = amount
@@ -99,14 +104,14 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'edit_message_text': lambda self, *args, **kwargs: update.message.reply_text(*args, **kwargs),
                 'message': update.message
             })()
-            await show_count_input(query, db_user, context)
+            await show_count_input(query, tg_id, context)
             await update.message.reply_text(
-                t("select_count", user=db_user),
+                t("select_count", user_id=tg_id),
                 reply_markup=get_send_packet_count_keyboard(currency, packet_type, str(amount)),
             )
             return
         except ValueError:
-            await update.message.reply_text(t("invalid_amount", user=db_user))
+            await update.message.reply_text(t("invalid_amount", user_id=tg_id))
             return
     
     # 處理自定義數量輸入
@@ -114,10 +119,10 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             count = int(text)
             if count <= 0:
-                await update.message.reply_text(t('count_must_positive_reenter', user=db_user))
+                await update.message.reply_text(t('count_must_positive_reenter', user_id=tg_id))
                 return
             if count > PacketConstants.MAX_COUNT:
-                await update.message.reply_text(t('count_exceeded_reenter', user=db_user, max=PacketConstants.MAX_COUNT))
+                await update.message.reply_text(t('count_exceeded_reenter', user_id=tg_id, max=PacketConstants.MAX_COUNT))
                 return
             
             packet_data['count'] = count
@@ -131,7 +136,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 elif count == 10:
                     packet_data['bomb_number'] = None  # 單雷
                 else:
-                    await update.message.reply_text(t('bomb_count_restriction_reenter', user=db_user))
+                    await update.message.reply_text(t('bomb_count_restriction_reenter', user_id=tg_id))
                     return
                 context.user_data['send_packet'] = packet_data
             
@@ -140,33 +145,34 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'edit_message_text': lambda self, *args, **kwargs: update.message.reply_text(*args, **kwargs),
                 'message': update.message
             })()
-            await show_group_selection(query, db_user, context)
+            await show_group_selection(query, tg_id, context)
             await update.message.reply_text(
-                t('enter_group_link_id', user=db_user),
+                t('enter_group_link_id', user_id=tg_id),
                 reply_markup=get_send_packet_group_keyboard(),
             )
             return
         except ValueError:
-            await update.message.reply_text(t('enter_valid_number_example', user=db_user))
+            await update.message.reply_text(t('enter_valid_number_example', user_id=tg_id))
             return
     
     # 處理群組 ID 輸入
     elif step == 'group_input' or context.user_data.get('waiting_for_group'):
-        logger.info(f"Processing group input for user {db_user.tg_id}, text='{text}', step={step}, waiting_for_group={context.user_data.get('waiting_for_group')}")
+        logger.info(f"Processing group input for user {tg_id}, text='{text}', step={step}, waiting_for_group={context.user_data.get('waiting_for_group')}")
         context.user_data['waiting_for_group'] = True
         context.user_data['send_packet_step'] = 'group_input'
-        await handle_group_input(update, db_user, text, context)
+        await handle_group_input(update, tg_id, text, context)
         return
     
     # 處理祝福語輸入
     elif context.user_data.get('waiting_for_message'):
-        await handle_message_input(update, db_user, text, context)
+        await handle_message_input(update, tg_id, text, context)
         return
 
 
-async def handle_group_input(update, db_user, text, context):
-    """處理群組 ID/鏈接輸入 - 支持只输入用户名（自动补全@和t.me/）"""
+async def handle_group_input(update, tg_id: int, text, context):
+    """處理群組 ID/鏈接輸入（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.security import validate_chat_id
+    from bot.utils.i18n import t
     import re
     
     packet_data = context.user_data.get('send_packet', {})
@@ -202,7 +208,7 @@ async def handle_group_input(update, db_user, text, context):
             except Exception as e:
                 logger.error(f"Error getting chat from username @{username}: {e}", exc_info=True)
                 await update.message.reply_text(
-                    t('cannot_get_group_info', user=db_user, error=str(e), username=username),
+                    t('cannot_get_group_info', user_id=tg_id, error=str(e), username=username),
                     parse_mode="Markdown"
                 )
                 return
@@ -323,7 +329,7 @@ async def handle_group_input(update, db_user, text, context):
         )
 
 
-async def handle_message_input(update, db_user, text, context):
+async def handle_message_input(update, tg_id: int, text, context):
     """處理祝福語輸入"""
     from bot.utils.security import sanitize_message
     
@@ -333,10 +339,10 @@ async def handle_message_input(update, db_user, text, context):
     context.user_data.pop('waiting_for_message', None)
     
     # 進入群組選擇
-    await show_group_selection_from_message(update, db_user, context)
+    await show_group_selection_from_message(update, tg_id, context)
 
 
-async def show_group_selection_from_message(update, db_user, context):
+async def show_group_selection_from_message(update, tg_id: int, context):
     """從消息中顯示群組選擇"""
     from bot.utils.i18n import t
     
@@ -421,7 +427,7 @@ async def show_group_selection_from_message(update, db_user, context):
         )
 
 
-async def confirm_and_send_from_message(update, db_user, context):
+async def confirm_and_send_from_message(update, tg_id: int, context):
     """從消息確認並發送紅包"""
     from bot.utils.i18n import t  # 在函数开头导入，确保始终可用
     packet_data = context.user_data.get('send_packet', {})
