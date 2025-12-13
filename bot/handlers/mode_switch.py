@@ -127,15 +127,31 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=get_main_menu(user_id=tg_id)
                 )
             except Exception as edit_e:
-                # 如果编辑失败，发送新消息
+                error_msg = str(edit_e)
+                if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+                    # 消息未修改，只显示提示，不报错
+                    await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+                    logger.debug(f"Message not modified in set_mode_callback, user {tg_id}")
+                else:
+                    # 如果编辑失败，发送新消息
+                    if query.message:
+                        await query.message.reply_text(
+                            mode_set_text,
+                            parse_mode=None,
+                            reply_markup=get_main_menu(user_id=tg_id)
+                        )
+        except Exception as e2:
+            logger.error(f"Error sending fallback message: {e2}", exc_info=True)
+            # 最后的错误处理：至少发送错误消息和主菜单按钮
+            try:
                 if query.message:
                     await query.message.reply_text(
-                        mode_set_text,
+                        t('error_occurred', user_id=tg_id),
                         parse_mode=None,
                         reply_markup=get_main_menu(user_id=tg_id)
                     )
-        except Exception as e2:
-            logger.error(f"Error sending fallback message: {e2}", exc_info=True)
+            except Exception as e3:
+                logger.error(f"Error sending final error message: {e3}", exc_info=True)
 
 
 async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):

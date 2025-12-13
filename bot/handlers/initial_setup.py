@@ -82,6 +82,14 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     except Exception as e:
         logger.error(f"Error sending initial setup: {e}", exc_info=True)
+        # 发送错误消息给用户
+        try:
+            await update.message.reply_text(
+                t('error_occurred', user_id=user_id),
+                parse_mode=None
+            )
+        except Exception as e2:
+            logger.error(f"Error sending error message: {e2}", exc_info=True)
 
 
 def get_initial_setup_keyboard(current_lang: str = "zh-TW", user_id: int = None):
@@ -204,16 +212,31 @@ async def setup_language_callback(update: Update, context: ContextTypes.DEFAULT_
             parse_mode=None,  # 不使用 Markdown，避免解析错误
             reply_markup=keyboard
         )
-    except Exception as e:
-        logger.error(f"Error editing message: {e}", exc_info=True)
-        try:
-            await query.message.reply_text(
-                text,
-                parse_mode=None,  # 不使用 Markdown，避免解析错误
-                reply_markup=keyboard
-            )
-        except Exception as e2:
-            logger.error(f"Error sending new message: {e2}", exc_info=True)
+    except Exception as edit_e:
+        error_msg = str(edit_e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            # 消息未修改，只显示提示，不报错
+            await query.answer(t('displayed', user_id=user_id), show_alert=False)
+            logger.debug(f"Message not modified in setup_language_callback, user {user_id}")
+        else:
+            logger.error(f"Error editing message: {edit_e}", exc_info=True)
+            try:
+                # 尝试发送新消息
+                await query.message.reply_text(
+                    text,
+                    parse_mode=None,  # 不使用 Markdown，避免解析错误
+                    reply_markup=keyboard
+                )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message: {reply_e}", exc_info=True)
+                # 如果发送新消息也失败，至少发送错误消息
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=user_id),
+                        parse_mode=None
+                    )
+                except Exception as e3:
+                    logger.error(f"Error sending error message: {e3}", exc_info=True)
 
 
 # 这个函数已经被移除，逻辑移到了 setup_language_callback 中
