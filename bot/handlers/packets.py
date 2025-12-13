@@ -153,9 +153,11 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'message': update.message
             })()
             await show_group_selection(query, tg_id, context)
+            # 移除底部键盘，避免干扰输入
+            from telegram import ReplyKeyboardRemove
             await update.message.reply_text(
                 t('enter_group_link_id', user_id=tg_id),
-                reply_markup=get_send_packet_group_keyboard(),
+                reply_markup=ReplyKeyboardRemove(),
             )
             return
         except ValueError:
