@@ -116,11 +116,21 @@ async def show_main_menu(query, tg_id: int):
         with get_db() as db:
             user = db.query(User).filter(User.tg_id == tg_id).first()
             if not user:
+                import traceback
+                logger.error(f"【严重错误】[SHOW_MAIN_MENU] 用户 {tg_id} 未找到")
+                traceback.print_exc()
+                await query.answer(t('error_occurred', user_id=tg_id), show_alert=True)
                 try:
-                    await query.edit_message_text(t("error", user_id=tg_id))
+                    await query.edit_message_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_main_menu(user_id=tg_id)
+                    )
                 except:
                     if hasattr(query, 'message') and query.message:
-                        await query.message.reply_text(t('error_occurred', user_id=tg_id))
+                        await query.message.reply_text(
+                            t('error_occurred', user_id=tg_id),
+                            reply_markup=get_main_menu(user_id=tg_id)
+                        )
                 return
             
             # 在会话内访问所有需要的属性

@@ -60,13 +60,18 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text(t('please_register_first', user_id=user_id), reply_markup=get_main_reply_keyboard(user_id=user_id))
             return
     except Exception as e:
-        logger.error(f"Error in handle_reply_keyboard (initial): {e}", exc_info=True)
-        try:
-            if update.message:
-                error_msg = t('error_occurred', user=None) if t('error_occurred', user=None) != 'error_occurred' else "發生錯誤，請稍後再試"
-                await update.message.reply_text(error_msg, reply_markup=get_main_reply_keyboard(user=None))
-        except:
-            pass
+        import traceback
+        logger.error(f"【严重错误】[HANDLE_REPLY_KEYBOARD] 处理回复键盘时")
+        traceback.print_exc()
+        # 使用统一的错误处理函数
+        from bot.utils.error_helpers import handle_error_with_ui
+        await handle_error_with_ui(
+            update=update,
+            context=context,
+            error=e,
+            error_context="[HANDLE_REPLY_KEYBOARD] 处理回复键盘时",
+            show_main_menu_button=True
+        )
         return
     
     # 檢查是否在等待用戶輸入（金額、數量、群組 ID/祝福語等）
