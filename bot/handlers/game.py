@@ -39,32 +39,34 @@ async def game_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_lucky_wheel_info(query, db_user)
 
 
-async def show_games_list(query, db_user):
-    """顯示遊戲列表"""
+async def show_games_list(query, tg_id: int):
+    """顯示遊戲列表（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if user:
-            game_center_title = t('game_center_title', user=user)
-            available_games_label = t('available_games_label', user=user)
-            gold_fortune_bureau = t('gold_fortune_bureau', user=user)
-            gold_fortune_description = t('gold_fortune_description', user=user)
-            slot_machine = t('slot_machine', user=user)
-            live_games = t('live_games', user=user)
-            sports_betting = t('sports_betting', user=user)
-            poker_games = t('poker_games', user=user)
-            lottery_games = t('lottery_games', user=user)
-            fishing_games = t('fishing_games', user=user)
-            lucky_wheel_title = t('lucky_wheel_title', user=user)
-            lucky_wheel_description = t('lucky_wheel_description', user=user)
-            daily_free_chances = t('daily_free_chances', user=user)
-            rich_prizes = t('rich_prizes', user=user)
-            easy_to_play = t('easy_to_play', user=user)
-            select_game_to_start = t('select_game_to_start', user=user)
-            gold_fortune_button = t('gold_fortune_button', user=user)
-            lucky_wheel_button = t('lucky_wheel_button', user=user)
-            return_main_menu = t('return_main_menu', user=user) if t('return_main_menu', user=user) != 'return_main_menu' else "◀️ 返回主菜單"
+            # 使用 user_id 獲取翻譯
+            game_center_title = t('game_center_title', user_id=tg_id)
+            available_games_label = t('available_games_label', user_id=tg_id)
+            gold_fortune_bureau = t('gold_fortune_bureau', user_id=tg_id)
+            gold_fortune_description = t('gold_fortune_description', user_id=tg_id)
+            slot_machine = t('slot_machine', user_id=tg_id)
+            live_games = t('live_games', user_id=tg_id)
+            sports_betting = t('sports_betting', user_id=tg_id)
+            poker_games = t('poker_games', user_id=tg_id)
+            lottery_games = t('lottery_games', user_id=tg_id)
+            fishing_games = t('fishing_games', user_id=tg_id)
+            lucky_wheel_title = t('lucky_wheel_title', user_id=tg_id)
+            lucky_wheel_description = t('lucky_wheel_description', user_id=tg_id)
+            daily_free_chances = t('daily_free_chances', user_id=tg_id)
+            rich_prizes = t('rich_prizes', user_id=tg_id)
+            easy_to_play = t('easy_to_play', user_id=tg_id)
+            select_game_to_start = t('select_game_to_start', user_id=tg_id)
+            gold_fortune_button = t('gold_fortune_button', user_id=tg_id)
+            lucky_wheel_button = t('lucky_wheel_button', user_id=tg_id)
+            return_main_menu = t('return_main_menu', user_id=tg_id)
         else:
+            # 如果用戶不存在，使用默認值
             game_center_title = "🎮 *遊戲中心*"
             available_games_label = "*可用遊戲：*"
             gold_fortune_bureau = "🎰 *金運局 (Gold Fortune Bureau)*"
@@ -127,35 +129,36 @@ async def show_games_list(query, db_user):
     )
 
 
-async def show_gold_fortune_info(query, db_user):
-    """顯示金運局遊戲介紹"""
+async def show_gold_fortune_info(query, tg_id: int):
+    """顯示金運局遊戲介紹（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if user:
-            gold_fortune_info_title = t('gold_fortune_info_title', user=user)
-            game_introduction_label = t('game_introduction_label', user=user)
-            gold_fortune_intro = t('gold_fortune_intro', user=user)
-            game_types_label = t('game_types_label', user=user)
-            slot_machine_desc = t('slot_machine_desc', user=user)
-            live_games_desc = t('live_games_desc', user=user)
-            sports_betting_desc = t('sports_betting_desc', user=user)
-            poker_games_desc = t('poker_games_desc', user=user)
-            lottery_games_desc = t('lottery_games_desc', user=user)
-            fishing_games_desc = t('fishing_games_desc', user=user)
-            features_label = t('features_label', user=user)
-            security_feature = t('security_feature', user=user)
-            vip_privilege = t('vip_privilege', user=user)
-            fast_withdrawal = t('fast_withdrawal', user=user)
-            promotions_label = t('promotions_label', user=user)
-            first_deposit_bonus = t('first_deposit_bonus', user=user)
-            daily_rebate = t('daily_rebate', user=user)
-            vip_benefits = t('vip_benefits', user=user)
-            start_game_label = t('start_game_label', user=user)
-            click_to_enter_game = t('click_to_enter_game', user=user)
-            start_game_button = t('start_game_button', user=user)
-            open_in_miniapp = t('open_in_miniapp', user=user)
-            return_game_list = t('return_game_list', user=user)
+            # 使用 user_id 獲取翻譯
+            gold_fortune_info_title = t('gold_fortune_info_title', user_id=tg_id)
+            game_introduction_label = t('game_introduction_label', user_id=tg_id)
+            gold_fortune_intro = t('gold_fortune_intro', user_id=tg_id)
+            game_types_label = t('game_types_label', user_id=tg_id)
+            slot_machine_desc = t('slot_machine_desc', user_id=tg_id)
+            live_games_desc = t('live_games_desc', user_id=tg_id)
+            sports_betting_desc = t('sports_betting_desc', user_id=tg_id)
+            poker_games_desc = t('poker_games_desc', user_id=tg_id)
+            lottery_games_desc = t('lottery_games_desc', user_id=tg_id)
+            fishing_games_desc = t('fishing_games_desc', user_id=tg_id)
+            features_label = t('features_label', user_id=tg_id)
+            security_feature = t('security_feature', user_id=tg_id)
+            vip_privilege = t('vip_privilege', user_id=tg_id)
+            fast_withdrawal = t('fast_withdrawal', user_id=tg_id)
+            promotions_label = t('promotions_label', user_id=tg_id)
+            first_deposit_bonus = t('first_deposit_bonus', user_id=tg_id)
+            daily_rebate = t('daily_rebate', user_id=tg_id)
+            vip_benefits = t('vip_benefits', user_id=tg_id)
+            start_game_label = t('start_game_label', user_id=tg_id)
+            click_to_enter_game = t('click_to_enter_game', user_id=tg_id)
+            start_game_button = t('start_game_button', user_id=tg_id)
+            open_in_miniapp = t('open_in_miniapp', user_id=tg_id)
+            return_game_list = t('return_game_list', user_id=tg_id)
         else:
             gold_fortune_info_title = "🎰 *金運局 (Gold Fortune Bureau)*"
             game_introduction_label = "*遊戲介紹：*"
@@ -234,31 +237,32 @@ async def show_gold_fortune_info(query, db_user):
     )
 
 
-async def show_lucky_wheel_info(query, db_user):
-    """顯示幸運轉盤遊戲介紹"""
+async def show_lucky_wheel_info(query, tg_id: int):
+    """顯示幸運轉盤遊戲介紹（只接受 tg_id，不接受 ORM 對象）"""
     from bot.utils.i18n import t
     with get_db() as db:
-        user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+        user = db.query(User).filter(User.tg_id == tg_id).first()
         if user:
-            lucky_wheel_info_title = t('lucky_wheel_info_title', user=user)
-            game_introduction_label = t('game_introduction_label', user=user)
-            lucky_wheel_intro = t('lucky_wheel_intro', user=user)
-            game_rules_label = t('game_rules_label', user=user)
-            daily_free_chances_rule = t('daily_free_chances_rule', user=user)
-            long_press_rule = t('long_press_rule', user=user)
-            spin_stop_rule = t('spin_stop_rule', user=user)
-            prize_types_label = t('prize_types_label', user=user)
-            energy_prize = t('energy_prize', user=user)
-            luck_value_prize = t('luck_value_prize', user=user)
-            other_prizes = t('other_prizes', user=user)
-            game_tips_label = t('game_tips_label', user=user)
-            long_press_tip = t('long_press_tip', user=user)
-            timing_tip = t('timing_tip', user=user)
-            daily_reminder_tip = t('daily_reminder_tip', user=user)
-            start_lucky_wheel_label = t('start_lucky_wheel_label', user=user)
-            click_to_start_wheel = t('click_to_start_wheel', user=user)
-            start_wheel_button = t('start_wheel_button', user=user)
-            return_game_list = t('return_game_list', user=user)
+            # 使用 user_id 獲取翻譯
+            lucky_wheel_info_title = t('lucky_wheel_info_title', user_id=tg_id)
+            game_introduction_label = t('game_introduction_label', user_id=tg_id)
+            lucky_wheel_intro = t('lucky_wheel_intro', user_id=tg_id)
+            game_rules_label = t('game_rules_label', user_id=tg_id)
+            daily_free_chances_rule = t('daily_free_chances_rule', user_id=tg_id)
+            long_press_rule = t('long_press_rule', user_id=tg_id)
+            spin_stop_rule = t('spin_stop_rule', user_id=tg_id)
+            prize_types_label = t('prize_types_label', user_id=tg_id)
+            energy_prize = t('energy_prize', user_id=tg_id)
+            luck_value_prize = t('luck_value_prize', user_id=tg_id)
+            other_prizes = t('other_prizes', user_id=tg_id)
+            game_tips_label = t('game_tips_label', user_id=tg_id)
+            long_press_tip = t('long_press_tip', user_id=tg_id)
+            timing_tip = t('timing_tip', user_id=tg_id)
+            daily_reminder_tip = t('daily_reminder_tip', user_id=tg_id)
+            start_lucky_wheel_label = t('start_lucky_wheel_label', user_id=tg_id)
+            click_to_start_wheel = t('click_to_start_wheel', user_id=tg_id)
+            start_wheel_button = t('start_wheel_button', user_id=tg_id)
+            return_game_list = t('return_game_list', user_id=tg_id)
         else:
             lucky_wheel_info_title = "🎡 *幸運轉盤*"
             game_introduction_label = "*遊戲介紹：*"
