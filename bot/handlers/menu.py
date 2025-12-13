@@ -451,11 +451,36 @@ async def show_game_menu(query, tg_id: int):
 {select_operation}:
 """
     
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=get_profile_menu(),
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_profile_menu(),
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+            logger.debug(f"Message not modified in show_game_menu, user {tg_id}")
+        else:
+            logger.error(f"Error editing message in show_game_menu: {e}", exc_info=True)
+            try:
+                if query.message:
+                    await query.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=get_profile_menu(),
+                    )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message in show_game_menu: {reply_e}", exc_info=True)
+                # 最后的错误处理：至少显示错误消息和按钮
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_profile_menu()
+                    )
+                except:
+                    pass
 
 
 async def show_profile_menu(query, tg_id: int):
@@ -495,8 +520,33 @@ async def show_profile_menu(query, tg_id: int):
 {select_operation}:
 """
     
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=get_profile_menu(),
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            parse_mode="Markdown",
+            reply_markup=get_profile_menu(),
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
+            await query.answer(t('displayed', user_id=tg_id), show_alert=False)
+            logger.debug(f"Message not modified in show_profile_menu, user {tg_id}")
+        else:
+            logger.error(f"Error editing message in show_profile_menu: {e}", exc_info=True)
+            try:
+                if query.message:
+                    await query.message.reply_text(
+                        text,
+                        parse_mode="Markdown",
+                        reply_markup=get_profile_menu(),
+                    )
+            except Exception as reply_e:
+                logger.error(f"Error sending new message in show_profile_menu: {reply_e}", exc_info=True)
+                # 最后的错误处理：至少显示错误消息和按钮
+                try:
+                    await query.message.reply_text(
+                        t('error_occurred', user_id=tg_id),
+                        reply_markup=get_profile_menu()
+                    )
+                except:
+                    pass
