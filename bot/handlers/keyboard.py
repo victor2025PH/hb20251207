@@ -984,16 +984,9 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
             balance = float(getattr(user, f"balance_{currency}", 0) or 0) if user else 0
         
         # 获取翻译文本
-        with get_db() as db:
-            user = db.query(User).filter(User.tg_id == tg_id).first()
-            if user:
-                send_packet_title = t('send_packet_title', user=user)
-                current_balance = t('current_balance', user=user)
-                select_type = t('select_type', user=user)
-            else:
-                send_packet_title = "➕ 發紅包"
-                current_balance = "當前餘額："
-                select_type = "請選擇紅包類型："
+        send_packet_title = t('send_packet_title', user_id=tg_id)
+        current_balance = t('current_balance', user_id=tg_id)
+        select_type = t('select_type', user_id=tg_id)
         
         await update.message.reply_text(
             f"*{send_packet_title} - {currency_upper}*\n\n"
