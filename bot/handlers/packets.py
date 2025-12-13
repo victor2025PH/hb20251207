@@ -1351,7 +1351,20 @@ async def send_packet_menu_callback(update: Update, context: ContextTypes.DEFAUL
                         'bomb_number': bomb_number,
                         'message': message,
                     }
-                    await show_group_selection(query, tg_id, context)
+                    try:
+                        await show_group_selection(query, tg_id, context)
+                    except Exception as e:
+                        logger.error(f"[SEND_PACKET] Error in show_group_selection: {e}", exc_info=True)
+                        # 使用统一的错误处理
+                        from bot.utils.error_helpers import handle_error_with_ui
+                        await handle_error_with_ui(
+                            update=update,
+                            context=context,
+                            error=e,
+                            error_context="[SEND_PACKET] 显示群组选择时",
+                            user_id=tg_id,
+                            show_main_menu_button=True
+                        )
                 elif sub_action == "group_input":
                     currency = parts[3] if len(parts) > 3 else "usdt"
                     packet_type = parts[4] if len(parts) > 4 else "random"
