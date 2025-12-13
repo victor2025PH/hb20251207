@@ -81,15 +81,19 @@ async def show_initial_setup(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=keyboard
         )
     except Exception as e:
-        logger.error(f"Error sending initial setup: {e}", exc_info=True)
-        # 发送错误消息给用户
-        try:
-            await update.message.reply_text(
-                t('error_occurred', user_id=user_id),
-                parse_mode=None
-            )
-        except Exception as e2:
-            logger.error(f"Error sending error message: {e2}", exc_info=True)
+        import traceback
+        logger.error(f"【严重错误】[SHOW_INITIAL_SETUP] 发送初始设置消息时")
+        traceback.print_exc()
+        # 使用统一的错误处理
+        from bot.utils.error_helpers import handle_error_with_ui
+        await handle_error_with_ui(
+            update=update,
+            context=context,
+            error=e,
+            error_context="[SHOW_INITIAL_SETUP] 发送初始设置消息时",
+            user_id=user_id,
+            show_main_menu_button=True
+        )
 
 
 def get_initial_setup_keyboard(current_lang: str = "zh-TW", user_id: int = None):

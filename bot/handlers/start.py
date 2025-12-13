@@ -36,8 +36,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     if not user_id:
-        logger.error(f"Failed to get or create user {user.id}")
-        await update.message.reply_text(t('error_occurred', user_id=user.id))
+        import traceback
+        logger.error(f"【严重错误】[START] 无法获取或创建用户 {user.id}")
+        traceback.print_exc()
+        await update.message.reply_text(
+            t('error_occurred', user_id=user.id),
+            reply_markup=get_main_menu(user_id=user.id) if hasattr(update, 'callback_query') else None
+        )
         return
     
     # 在會話內獲取 invited_by 狀態並處理邀請關係

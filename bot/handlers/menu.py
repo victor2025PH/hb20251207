@@ -97,24 +97,15 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
     except Exception as e:
-        logger.error(f"[MENU_CALLBACK] Error processing action '{action}': {e}", exc_info=True)
-        try:
-            if query.message:
-                tg_id = update.effective_user.id if update.effective_user else None
-                # 尝试编辑消息显示错误，但保留主菜单按钮
-                try:
-                    await query.edit_message_text(
-                        t('error_occurred', user_id=tg_id),
-                        reply_markup=get_main_menu(user_id=tg_id)
-                    )
-                except:
-                    # 如果编辑失败，发送新消息，也带按钮
-                    await query.message.reply_text(
-                        t('error_occurred', user_id=tg_id),
-                        reply_markup=get_main_menu(user_id=tg_id)
-                    )
-        except Exception as e2:
-            logger.error(f"Error in error handler: {e2}", exc_info=True)
+        # 使用统一的错误处理函数
+        from bot.utils.error_helpers import handle_error_with_ui
+        await handle_error_with_ui(
+            update=update,
+            context=context,
+            error=e,
+            error_context=f"[MENU_CALLBACK] 处理菜单操作 '{action}' 时",
+            show_main_menu_button=True
+        )
 
 
 async def show_main_menu(query, tg_id: int):
@@ -182,16 +173,26 @@ async def show_main_menu(query, tg_id: int):
                         logger.error(f"Error sending new message in show_main_menu: {reply_e}", exc_info=True)
                         raise
     except Exception as e:
-        logger.error(f"Error in show_main_menu: {e}", exc_info=True)
-        try:
-            # 尝试编辑消息显示错误（保留原有按钮）
-            await query.edit_message_text(t('error_occurred', user_id=tg_id), reply_markup=get_main_menu(user_id=tg_id))
-        except:
-            try:
-                if query.message:
-                    await query.message.reply_text(t('error_occurred', user_id=tg_id), reply_markup=get_main_menu(user_id=tg_id))
-            except:
-                pass
+        # 使用统一的错误处理函数
+        from bot.utils.error_helpers import handle_error_with_ui
+        from telegram import Update
+        from telegram.ext import ContextTypes
+        
+        # 创建一个模拟的 update 对象用于错误处理
+        class MockUpdate:
+            def __init__(self, callback_query):
+                self.callback_query = callback_query
+                self.effective_user = callback_query.from_user if callback_query else None
+        
+        mock_update = MockUpdate(query)
+        await handle_error_with_ui(
+            update=mock_update,
+            context=None,
+            error=e,
+            error_context="[SHOW_MAIN_MENU] 显示主菜单时",
+            user_id=tg_id,
+            show_main_menu_button=True
+        )
 
 
 async def show_wallet_menu(query, tg_id: int):

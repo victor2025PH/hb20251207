@@ -141,17 +141,25 @@ async def set_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             reply_markup=get_main_menu(user_id=tg_id)
                         )
         except Exception as e2:
-            logger.error(f"Error sending fallback message: {e2}", exc_info=True)
-            # 最后的错误处理：至少发送错误消息和主菜单按钮
-            try:
-                if query.message:
-                    await query.message.reply_text(
-                        t('error_occurred', user_id=tg_id),
-                        parse_mode=None,
-                        reply_markup=get_main_menu(user_id=tg_id)
-                    )
-            except Exception as e3:
-                logger.error(f"Error sending final error message: {e3}", exc_info=True)
+            import traceback
+            logger.error(f"【严重错误】[SET_MODE_CALLBACK] 发送回退消息时")
+            traceback.print_exc()
+            # 使用统一的错误处理
+            from bot.utils.error_helpers import handle_error_with_ui
+            from telegram import Update
+            class MockUpdate:
+                def __init__(self, callback_query):
+                    self.callback_query = callback_query
+                    self.effective_user = callback_query.from_user if callback_query else None
+            mock_update = MockUpdate(query)
+            await handle_error_with_ui(
+                update=mock_update,
+                context=context,
+                error=e2,
+                error_context="[SET_MODE_CALLBACK] 发送回退消息时",
+                user_id=tg_id,
+                show_main_menu_button=True
+            )
 
 
 async def show_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
