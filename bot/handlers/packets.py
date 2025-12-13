@@ -2081,6 +2081,35 @@ async def show_group_selection(query, tg_id: int, context):
             if "Message is not modified" in error_msg or "message is not modified" in error_msg.lower():
                 await query.answer(t('displayed', user_id=tg_id), show_alert=False)
                 logger.debug(f"Message not modified in show_group_selection, user {tg_id}")
+            elif "Can't parse entities" in error_msg or "can't parse" in error_msg.lower():
+                # Markdown 解析错误，尝试不使用 Markdown
+                logger.error(f"Markdown parse error in show_group_selection: {e}", exc_info=True)
+                # 移除 Markdown 格式，使用纯文本
+                text_plain = text.replace('*', '').replace('`', '').replace('_', '')
+                try:
+                    await query.edit_message_text(
+                        text_plain,
+                        parse_mode=None,
+                        reply_markup=InlineKeyboardMarkup(keyboard),
+                    )
+                except Exception as e2:
+                    logger.error(f"Error sending plain text: {e2}", exc_info=True)
+                    # 使用统一的错误处理
+                    from bot.utils.error_helpers import handle_error_with_ui
+                    from telegram import Update
+                    class MockUpdate:
+                        def __init__(self, callback_query):
+                            self.callback_query = callback_query
+                            self.effective_user = callback_query.from_user if callback_query else None
+                    mock_update = MockUpdate(query)
+                    await handle_error_with_ui(
+                        update=mock_update,
+                        context=None,
+                        error=e2,
+                        error_context="[SHOW_GROUP_SELECTION] 显示群组选择时",
+                        user_id=tg_id,
+                        show_main_menu_button=True
+                    )
             elif "Button_data_invalid" in error_msg or ("button" in error_msg.lower() and "invalid" in error_msg.lower()):
                 # callback_data可能有问题，尝试使用简化的键盘
                 logger.error(f"Button_data_invalid error in show_group_selection: {e}", exc_info=True)
@@ -2108,23 +2137,55 @@ async def show_group_selection(query, tg_id: int, context):
                                 'message': packet_data.get('message', PacketConstants.DEFAULT_MESSAGE)
                             }
                 simplified_keyboard.append([
-                    InlineKeyboardButton("📝 輸入群組", callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}"),
+                    InlineKeyboardButton(enter_group_link_id, callback_data=f"packets:send:group_input:{packet_data['currency']}:{packet_data['packet_type']}:{packet_data['amount']}:{packet_data['count']}"),
                 ])
                 simplified_keyboard.append([
-                    InlineKeyboardButton(t('return_main', user_id=tg_id), callback_data="menu:packets"),
+                    InlineKeyboardButton(return_text, callback_data="menu:packets"),
                 ])
                 try:
+                    # 尝试不使用 Markdown
+                    text_plain = text.replace('*', '').replace('`', '').replace('_', '')
                     await query.edit_message_text(
-                        text,
-                        parse_mode="Markdown",
+                        text_plain,
+                        parse_mode=None,
                         reply_markup=InlineKeyboardMarkup(simplified_keyboard),
                     )
                 except Exception as e2:
                     logger.error(f"Error with simplified keyboard: {e2}", exc_info=True)
-                    await query.answer("發生錯誤，請稍後再試", show_alert=True)
+                    # 使用统一的错误处理
+                    from bot.utils.error_helpers import handle_error_with_ui
+                    from telegram import Update
+                    class MockUpdate:
+                        def __init__(self, callback_query):
+                            self.callback_query = callback_query
+                            self.effective_user = callback_query.from_user if callback_query else None
+                    mock_update = MockUpdate(query)
+                    await handle_error_with_ui(
+                        update=mock_update,
+                        context=None,
+                        error=e2,
+                        error_context="[SHOW_GROUP_SELECTION] 显示简化键盘时",
+                        user_id=tg_id,
+                        show_main_menu_button=True
+                    )
             else:
                 logger.error(f"Error editing message in show_group_selection: {e}", exc_info=True)
-                raise
+                # 使用统一的错误处理
+                from bot.utils.error_helpers import handle_error_with_ui
+                from telegram import Update
+                class MockUpdate:
+                    def __init__(self, callback_query):
+                        self.callback_query = callback_query
+                        self.effective_user = callback_query.from_user if callback_query else None
+                mock_update = MockUpdate(query)
+                await handle_error_with_ui(
+                    update=mock_update,
+                    context=None,
+                    error=e,
+                    error_context="[SHOW_GROUP_SELECTION] 编辑消息时",
+                    user_id=tg_id,
+                    show_main_menu_button=True
+                )
 
 
 async def show_group_link_input(query, tg_id: int, context):
