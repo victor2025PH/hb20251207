@@ -396,31 +396,35 @@ async def handle_group_input(update, tg_id: int, text, context):
             bomb_number = packet_data.get('bomb_number')
             
             # 在会话内重新查询用户以确保数据最新
+            logger.info(f"Querying user {tg_id} from database to show confirmation interface")
             with get_db() as db:
                 user = db.query(User).filter(User.tg_id == tg_id).first()
                 if not user:
+                    logger.error(f"User {tg_id} not found in database when showing confirmation")
                     await update.message.reply_text(t("error", user_id=tg_id))
                     return
-                
-                # 使用 user_id 獲取翻譯文本
-                confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
-                packet_info_text = t('packet_info', user_id=tg_id)
-                currency_label = t('currency_label', user_id=tg_id)
-                type_label = t('type_label', user_id=tg_id)
-                amount_label = t('amount_label', user_id=tg_id)
-                quantity_label = t('quantity_label', user_id=tg_id)
-                blessing_label = t('blessing_label', user_id=tg_id)
-                group_id_label = t('group_id_label', user_id=tg_id)
-                please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
-                random_amount_text = t('random_amount', user_id=tg_id)
-                fixed_amount_text = t('fixed_amount', user_id=tg_id)
-                shares_text = t('shares', user_id=tg_id)
-                confirm_send = t('confirm_send', user_id=tg_id)
-                cancel_text = t('cancel', user_id=tg_id)
-                
-                type_text = random_amount_text if packet_type == "random" else fixed_amount_text
-                
-                text = f"""
+                logger.info(f"User {tg_id} found, preparing confirmation message")
+            
+            # 使用 user_id 獲取翻譯文本（在数据库会话外，避免会话冲突）
+            logger.info(f"Getting translation texts for user {tg_id}")
+            confirm_send_packet_text = t('confirm_send_packet', user_id=tg_id)
+            packet_info_text = t('packet_info', user_id=tg_id)
+            currency_label = t('currency_label', user_id=tg_id)
+            type_label = t('type_label', user_id=tg_id)
+            amount_label = t('amount_label', user_id=tg_id)
+            quantity_label = t('quantity_label', user_id=tg_id)
+            blessing_label = t('blessing_label', user_id=tg_id)
+            group_id_label = t('group_id_label', user_id=tg_id)
+            please_confirm_send_text = t('please_confirm_send', user_id=tg_id)
+            random_amount_text = t('random_amount', user_id=tg_id)
+            fixed_amount_text = t('fixed_amount', user_id=tg_id)
+            shares_text = t('shares', user_id=tg_id)
+            confirm_send = t('confirm_send', user_id=tg_id)
+            cancel_text = t('cancel', user_id=tg_id)
+            
+            type_text = random_amount_text if packet_type == "random" else fixed_amount_text
+            
+            text = f"""
 {confirm_send_packet_text}
 
 *{packet_info_text}*
@@ -433,6 +437,7 @@ async def handle_group_input(update, tg_id: int, text, context):
 
 {please_confirm_send_text}
 """
+            logger.info(f"Confirmation message text prepared, length={len(text)}")
             
             # 检查是否应该使用内联按钮
             # 关键修复：优先检查use_inline_buttons标志
