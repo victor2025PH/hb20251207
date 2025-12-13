@@ -794,7 +794,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         
         # 获取翻译文本
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if user:
                 send_packet_title = t('send_packet_title', user=user)
                 select_group = t('select_group', user=user)
@@ -849,7 +849,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         
         # 获取翻译文本
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if user:
                 send_packet_title = t('send_packet_title', user=user)
                 select_group = t('select_group', user=user)
@@ -985,7 +985,7 @@ async def handle_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TY
         
         # 获取翻译文本
         with get_db() as db:
-            user = db.query(User).filter(User.tg_id == db_user.tg_id).first()
+            user = db.query(User).filter(User.tg_id == tg_id).first()
             if user:
                 send_packet_title = t('send_packet_title', user=user)
                 current_balance = t('current_balance', user=user)
